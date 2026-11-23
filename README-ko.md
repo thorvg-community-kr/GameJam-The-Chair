@@ -6,7 +6,7 @@
 구르고, 점프하고, 소화기 반동을 이용해 사무실, 회의실과 복도, 옥상, 하늘, 우주까지 다섯 스테이지를 탈출하세요.
 **의자는 퇴근하고 싶습니다. 직원은 계속 타자를 칩니다.**
 
-<a href="https://ossca-thorvg.github.io/GameJam-The-Chair/">
+<a href="https://thorvg-community-kr.github.io/GameJam-The-Chair/">
   <img width="1189" height="607" alt="KakaoTalk_Photo_2026-11-14-23-36-12 001" src="https://github.com/user-attachments/assets/9e7f1993-fd3c-46c6-b691-787d98c25030" />
 </a>
 

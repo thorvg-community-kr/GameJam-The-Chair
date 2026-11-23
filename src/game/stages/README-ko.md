@@ -10,13 +10,14 @@
 | `building/` | 2: 건물 내부. 회의실, 의자 행렬, 엘리베이터 |
 | `rooftop/` | 3: 기계실과 옥상. 출입문, 환풍구, 소화기, 이륙 |
 | `sky/` | 4: 구름 위. 발판 코스와 깊이 전환 |
+| `orbit/` | 5: 궤도. 위성 탐조등, 속도 단계, 자동 도킹 |
 
 ## 스테이지 폴더 구조
 
 ```
 stages/<stage>/
   data.ts              고정된 레벨 수치와 대사
-  state.ts             스테이지가 바꾸는 state (office, building, rooftop)
+  state.ts             스테이지가 바꾸는 state (office, building, rooftop, orbit)
   definition.ts        StageDefinition: 길이, 목표, 지형, 체크포인트, 등장인물, 규칙 flag
   attempt.ts           새 시도의 시작 값
   hooks.ts             공용 tick에 끼어드는 StageHooks
@@ -27,7 +28,7 @@ stages/<stage>/
 
 여러 스테이지가 공유하는 집중력과 충돌 시스템도 `src/game/systems/<system>/`에서 같은 구조를 사용합니다.
 
-하늘 스테이지는 현재 별도 `state.ts` 대신 `sky/data.ts`에 `SkyState`를 정의합니다.
+하늘 스테이지는 현재 별도 `state.ts` 대신 `sky/data.ts`에 `SkyState`를 정의합니다. 궤도 스테이지는 `orbit/data.ts`에 `OrbitState`를 정의하고, `orbit/state.ts`가 이를 `createOrbitState()`와 함께 다시 export합니다.
 
 ## Tick 순서
 
@@ -55,16 +56,16 @@ Command hook은 `canJump`, `canSpray`, `onSpray`, `interact`, `leave`, `canInter
 
 ## 새 스테이지 추가
 
-다음은 스테이지 5, 우주를 추가하는 예입니다.
+다음은 스테이지 6, 달을 추가하는 예입니다.
 
-1. `stages/space/`에 `data.ts`, `definition.ts`, `attempt.ts`, `hooks.ts`를 만듭니다.
-2. `stages/space/state.ts`에 `SpaceState`와 `createSpaceState()`를 추가합니다.
+1. `stages/moon/`에 `data.ts`, `definition.ts`, `attempt.ts`, `hooks.ts`를 만듭니다.
+2. `stages/moon/state.ts`에 `MoonState`와 `createMoonState()`를 추가합니다.
 3. 공용 index에 스테이지를 등록합니다.
-   - `stages/index.ts`의 `STAGES`에 `5: space`를 추가합니다.
-   - `stages/hooks.ts`에 `case 5: return spaceHooks;`를 추가합니다.
-   - `stages/attempt.ts`에 `prepareSpaceAttempt(...)`와 `space: createSpaceState()`를 추가합니다.
-   - `state.ts`의 `Attempt`에 `space: SpaceState;`를 추가합니다.
-4. `types.ts`의 `StageId`에 `5`를 추가합니다.
+   - `stages/index.ts`의 `STAGES`에 `6: moon`를 추가합니다.
+   - `stages/hooks.ts`에 `case 6: return moonHooks;`를 추가합니다.
+   - `stages/attempt.ts`에 `prepareMoonAttempt(...)`와 `moon: createMoonState()`를 추가합니다.
+   - `state.ts`의 `Attempt`에 `moon: MoonState;`를 추가합니다.
+4. `types.ts`의 `StageId`에 `6`를 추가합니다.
 
 ## 함께 수정하는 파일
 

@@ -10,13 +10,14 @@ Each stage keeps its code in one `stages/<stage>/` directory. Developers working
 | `building/` | 2: building interior, including the meeting room, chair convoy, and lift |
 | `rooftop/` | 3: machine room and rooftop, including the entrance, duct, extinguisher, and launch |
 | `sky/` | 4: above the clouds, including the platform course and depth transition |
+| `orbit/` | 5: orbit, including the satellite searchlights, speed gears, and autopilot docking |
 
 ## Stage directory structure
 
 ```
 stages/<stage>/
   data.ts              Frozen level values and dialogue
-  state.ts             Mutable stage state (office, building, and rooftop)
+  state.ts             Mutable stage state (office, building, rooftop, and orbit)
   definition.ts        StageDefinition: length, goal, terrain, checkpoints, people, and rule flags
   attempt.ts           Initial values for a new attempt
   hooks.ts             StageHooks inserted into the shared tick
@@ -27,7 +28,7 @@ stages/<stage>/
 
 Shared focus and impact systems use the same structure under `src/game/systems/<system>/`.
 
-The sky stage currently defines `SkyState` in `sky/data.ts` instead of a separate `state.ts`.
+The sky stage currently defines `SkyState` in `sky/data.ts` instead of a separate `state.ts`. The orbit stage defines `OrbitState` in `orbit/data.ts`; `orbit/state.ts` re-exports it with `createOrbitState()`.
 
 ## Tick order
 
@@ -55,16 +56,16 @@ Command hooks are `canJump`, `canSpray`, `onSpray`, `interact`, `leave`, and `ca
 
 ## Add a stage
 
-The following example adds stage 5, space.
+The following example adds stage 6, moon.
 
-1. Create `data.ts`, `definition.ts`, `attempt.ts`, and `hooks.ts` under `stages/space/`.
-2. Add `SpaceState` and `createSpaceState()` to `stages/space/state.ts`.
+1. Create `data.ts`, `definition.ts`, `attempt.ts`, and `hooks.ts` under `stages/moon/`.
+2. Add `MoonState` and `createMoonState()` to `stages/moon/state.ts`.
 3. Register the stage in the shared indexes:
-   - Add `5: space` to `STAGES` in `stages/index.ts`.
-   - Add `case 5: return spaceHooks;` to `stages/hooks.ts`.
-   - Add `prepareSpaceAttempt(...)` and `space: createSpaceState()` to `stages/attempt.ts`.
-   - Add `space: SpaceState;` to `Attempt` in `state.ts`.
-4. Add `5` to `StageId` in `types.ts`.
+   - Add `6: moon` to `STAGES` in `stages/index.ts`.
+   - Add `case 6: return moonHooks;` to `stages/hooks.ts`.
+   - Add `prepareMoonAttempt(...)` and `moon: createMoonState()` to `stages/attempt.ts`.
+   - Add `moon: MoonState;` to `Attempt` in `state.ts`.
+4. Add `6` to `StageId` in `types.ts`.
 
 ## Shared files
 
