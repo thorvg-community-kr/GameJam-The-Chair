@@ -6,7 +6,7 @@ A physics action game about an office chair escaping the company—with an emplo
 Roll, jump, and use fire-extinguisher recoil to escape through five stages: office, meeting rooms and corridors, rooftop, sky, and space.
 **The chair wants to clock out. The employee keeps typing.**
 
-<a href="https://ossca-thorvg.github.io/GameJam-The-Chair/">
+<a href="https://thorvg-community-kr.github.io/GameJam-The-Chair/">
   <img width="1189" height="607" alt="KakaoTalk_Photo_2026-11-14-23-36-12 001" src="https://github.com/user-attachments/assets/9e7f1993-fd3c-46c6-b691-787d98c25030" />
 </a>
 
