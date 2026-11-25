@@ -179,6 +179,12 @@ const messages = {
     'opening.skip': { en: 'Skip opening', ko: '오프닝 건너뛰기' },
 
     'menu.paused': { en: 'Paused', ko: '잠깐' },
+    'settings.title': { en: 'Settings', ko: '설정' },
+    'settings.master': { en: 'Master', ko: '전체 음량' },
+    'settings.bgm': { en: 'Music', ko: '배경음' },
+    'settings.sfx': { en: 'Sound effects', ko: '효과음' },
+    'settings.language': { en: 'Language', ko: '언어' },
+    'settings.close': { en: 'Done', ko: '확인' },
     'menu.controls': { en: 'Controls', ko: '조작법' },
     'menu.move': { en: 'Move', ko: '이동' },
     'menu.jump': { en: 'Jump', ko: '점프' },
