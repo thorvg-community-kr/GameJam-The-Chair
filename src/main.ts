@@ -261,12 +261,9 @@ function watchReplay(file: ReplayFile) {
 let pausedBySettings = false;
 settings = createSettings(root, {
     audio,
-    onAudio(next, changed) {
+    onAudio(next) {
         music.setVolume(bgmGain(next));
         sfx.setVolume(sfxGain(next));
-        if (changed !== 'bgm') {
-            sfx.play('boop');
-        }
     },
     onOpen() {
         pausedBySettings = game.status().mode === 'play';
