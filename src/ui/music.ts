@@ -23,11 +23,14 @@ const UNLOCK_EVENTS = ['pointerdown', 'keydown', 'touchend'] as const;
 export type Music = {
     play(track: MusicTrack, ducked: boolean): void;
     advance(dt: number): void;
+    setVolume(gain: number): void;
     destroy(): void;
 };
 
-export function createMusic(): Music {
+export function createMusic(initialGain = 1): Music {
     const voices = new Map<MusicTrack, HTMLAudioElement>();
+    const levels = new Map<MusicTrack, number>();
+    let gain = initialGain;
     let current: MusicTrack | null = null;
     let target = VOLUME;
     let unlocked = false;
@@ -40,6 +43,7 @@ export function createMusic(): Music {
             audio.preload = 'auto';
             audio.volume = 0;
             voices.set(track, audio);
+            levels.set(track, 0);
         }
         return audio;
     };
@@ -94,14 +98,20 @@ export function createMusic(): Music {
             const step = (VOLUME * Math.min(dt, 0.1)) / FADE_SECONDS;
             for (const [track, audio] of voices) {
                 const goal = track === current ? target : 0;
-                const delta = Math.max(
-                    -step,
-                    Math.min(step, goal - audio.volume),
-                );
-                audio.volume = Math.max(0, Math.min(1, audio.volume + delta));
-                if (goal === 0 && audio.volume === 0 && !audio.paused) {
+                const previous = levels.get(track) ?? 0;
+                const delta = Math.max(-step, Math.min(step, goal - previous));
+                const next = Math.max(0, Math.min(1, previous + delta));
+                levels.set(track, next);
+                audio.volume = Math.min(1, next * gain);
+                if (goal === 0 && next === 0 && !audio.paused) {
                     audio.pause();
                 }
+            }
+        },
+        setVolume(next) {
+            gain = Math.max(0, Math.min(1, next));
+            for (const [track, audio] of voices) {
+                audio.volume = Math.min(1, (levels.get(track) ?? 0) * gain);
             }
         },
         destroy() {
@@ -114,6 +124,7 @@ export function createMusic(): Music {
                 audio.removeAttribute('src');
             }
             voices.clear();
+            levels.clear();
         },
     };
 }

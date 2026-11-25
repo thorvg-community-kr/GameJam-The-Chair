@@ -11,6 +11,7 @@ import { createEffects } from './render/effects';
 import { createRenderer } from './render/renderer';
 import { openingState } from './render/scene/opening/timeline';
 import markup from './scene.html?raw';
+import { bgmGain, loadAudioSettings, sfxGain } from './ui/audio-settings';
 import { createFeedback } from './ui/feedback';
 import { createHud } from './ui/hud';
 import { bindInput } from './ui/input';
@@ -21,12 +22,15 @@ import { createPerfOverlay } from './ui/perf-overlay';
 import { bindReplayMenu } from './ui/replay-menu';
 import { createReplayPlayer } from './ui/replay-player';
 import { createErrorLog, replayData, saveBrowserData } from './ui/replay-store';
+import { createSettings } from './ui/settings';
+import { createSfx } from './ui/sfx';
 import { showStartupSplash } from './ui/splash';
 
 import type { ReplayFile } from './game/replay';
 import type { StageId } from './game/stages/building/data';
 import type { Input } from './game/types';
 import type { Locale } from './i18n';
+import type { SettingsPanel } from './ui/settings';
 import './style.css';
 const app = document.querySelector('#app');
 if (!app) {
@@ -216,7 +220,10 @@ const player = createReplayPlayer(
     () => unbind.sync(),
 );
 const opening = createOpening(root, () => locale);
-const music = createMusic();
+const audio = loadAudioSettings();
+const music = createMusic(bgmGain(audio));
+const sfx = createSfx(sfxGain(audio));
+let settings: SettingsPanel | null = null;
 if (startupSplashVisible) {
     music.play('start', false);
 }
@@ -235,7 +242,8 @@ const hintedGame: typeof game = {
     },
 };
 const unbind = bindInput(root, hintedGame, {
-    blocked: () => simulationFailed || player.active || opening.active,
+    blocked: () =>
+        simulationFailed || player.active || opening.active || !!settings?.open,
     onStart() {
         if (!opening.seen) {
             opening.start(() => unbind.sync());
@@ -250,6 +258,32 @@ function watchReplay(file: ReplayFile) {
     player.open(file);
     unbind.sync();
 }
+let pausedBySettings = false;
+settings = createSettings(root, {
+    audio,
+    onAudio(next, changed) {
+        music.setVolume(bgmGain(next));
+        sfx.setVolume(sfxGain(next));
+        if (changed !== 'bgm') {
+            sfx.play('boop');
+        }
+    },
+    onOpen() {
+        pausedBySettings = game.status().mode === 'play';
+        if (pausedBySettings) {
+            game.pause();
+        }
+        game.clearInput();
+        unbind.sync();
+    },
+    onClose() {
+        if (pausedBySettings && game.status().mode === 'pause') {
+            game.pause();
+        }
+        pausedBySettings = false;
+        unbind.sync();
+    },
+});
 const unbindOrientation = bindOrientation(root, game);
 bindReplayMenu(root, () => locale, { recorder, errorLog, watch: watchReplay });
 const hud = createHud(root, () => locale);
@@ -339,15 +373,20 @@ function readPresentationFrame() {
     }
     return { replay, state, events };
 }
+function teardown() {
+    unbind();
+    unbindOrientation();
+    opening.destroy();
+    music.destroy();
+    sfx.destroy();
+    settings?.destroy();
+    player.destroy();
+    renderer?.destroy();
+    perf.destroy();
+}
 function frame(ms: number) {
     if (!root.isConnected) {
-        unbind();
-        unbindOrientation();
-        opening.destroy();
-        music.destroy();
-        player.destroy();
-        renderer?.destroy();
-        perf.destroy();
+        teardown();
         return;
     }
     music.advance(
