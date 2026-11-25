@@ -7,6 +7,7 @@ import {
     translate,
 } from './i18n';
 import { musicTrack } from './presentation/music';
+import { frameSounds } from './presentation/sfx';
 import { createEffects } from './render/effects';
 import { createRenderer } from './render/renderer';
 import { openingState } from './render/scene/opening/timeline';
@@ -28,8 +29,9 @@ import { showStartupSplash } from './ui/splash';
 
 import type { ReplayFile } from './game/replay';
 import type { StageId } from './game/stages/building/data';
-import type { Input } from './game/types';
+import type { GameEvent, Input } from './game/types';
 import type { Locale } from './i18n';
+import type { SfxFrame } from './presentation/sfx';
 import type { SettingsPanel } from './ui/settings';
 import './style.css';
 const app = document.querySelector('#app');
@@ -307,6 +309,13 @@ function draw() {
 }
 let last: number | null = null;
 let musicLast: number | null = null;
+let sfxLast: SfxFrame | null = null;
+function playSounds(state: SfxFrame | null, events: readonly GameEvent[]) {
+    for (const sound of state ? frameSounds(sfxLast, state, events) : []) {
+        sfx.play(sound);
+    }
+    sfxLast = state;
+}
 function presentFrame() {
     const { replay, state, events } = readPresentationFrame();
     try {
@@ -320,6 +329,7 @@ function presentFrame() {
         const visual = replay ? player.effects() : effects.snapshot();
         const cutscene = replay ? null : opening.frame();
         const cues = replay ? player.feedback() : feedback.snapshot();
+        playSounds(replay || cutscene ? null : state, events);
         music.play(musicTrack(state, !!cutscene), state.mode === 'pause');
         if (cutscene) {
             renderer?.draw(
