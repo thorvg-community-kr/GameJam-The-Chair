@@ -77,7 +77,6 @@ const messages = {
         en: 'Checkpoint · End of this route',
         ko: '체크포인트 · 이번 구간 완료',
     },
-    'orbit.controls': { en: 'Move', ko: '이동' },
     'stageLabel.stage5': { en: '05 Clock-out orbit', ko: '05 퇴근 궤도' },
     'status.extinguisherPickup': {
         en: 'Extinguisher attached. Hold Space.',
@@ -152,8 +151,8 @@ const messages = {
         ko: '오늘도 정상 근무 중입니다.',
     },
     'intro.description': {
-        en: 'Chair escape game. Controls are in the pause menu.',
-        ko: '의자를 타고 탈출하는 게임. 조작법은 일시정지 메뉴에서 확인할 수 있습니다.',
+        en: 'Chair escape game.',
+        ko: '의자를 타고 탈출하는 게임.',
     },
 
     'opening.riderOvertime': { en: 'Overtime again…', ko: '오늘도 야근이네…' },
@@ -185,21 +184,9 @@ const messages = {
     'settings.sfx': { en: 'Sound effects', ko: '효과음' },
     'settings.language': { en: 'Language', ko: '언어' },
     'settings.close': { en: 'Done', ko: '확인' },
-    'menu.controls': { en: 'Controls', ko: '조작법' },
-    'menu.move': { en: 'Move', ko: '이동' },
     'menu.jump': { en: 'Jump', ko: '점프' },
     'menu.sprayExtinguisher': { en: 'Spray extinguisher', ko: '소화기 분사' },
-    'menu.pause': { en: 'Pause', ko: '일시정지' },
-    'menu.restart': { en: 'Restart', ko: '재도전' },
     'menu.stages': { en: 'Stages', ko: '스테이지' },
-    'menu.focusRule': {
-        en: 'Each distraction: −20%. Recover +1% every 2 seconds without distractions.',
-        ko: '방해마다 −20%. 방해가 없으면 2초마다 +1%.',
-    },
-    'menu.restartRule': {
-        en: 'Restarting at a flag restores full focus and dries you off.',
-        ko: '깃발에서 다시 출발하면 집중도 100%, 물기는 사라집니다.',
-    },
     'menu.pauseMenu': { en: 'Pause menu', ko: '일시정지 메뉴' },
     'menu.touchControls': { en: 'Touch controls', ko: '터치 조작' },
     'menu.rotate': {
@@ -300,8 +287,8 @@ const messages = {
     },
     'tool.loaded': { en: 'Loaded', ko: '불러옴' },
     'menu.canvasAria': {
-        en: 'Chair escape game. Controls are in the pause menu.',
-        ko: '의자를 타고 탈출하는 게임. 조작법은 일시정지 메뉴에서 확인할 수 있습니다.',
+        en: 'Chair escape game.',
+        ko: '의자를 타고 탈출하는 게임.',
     },
 
     'stats.paper': { en: 'Paper', ko: '종이' },
