@@ -14,7 +14,6 @@ test('pause menu shows unlocked stages and hides spray controls until equipped',
     try {
         const elements = new Map(
             [
-                '[data-spray-help]',
                 '[data-spray]',
                 '[data-stage-menu]',
                 '[data-play-hud]',
@@ -55,11 +54,9 @@ test('pause menu shows unlocked stages and hides spray controls until equipped',
         assert.equal(elements.get('[data-stage="1"]').hidden, false);
         assert.equal(elements.get('[data-stage="2"]').hidden, false);
         assert.equal(elements.get('[data-stage="3"]').hidden, true);
-        assert.equal(elements.get('[data-spray-help]').hidden, true);
 
         continued.startStage(3);
         hud.draw(continued.getSnapshot(), feedback, effects);
-        assert.equal(elements.get('[data-spray-help]').hidden, true);
         for (
             let i = 0;
             i < 1440 && !continued.getSnapshot().hasExtinguisher;
@@ -78,11 +75,9 @@ test('pause menu shows unlocked stages and hides spray controls until equipped',
         }
         assert.equal(continued.getSnapshot().hasExtinguisher, true);
         hud.draw(continued.getSnapshot(), feedback, effects);
-        assert.equal(elements.get('[data-spray-help]').hidden, false);
         assert.equal(elements.get('[data-spray]').hidden, false);
         continued.startStage(1);
         hud.draw(continued.getSnapshot(), feedback, effects);
-        assert.equal(elements.get('[data-spray-help]').hidden, true);
         assert.equal(elements.get('[data-spray]').hidden, true);
     } finally {
         if (originalMatchMedia === undefined) {

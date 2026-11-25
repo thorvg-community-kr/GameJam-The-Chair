@@ -45,7 +45,6 @@ export const CONTROLS: Readonly<Record<Action, Control>> = {
     restart: { keys: ['r'], label: 'R' },
 };
 export const SPRAY_KEY = 'Space';
-export const MOVE_LABEL = '← →';
 const HELD: Partial<Record<Action, Input>> = {
     up: 'forward',
     down: 'back',
@@ -67,17 +66,6 @@ export function actionForKey(key: string, state: GameStatus): Action | null {
         }
     }
     return null;
-}
-export function applyControlLabels(root: ParentNode): void {
-    root.querySelectorAll<HTMLElement>('[data-control-label]').forEach((el) => {
-        const action = el.dataset.controlLabel;
-        el.textContent =
-            action === 'move'
-                ? MOVE_LABEL
-                : ((action && action in CONTROLS
-                      ? CONTROLS[action as Action].label
-                      : undefined) ?? el.textContent);
-    });
 }
 type ControlHooks = {
     accepting: (e: KeyboardEvent) => boolean;
@@ -149,7 +137,6 @@ class ControlBinding {
         this.hooks = hooks;
         this.signal = signal;
         this.options = { signal: this.signal };
-        applyControlLabels(this.root);
         window.addEventListener(
             'keydown',
             (e) => {

@@ -133,18 +133,11 @@ class HudRuntime {
             'aria-valuenow',
             String(focus),
         );
-        this.text('[data-focus]', focus + '%');
         this.text('[data-status]', feedback.status);
         this.hidden('[data-interact]', !policy.controls.meeting);
         this.hidden('[data-orbit-controls]', !policy.controls.flight);
-        this.hidden('[data-orbit-help]', !policy.controls.flight);
         this.hidden('[data-jump]', !policy.hud.jump);
         this.hidden('.balance-controls', !policy.hud.balance);
-        this.hidden('[data-meeting-help]', !policy.controls.meeting);
-        this.hidden(
-            '[data-spray-help]',
-            !state.hasExtinguisher || !policy.hud.manualSpray,
-        );
         this.hidden(
             '[data-spray]',
             !state.hasExtinguisher || !policy.hud.manualSpray,
