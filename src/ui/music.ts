@@ -21,11 +21,19 @@ const FADE_SECONDS = 1.2;
 const UNLOCK_EVENTS = ['pointerdown', 'keydown', 'touchend'] as const;
 
 export type Music = {
-    play(track: MusicTrack, ducked: boolean): void;
+    play(track: MusicTrack | null, ducked: boolean): void;
     advance(dt: number): void;
     setVolume(gain: number): void;
     destroy(): void;
 };
+
+function createVoice(track: MusicTrack): HTMLAudioElement {
+    const audio = new Audio(TRACK_URLS[track]);
+    audio.loop = true;
+    audio.preload = 'auto';
+    audio.volume = 0;
+    return audio;
+}
 
 export function createMusic(initialGain = 1): Music {
     const voices = new Map<MusicTrack, HTMLAudioElement>();
@@ -38,10 +46,7 @@ export function createMusic(initialGain = 1): Music {
     const voice = (track: MusicTrack) => {
         let audio = voices.get(track);
         if (!audio) {
-            audio = new Audio(TRACK_URLS[track]);
-            audio.loop = true;
-            audio.preload = 'auto';
-            audio.volume = 0;
+            audio = createVoice(track);
             voices.set(track, audio);
             levels.set(track, 0);
         }
@@ -90,6 +95,9 @@ export function createMusic(initialGain = 1): Music {
                 return;
             }
             current = track;
+            if (!track) {
+                return;
+            }
             const audio = voice(track);
             audio.currentTime = 0;
             start(audio);

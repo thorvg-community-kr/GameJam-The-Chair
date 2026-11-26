@@ -52,7 +52,7 @@ Canvas2D fallback은 기본 path, fill, stroke, gradient, blend를 그립니다.
 
 ## 배경음악
 
-`src/presentation/music.ts`의 `musicTrack`이 화면 상태로 곡을 고릅니다. 시작 화면과 오프닝은 `start`, 1·2 스테이지는 `stage1-2`, 3은 `stage3`, 4는 `stage4`, 5는 `stage5`, 궤도 문에 도착한 엔딩은 `ending`입니다. `src/ui/music.ts`는 곡을 반복 재생하고 1.2초 동안 크로스페이드하며, 일시정지 중에는 볼륨을 낮춥니다. 브라우저 자동재생 제한 때문에 첫 클릭이나 키 입력 뒤에 소리가 납니다. 음원은 모든 브라우저에서 재생되는 AAC `assets/bgm/*.m4a`(80 kbps)입니다.
+`src/presentation/music.ts`의 `musicTrack`이 화면 상태로 곡을 고릅니다. 시작 화면은 `start`, 오프닝(프롤로그) 컷신 동안에는 `null`을 돌려주어 음악 없이 연출만 보여 줍니다. 1·2 스테이지는 `stage1-2`, 3은 `stage3`, 4는 `stage4`, 5는 `stage5`, 궤도 문에 도착한 엔딩은 `ending`입니다. `src/ui/music.ts`는 곡을 반복 재생하고 1.2초 동안 크로스페이드하며, 일시정지 중에는 볼륨을 낮춥니다. 곡이 `null`이면 재생 중인 곡을 모두 페이드 아웃하고, 컷신이 끝나거나 건너뛰면 그 화면의 곡이 다시 페이드 인됩니다. 브라우저 자동재생 제한 때문에 첫 클릭이나 키 입력 뒤에 소리가 납니다. 음원은 모든 브라우저에서 재생되는 AAC `assets/bgm/*.m4a`(80 kbps)입니다.
 
 ## 모션 확인
 
