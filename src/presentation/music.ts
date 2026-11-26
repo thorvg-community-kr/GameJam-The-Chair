@@ -13,9 +13,12 @@ const STAGE_TRACKS = {
 
 export function musicTrack(
     state: Pick<GameSnapshot, 'mode' | 'stage' | 'orbit'>,
-    title: boolean,
-): MusicTrack {
-    if (title || state.mode === 'intro') {
+    prologue: boolean,
+): MusicTrack | null {
+    if (prologue) {
+        return null;
+    }
+    if (state.mode === 'intro') {
         return 'start';
     }
     if (state.stage === 5 && state.orbit?.phase === 'parked') {
