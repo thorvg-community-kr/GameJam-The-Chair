@@ -92,7 +92,15 @@ export type ReplayFile = {
     endTick: number;
     truncated: boolean;
     error: ReplayError | null;
+    edit?: ReplayEdit;
 };
+export type ReplayUserMarker = { tick: number; label: string };
+export type ReplayRange = { start: number; end: number };
+export type ReplayEdit = {
+    markers: ReplayUserMarker[];
+    range: ReplayRange | null;
+};
+export const REPLAY_EDIT_LIMITS = deepFreeze({ markers: 200, label: 80 });
 export function hashState(state: Readonly<CoreState>): string {
     return configHash(state);
 }
@@ -161,6 +169,139 @@ export function parseReplay(text: string): ReplayFile {
         hashes,
         ...parseReplayMetadata(data),
         error: parseReplayError(data.error),
+        ...(data.edit === undefined || data.edit === null
+            ? {}
+            : { edit: parseReplayEdit(data.edit, start.tick, endTick) }),
+    };
+}
+function parseReplayEdit(
+    value: unknown,
+    startTick: number,
+    endTick: number,
+): ReplayEdit {
+    const isTick = (tick: unknown): tick is number =>
+        typeof tick === 'number' &&
+        Number.isSafeInteger(tick) &&
+        tick >= startTick &&
+        tick <= endTick;
+    if (!isRecord(value) || !isArray(value.markers)) {
+        throw new Error('bad replay edit');
+    }
+    if (value.markers.length > REPLAY_EDIT_LIMITS.markers) {
+        throw new Error('too many replay markers');
+    }
+    const markers = value.markers.map((marker, index) => {
+        const label = isRecord(marker) ? (marker.label ?? '') : null;
+        if (
+            !isRecord(marker) ||
+            !isTick(marker.tick) ||
+            typeof label !== 'string' ||
+            label.length > REPLAY_EDIT_LIMITS.label
+        ) {
+            throw new Error(`bad replay marker at ${index}`);
+        }
+        return { tick: marker.tick, label };
+    });
+    const range = value.range ?? null;
+    if (
+        range !== null &&
+        (!isRecord(range) ||
+            !isTick(range.start) ||
+            !isTick(range.end) ||
+            range.start >= range.end)
+    ) {
+        throw new Error('bad replay range');
+    }
+    return normalizeReplayEdit(
+        {
+            markers,
+            range: range && {
+                start: range.start as number,
+                end: range.end as number,
+            },
+        },
+        startTick,
+        endTick,
+    );
+}
+export function readReplayEdit(
+    value: unknown,
+    file: Readonly<ReplayFile>,
+): ReplayEdit | null {
+    try {
+        return parseReplayEdit(value, file.start.tick, file.endTick);
+    } catch {
+        return null;
+    }
+}
+// Clamp, sort and de-duplicate an edit so it fits [startTick, endTick].
+export function normalizeReplayEdit(
+    edit: Readonly<ReplayEdit>,
+    startTick: number,
+    endTick: number,
+): ReplayEdit {
+    const clamp = (tick: number) =>
+        Math.max(startTick, Math.min(endTick, Math.round(tick)));
+    const seen = new Set<number>();
+    const markers = edit.markers
+        .map((marker) => ({
+            tick: clamp(marker.tick),
+            label: marker.label.slice(0, REPLAY_EDIT_LIMITS.label),
+        }))
+        .sort((a, b) => a.tick - b.tick)
+        .filter((marker) => !seen.has(marker.tick) && !!seen.add(marker.tick))
+        .slice(0, REPLAY_EDIT_LIMITS.markers);
+    let range: ReplayRange | null = null;
+    if (edit.range) {
+        const start = clamp(edit.range.start);
+        const end = clamp(edit.range.end);
+        range = start < end ? { start, end } : null;
+    }
+    return { markers, range };
+}
+export function replayEditKey(file: Readonly<ReplayFile>): string {
+    return configHash({
+        start: file.start,
+        commands: file.commands,
+        endTick: file.endTick,
+    });
+}
+// Cut [range.start, range.end] into a replay that plays on its own: the clip
+// starts from the full state at range.start, so it needs nothing before it.
+export function clipReplay(
+    timeline: Readonly<Timeline>,
+    range: Readonly<ReplayRange>,
+    edit: Readonly<ReplayEdit> | null = null,
+): ReplayFile {
+    const cursor = seekTimeline(timeline, range.start);
+    const start = clonePlain(cursor.state);
+    const end = Math.max(
+        start.tick,
+        Math.min(timeline.endTick, Math.round(range.end)),
+    );
+    const source = timeline.file;
+    const error = source.error;
+    const markers = (edit?.markers ?? [])
+        .filter((marker) => marker.tick >= start.tick && marker.tick <= end)
+        .map((marker) => ({ ...marker }));
+    return {
+        format: REPLAY_FORMAT,
+        version: source.version,
+        seed: source.seed,
+        start,
+        commands: clonePlain(
+            source.commands.slice(cursor.index).filter(([tick]) => tick <= end),
+        ),
+        hashes: source.hashes.filter(
+            ([tick]) => tick > start.tick && tick <= end,
+        ),
+        endTick: end,
+        truncated: source.truncated && end >= source.endTick,
+        error:
+            error && error.tick >= start.tick && error.tick <= end
+                ? clonePlain(error)
+                : null,
+        ...(markers.length ? { edit: { markers, range: null } } : {}),
     };
 }
 function parseReplayStart(value: unknown): CoreState {

@@ -9,6 +9,8 @@ import { createEffects } from '../render/effects';
 import type {
     ReplayCursor,
     ReplayFile,
+    ReplayRange,
+    ReplayUserMarker,
     ReplaySettings,
     Timeline,
 } from '../game/replay';
@@ -41,8 +43,12 @@ export type ReplayPlayer = {
     readonly tick: number;
     readonly state: ReplayCursor['state'] | null;
     readonly playing: boolean;
+    readonly loop: boolean;
     seek(tick: number): void;
     setPlaying(value: boolean): void;
+    setLoop(value: boolean): void;
+    setRange(range: ReplayRange | null): void;
+    setUserMarkers(markers: readonly ReplayUserMarker[]): void;
     advance(dt: number): void;
     view(): ReturnType<typeof viewState> | null;
     drainEvents(): GameEvent[];
@@ -78,6 +84,8 @@ class ReplayPlayerRuntime {
     private cursor!: ReplayCursor | null;
     private playing!: boolean;
     private loop!: boolean;
+    private range!: ReplayRange | null;
+    private userMarkers!: readonly ReplayUserMarker[];
     private speed!: number;
     private acc!: number;
     private hold!: number;
@@ -142,10 +150,7 @@ class ReplayPlayerRuntime {
         );
         this.loopButton?.addEventListener(
             'click',
-            () => {
-                this.loop = !this.loop;
-                this.sync();
-            },
+            () => this.setLoop(!this.loop),
             this.options,
         );
         this.seekInput?.addEventListener(
@@ -330,6 +335,25 @@ class ReplayPlayerRuntime {
             1,
             this.timeline.endTick - this.timeline.startTick,
         );
+        const at = (tick: number) =>
+            `${((tick - this.timeline!.startTick) / span) * 100}%`;
+        const seconds = (tick: number) =>
+            `${((tick - this.timeline!.startTick) * FIXED_STEP).toFixed(2)}s`;
+        if (this.range) {
+            const band = document.createElement('i');
+            band.className = 'replay-range';
+            band.classList.toggle('replay-range-loop', this.loop);
+            band.style.left = at(this.range.start);
+            band.style.width = `${((this.range.end - this.range.start) / span) * 100}%`;
+            this.markerTrack.append(band);
+        }
+        for (const marker of this.userMarkers) {
+            const pin = document.createElement('i');
+            pin.className = 'replay-marker replay-marker-user';
+            pin.style.left = at(marker.tick);
+            pin.title = `${marker.label || '★'} · ${seconds(marker.tick)}`;
+            this.markerTrack.append(pin);
+        }
         for (const marker of this.timeline.markers) {
             const dot = document.createElement('i');
             dot.className = `replay-marker replay-marker-${marker.kind}`;
@@ -338,12 +362,41 @@ class ReplayPlayerRuntime {
             this.markerTrack.append(dot);
         }
     };
+    private setLoop = (value: boolean) => {
+        this.loop = value;
+        this.enterRange();
+        this.drawMarkers();
+        this.sync();
+    };
+    private setRange = (range: ReplayRange | null) => {
+        this.range = range && { ...range };
+        this.enterRange();
+        this.drawMarkers();
+    };
+    private setUserMarkers = (markers: readonly ReplayUserMarker[]) => {
+        this.userMarkers = markers.map((marker) => ({ ...marker }));
+        this.drawMarkers();
+    };
+    // While looping a range, keep the playhead inside it so edits show at once.
+    private enterRange = () => {
+        if (
+            this.loop &&
+            this.range &&
+            this.cursor &&
+            (this.cursor.state.tick < this.range.start ||
+                this.cursor.state.tick >= this.range.end)
+        ) {
+            this.seek(this.range.start);
+        }
+    };
     private setPlaying = (value: boolean) => {
         this.playing = value;
         this.acc = 0;
         this.sync();
     };
     private open = (file: ReplayFile) => {
+        this.range = null;
+        this.userMarkers = [];
         this.timeline = buildTimeline(
             file,
             this.getSettings().keyframeInterval,
@@ -407,6 +460,8 @@ class ReplayPlayerRuntime {
         this.cursor = null;
         this.playing = false;
         this.loop = false;
+        this.range = null;
+        this.userMarkers = [];
         this.speed = 1;
         this.acc = 0;
         this.hold = 0;
@@ -427,6 +482,9 @@ class ReplayPlayerRuntime {
                     this.cursor.state.tick >= this.timeline.endTick
                 ) {
                     this.seek(this.timeline.startTick);
+                }
+                if (!this.playing) {
+                    this.enterRange();
                 }
                 this.setPlaying(!this.playing);
             },
@@ -459,6 +517,9 @@ class ReplayPlayerRuntime {
         const readPlaying = () => {
             return this.playing;
         };
+        const readLoop = () => {
+            return this.loop;
+        };
         return {
             open: this.open,
             close: this.close,
@@ -477,8 +538,14 @@ class ReplayPlayerRuntime {
             get playing() {
                 return readPlaying();
             },
+            get loop() {
+                return readLoop();
+            },
             seek: this.apiSeek,
             setPlaying: this.setPlaying,
+            setLoop: this.setLoop,
+            setRange: this.setRange,
+            setUserMarkers: this.setUserMarkers,
             advance: this.apiAdvance,
             view: this.apiView,
             drainEvents: this.apiDrainEvents,
@@ -502,7 +569,17 @@ class ReplayPlayerRuntime {
                 this.hold -= FIXED_STEP;
                 continue;
             }
-            if (!this.stepOnce()) {
+            const stepped = this.stepOnce();
+            if (
+                this.loop &&
+                this.range &&
+                this.cursor &&
+                this.cursor.state.tick >= this.range.end
+            ) {
+                this.seek(this.range.start);
+                break;
+            }
+            if (!stepped) {
                 if (this.loop) {
                     this.seek(this.timeline.startTick);
                 } else {

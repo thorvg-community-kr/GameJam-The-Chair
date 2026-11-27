@@ -1,8 +1,13 @@
 import { FIXED_STEP } from './game/level';
 import {
+    clipReplay,
+    normalizeReplayEdit,
     normalizeReplaySettings,
+    readReplayEdit,
     readReplaySources,
     REPLAY_DEFAULTS,
+    REPLAY_EDIT_LIMITS,
+    replayEditKey,
 } from './game/replay';
 import { CONFIG_VERSION } from './game/stages/index';
 import { browserLocale, isMessage, keepLangOnLinks, translate } from './i18n';
@@ -12,10 +17,17 @@ import {
     copyText,
     downloadJson,
     loadBrowserData,
+    loadReplayEdit,
+    saveReplayEdit,
     stamp,
 } from './ui/replay-store';
 
-import type { ReplaySettings, ReplaySource } from './game/replay';
+import type {
+    ReplayEdit,
+    ReplaySettings,
+    ReplaySource,
+    Timeline,
+} from './game/replay';
 import type { Locale, Message } from './i18n';
 import './style.css';
 import './preview.css';
@@ -48,6 +60,8 @@ const sourcesSelect = $<HTMLSelectElement>('#sources');
 let settings: ReplaySettings = { ...REPLAY_DEFAULTS };
 let sources: ReplaySource[] = [];
 let selected: ReplaySource | null = null;
+let edit: ReplayEdit = { markers: [], range: null };
+let editKey = '';
 
 const renderer = (() => {
     try {
@@ -84,7 +98,9 @@ for (const [key, input] of Object.entries(viewerInputs)) {
             selected
         ) {
             const tick = player.tick;
+            const loop = player.loop;
             open(selected);
+            player.setLoop(loop);
             player.seek(tick);
             player.setPlaying(false);
         }
@@ -166,7 +182,146 @@ function open(source: ReplaySource) {
             return button;
         }),
     );
+    editKey = replayEditKey(source.file);
+    edit = readReplayEdit(loadReplayEdit(editKey), source.file) ??
+        source.file.edit ?? { markers: [], range: null };
+    applyEdit(timeline, false);
     lastShown = -1;
+}
+
+const seconds = (tick: number) =>
+    player.timeline
+        ? `${((tick - player.timeline.startTick) * FIXED_STEP).toFixed(2)}s`
+        : '';
+
+function applyEdit(timeline: Timeline, save = true) {
+    edit = normalizeReplayEdit(edit, timeline.startTick, timeline.endTick);
+    if (save) {
+        saveReplayEdit(editKey, edit);
+    }
+    player.setUserMarkers(edit.markers);
+    player.setRange(edit.range);
+    renderUserMarkers();
+    const range = edit.range;
+    $('#range-info').textContent = range
+        ? `${seconds(range.start)} → ${seconds(range.end)} (${((range.end - range.start) * FIXED_STEP).toFixed(2)}s)`
+        : t('tool.rangeNone');
+    for (const id of ['#add-marker', '#range-start', '#range-end']) {
+        $<HTMLButtonElement>(id).disabled = false;
+    }
+    for (const id of ['#range-clear', '#download-clip', '#range-loop']) {
+        $<HTMLButtonElement>(id).disabled = !range;
+    }
+    syncLoop();
+}
+
+function syncLoop() {
+    $('#range-loop').setAttribute(
+        'aria-pressed',
+        String(!!edit.range && player.loop),
+    );
+}
+
+function editNow(change: (tick: number, timeline: Timeline) => void) {
+    const timeline = player.timeline;
+    if (timeline) {
+        change(player.tick, timeline);
+        applyEdit(timeline);
+    }
+}
+
+let markerHere = -1;
+function renderUserMarkers() {
+    markerHere = -1;
+    $('#user-markers').replaceChildren(
+        ...edit.markers.map((marker) => {
+            const item = document.createElement('li');
+            item.dataset.tick = String(marker.tick);
+            const jump = document.createElement('button');
+            jump.type = 'button';
+            jump.className = 'tool-jump';
+            jump.textContent = seconds(marker.tick);
+            jump.addEventListener('click', () => {
+                player.seek(marker.tick);
+                player.setPlaying(false);
+            });
+            const name = document.createElement('input');
+            name.value = marker.label;
+            name.placeholder = t('tool.markerName');
+            name.maxLength = REPLAY_EDIT_LIMITS.label;
+            name.setAttribute('aria-label', t('tool.markerName'));
+            name.addEventListener('change', () => {
+                marker.label = name.value;
+                if (player.timeline) {
+                    applyEdit(player.timeline);
+                }
+            });
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'tool-delete';
+            remove.textContent = '✕';
+            remove.setAttribute('aria-label', t('tool.deleteMarker'));
+            remove.addEventListener('click', () =>
+                editNow(() => {
+                    edit.markers = edit.markers.filter((m) => m !== marker);
+                }),
+            );
+            item.append(jump, name, remove);
+            return item;
+        }),
+    );
+}
+
+function highlightMarker(tick: number) {
+    if (tick === markerHere) {
+        return;
+    }
+    markerHere = tick;
+    for (const item of $('#user-markers').children) {
+        item.classList.toggle(
+            'here',
+            (item as HTMLElement).dataset.tick === String(tick),
+        );
+    }
+}
+
+function toggleMarker() {
+    editNow((tick) => {
+        const existing = edit.markers.find((marker) => marker.tick === tick);
+        edit.markers = existing
+            ? edit.markers.filter((marker) => marker !== existing)
+            : [...edit.markers, { tick, label: '' }];
+    });
+}
+
+function setRangeStart() {
+    editNow((tick, timeline) => {
+        let end = edit.range?.end ?? timeline.endTick;
+        if (end <= tick) {
+            end = timeline.endTick;
+        }
+        edit.range = tick < end ? { start: tick, end } : edit.range;
+    });
+}
+
+function setRangeEnd() {
+    editNow((tick, timeline) => {
+        let start = edit.range?.start ?? timeline.startTick;
+        if (start >= tick) {
+            start = timeline.startTick;
+        }
+        edit.range = start < tick ? { start, end: tick } : edit.range;
+    });
+}
+
+function toggleRangeLoop() {
+    if (edit.range) {
+        player.setLoop(!player.loop);
+        if (player.loop) {
+            player.setPlaying(true);
+        }
+        syncLoop();
+    }
 }
 
 function fill(list: HTMLElement, facts: Array<[string, string]>) {
@@ -237,6 +392,8 @@ function showState() {
         ['deaths', String(state.deaths)],
     ]);
     showCommands(state.tick);
+    highlightMarker(state.tick);
+    syncLoop();
 }
 
 $('#open-file').addEventListener('click', () =>
@@ -287,10 +444,54 @@ document.addEventListener('drop', (event) => {
 });
 $('#download-replay').addEventListener('click', () => {
     if (selected) {
+        const { edit: _saved, ...file } = selected.file;
         downloadJson(
             `the-chair-replay-stage${selected.file.start.stage}-${stamp()}.json`,
-            selected.file,
+            edit.markers.length || edit.range ? { ...file, edit } : file,
         );
+    }
+});
+$('#add-marker').addEventListener('click', toggleMarker);
+$('#range-start').addEventListener('click', setRangeStart);
+$('#range-end').addEventListener('click', setRangeEnd);
+$('#range-loop').addEventListener('click', toggleRangeLoop);
+$('#range-clear').addEventListener('click', () =>
+    editNow(() => {
+        edit.range = null;
+    }),
+);
+$('#download-clip').addEventListener('click', () => {
+    const timeline = player.timeline;
+    if (selected && timeline && edit.range) {
+        downloadJson(
+            `the-chair-replay-stage${selected.file.start.stage}-clip-${stamp()}.json`,
+            clipReplay(timeline, edit.range, edit),
+        );
+    }
+});
+window.addEventListener('keydown', (event) => {
+    const target = event.target;
+    if (
+        !player.timeline ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement
+    ) {
+        return;
+    }
+    const action: Partial<Record<string, () => void>> = {
+        m: toggleMarker,
+        i: setRangeStart,
+        o: setRangeEnd,
+        l: toggleRangeLoop,
+    };
+    const run = action[event.key.toLowerCase()];
+    if (run) {
+        event.preventDefault();
+        run();
     }
 });
 $('#copy-state').addEventListener('click', () => {

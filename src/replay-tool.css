@@ -11,4 +11,7 @@
 .tool-commands{list-style:none;margin:0;padding:0;font:12px/1.4 ui-monospace,monospace;display:flex;flex-direction:column;gap:2px}.tool-commands button{all:unset;cursor:pointer;display:block;width:100%;padding:3px 6px;border-radius:4px}.tool-commands button:hover,.tool-commands button:focus-visible{background:#303a46}.tool-commands .next button{background:#4a3a22;color:#f5d7a6}
 .tool-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;margin:0;color:#f5eddc;background:#202634d9;font-size:15px}
 .replay-tool #chair-office-one{max-width:none}
+.tool-edit>button,.tool-edit-row{margin-bottom:8px}.tool-edit-row{display:flex;gap:6px}.tool-edit-row button{flex:1}.tool-edit #download-clip,.tool-edit #add-marker{width:100%}
+.tool-user-markers{list-style:none;margin:0 0 8px;padding:0;display:flex;flex-direction:column;gap:4px;max-height:200px;overflow:auto}.tool-user-markers:empty{display:none}.tool-user-markers li{display:flex;gap:4px;align-items:center}.tool-user-markers li.here .tool-jump{border-color:#ffd84a}.tool-user-markers .tool-jump{min-width:68px;font-variant-numeric:tabular-nums;color:#ffd84a}.tool-user-markers input{flex:1;min-width:0;min-height:32px;margin:0}.tool-user-markers .tool-delete{min-width:36px}
+.tool-range{margin:0 0 8px;font-size:12px;color:#8fd8ff;font-variant-numeric:tabular-nums}#range-loop[aria-pressed=true]{background:#1f5d78;border-color:#8fd8ff;color:#e9f8ff}.tool-panel button:disabled{opacity:.45;cursor:default}
 @media(max-width:900px){.tool-layout{grid-template-columns:1fr}}
