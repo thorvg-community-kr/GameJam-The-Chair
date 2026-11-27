@@ -6,6 +6,7 @@ export type { SfxName } from '../presentation/sfx';
 
 export type Sfx = {
     play(name: SfxName, now?: number): void;
+    unlock(): void;
     setVolume(gain: number): void;
     destroy(): void;
 };
@@ -218,6 +219,9 @@ export function createSfx(initialGain: number): Sfx {
                     playNoise(audio, output, layer, hiss);
                 }
             }
+        },
+        unlock() {
+            ready();
         },
         setVolume(next) {
             gain = next;
