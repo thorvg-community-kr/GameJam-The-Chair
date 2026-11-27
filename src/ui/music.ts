@@ -105,7 +105,9 @@ export function createMusic(initialGain = 1): Music {
         advance(dt) {
             const step = (VOLUME * Math.min(dt, 0.1)) / FADE_SECONDS;
             for (const [track, audio] of voices) {
-                const goal = track === current ? target : 0;
+                // A track the browser has not let start yet stays at zero so
+                // it fades in once the first input unlocks it.
+                const goal = track === current && !audio.paused ? target : 0;
                 const previous = levels.get(track) ?? 0;
                 const delta = Math.max(-step, Math.min(step, goal - previous));
                 const next = Math.max(0, Math.min(1, previous + delta));

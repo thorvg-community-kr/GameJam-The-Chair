@@ -2,7 +2,6 @@ import { browserLocale, keepLangOnLinks } from './i18n';
 import { previewScenes } from './preview-scenes';
 import { createRenderer } from './render/renderer';
 import { createSplashPlayer } from './ui/splash';
-import { SPLASH_DURATION } from './ui/splash-meta';
 
 import type { Locale } from './i18n';
 import type { PreviewScene } from './preview-scenes';
@@ -34,12 +33,11 @@ let playing = false;
 let previousFrame: number | null = null;
 let scheduledFrame: number | null = null;
 function render() {
-    const isGate = scene.id === 'startup-gate';
-    const isSplash = isGate || scene.id === 'startup-splash';
+    const isSplash = scene.id === 'startup-splash';
     root.querySelector('.scene')?.classList.toggle('splash-scene', isSplash);
     splashCanvas.hidden = !isSplash;
     if (isSplash) {
-        splash.draw(isGate ? SPLASH_DURATION : time, isGate ? time : null);
+        splash.draw(time);
     } else {
         const { state, effects } = scene.sample(time);
         const width = root.querySelector('canvas')!.clientWidth;

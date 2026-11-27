@@ -7,7 +7,6 @@ const messages = {
         en: 'Skip ThorVG splash',
         ko: 'ThorVG 시작 화면 건너뛰기',
     },
-    'splash.gate': { en: 'Press any key to start', ko: '아무 키나 눌러 시작' },
 
     'person.manager': { en: 'Manager Park', ko: '박 과장' },
     'person.kim': { en: 'Kim', ko: '김 대리' },

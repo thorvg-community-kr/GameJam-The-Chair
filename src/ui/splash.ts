@@ -1,4 +1,3 @@
-import { createGateCue } from './splash-gate';
 import { SPLASH_DURATION } from './splash-meta';
 import splashData from '../../assets/powred.by.thorvg.1.json?raw';
 import { translate } from '../i18n';
@@ -12,12 +11,11 @@ const HEIGHT = 540;
 
 export function createSplashPlayer(element: HTMLCanvasElement): {
     ready: Promise<void>;
-    draw: (seconds: number, gate?: number | null) => void;
+    draw: (seconds: number) => void;
     destroy(): void;
 } {
     let canvas: Canvas | null = null;
     let animation: Animation | null = null;
-    let cue: ((seconds: number | null) => void) | null = null;
     const lifecycle = { disposed: false };
     const ready = (async () => {
         const TVG = await loadThorvg();
@@ -37,7 +35,6 @@ export function createSplashPlayer(element: HTMLCanvasElement): {
                 height: HEIGHT,
             });
             nextCanvas.add(picture);
-            cue = createGateCue(TVG, nextCanvas, picture);
             animation = nextAnimation;
             canvas = nextCanvas;
             draw(0);
@@ -47,14 +44,13 @@ export function createSplashPlayer(element: HTMLCanvasElement): {
         }
     })();
 
-    function draw(seconds: number, gate: number | null = null) {
+    function draw(seconds: number) {
         if (!animation || !canvas) {
             return;
         }
         animation.seek(
             Math.max(0, Math.min(SPLASH_DURATION - 1 / 30, seconds)),
         );
-        cue?.(gate);
         canvas.update().render();
     }
 
@@ -67,14 +63,11 @@ export function createSplashPlayer(element: HTMLCanvasElement): {
             animation?.dispose();
             canvas = null;
             animation = null;
-            cue = null;
         },
     };
 }
 
-// Keys that do not count as a user activation for autoplay, or are modifiers.
 const INERT_KEYS = new Set([
-    'Escape',
     'Tab',
     'Shift',
     'Control',
@@ -85,19 +78,16 @@ const INERT_KEYS = new Set([
 ]);
 
 // Listens on the whole window so a tap outside the splash or a key pressed
-// after focus moved away still continues.
-function bindGateInput(onPress: () => void, onEscape: () => void): () => void {
+// after focus moved away still skips it.
+function bindSkipInput(onPress: () => void): () => void {
     const listeners = new AbortController();
     const options = { capture: true, signal: listeners.signal };
     window.addEventListener(
         'keydown',
         (event) => {
-            if (event.key === 'Tab' || event.key === 'Escape') {
+            if (event.key === 'Tab') {
                 event.preventDefault();
                 event.stopPropagation();
-            }
-            if (event.key === 'Escape') {
-                onEscape();
             }
             if (INERT_KEYS.has(event.key) || event.repeat) {
                 return;
@@ -122,9 +112,8 @@ function bindGateInput(onPress: () => void, onEscape: () => void): () => void {
     return () => listeners.abort();
 }
 
-// Any click, tap or key ends the splash inside that gesture, so `onFinish`
-// may start audio. Left alone, the splash waits on a clicking-key cue instead
-// of reaching the title silently.
+// Plays the ThorVG logo, then goes straight to the title. A click, tap or key
+// skips it early; `onFinish` then runs inside that gesture and may start audio.
 export function showStartupSplash(
     root: HTMLElement,
     getLocale: () => Locale,
@@ -145,21 +134,8 @@ export function showStartupSplash(
     scene.append(screen);
     const player = createSplashPlayer(canvas);
     let started: number | null = null;
-    let elapsed = 0;
-    let gateAt: number | null = null;
     let frameId = 0;
     let closed = false;
-    const openGate = () => {
-        if (gateAt !== null) {
-            return;
-        }
-        gateAt = Math.min(elapsed, SPLASH_DURATION);
-        screen.dataset.waiting = '';
-        screen.setAttribute(
-            'aria-label',
-            translate('splash.gate', getLocale()),
-        );
-    };
     const finish = () => {
         if (closed) {
             return;
@@ -173,7 +149,7 @@ export function showStartupSplash(
         root.querySelector<HTMLButtonElement>('[data-start]')?.focus();
         onFinish();
     };
-    const unbind = bindGateInput(finish, openGate);
+    const unbind = bindSkipInput(finish);
     root.classList.add('splashing');
     screen.focus();
     function tick(ms: number) {
@@ -181,14 +157,11 @@ export function showStartupSplash(
             return;
         }
         started ??= ms;
-        elapsed = (ms - started) / 1000;
+        const elapsed = (ms - started) / 1000;
         if (elapsed >= SPLASH_DURATION) {
-            openGate();
+            return finish();
         }
-        player.draw(
-            gateAt === null ? elapsed : SPLASH_DURATION,
-            gateAt === null ? null : elapsed - gateAt,
-        );
+        player.draw(elapsed);
         frameId = requestAnimationFrame(tick);
     }
     void player.ready

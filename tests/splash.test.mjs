@@ -3,9 +3,6 @@ import test from 'node:test';
 
 import { bundled, load } from './support/load.mjs';
 
-const { gatePose, GATE_TAP, GATE_IMPATIENT } = await load(
-    'src/ui/splash-gate.ts',
-);
 const { SPLASH_DURATION } = await load('src/ui/splash-meta.ts');
 
 // Every ThorVG call is chainable and recorded nowhere: the gate logic is
@@ -166,17 +163,12 @@ async function openSplash(locale = 'en') {
     return { scene, screen, classes, finished, runUntil };
 }
 
-test('the splash waits for a press instead of reaching the title silently', async () => {
-    const { scene, screen, classes, finished, runUntil } = await openSplash();
+test('the splash goes straight to the title when the logo ends', async () => {
+    const { scene, classes, finished, runUntil } = await openSplash();
     assert.ok(classes.has('splashing'), 'touch controls are hidden');
     runUntil(SPLASH_DURATION - 0.5);
-    assert.equal('waiting' in screen.dataset, false);
-    runUntil(SPLASH_DURATION + 5);
-    assert.equal('waiting' in screen.dataset, true);
-    assert.equal(screen.getAttribute('aria-label'), 'Press any key to start');
-    assert.deepEqual(finished, [], 'no gesture, no title');
-
-    fakeWindow.fire('click');
+    assert.deepEqual(finished, []);
+    runUntil(SPLASH_DURATION + 0.5);
     assert.deepEqual(finished, [true]);
     assert.equal(scene.children.length, 0);
     assert.equal(classes.has('splashing'), false);
@@ -185,77 +177,44 @@ test('the splash waits for a press instead of reaching the title silently', asyn
     assert.deepEqual(finished, [true], 'finishes once');
 });
 
-test('skipping the splash early finishes inside the same gesture', async () => {
+test('a click anywhere skips the splash inside that gesture', async () => {
+    const { screen, finished, runUntil } = await openSplash();
+    assert.equal(screen.getAttribute('aria-label'), 'Skip ThorVG splash');
+    runUntil(1);
+    fakeWindow.fire('click');
+    assert.deepEqual(finished, [true]);
+});
+
+test('a key pressed while focus is elsewhere still skips', async () => {
     const { finished, runUntil } = await openSplash();
     runUntil(1);
-    const event = fakeWindow.fire('keydown', { key: 'Enter' });
+    const event = fakeWindow.fire('keydown', {
+        key: 'a',
+        target: { tagName: 'BODY' },
+    });
     assert.equal(event.prevented, true);
     assert.deepEqual(finished, [true]);
 });
 
-test('a key pressed while focus is elsewhere still continues', async () => {
+test('a tap skips and swallows the ghost click', async () => {
     const { finished, runUntil } = await openSplash();
-    runUntil(SPLASH_DURATION + 1);
-    fakeWindow.fire('keydown', { key: 'a', target: { tagName: 'BODY' } });
-    assert.deepEqual(finished, [true]);
-});
-
-test('a tap anywhere continues and swallows the ghost click', async () => {
-    const { finished, runUntil } = await openSplash();
-    runUntil(SPLASH_DURATION + 1);
+    runUntil(1);
     const event = fakeWindow.fire('touchend');
     assert.equal(event.prevented, true);
     assert.deepEqual(finished, [true]);
 });
 
-test('escape and modifiers cannot unlock audio, so they only reach the gate', async () => {
+test('modifiers, tab and held keys do not skip, escape does', async () => {
     const { screen, finished, runUntil } = await openSplash('ko');
-    runUntil(2);
-    fakeWindow.fire('keydown', { key: 'Escape' });
+    assert.equal(
+        screen.getAttribute('aria-label'),
+        'ThorVG 시작 화면 건너뛰기',
+    );
+    runUntil(1);
     fakeWindow.fire('keydown', { key: 'Shift' });
     fakeWindow.fire('keydown', { key: 'Tab' });
-    assert.deepEqual(finished, []);
-    assert.equal('waiting' in screen.dataset, true);
-    assert.equal(screen.getAttribute('aria-label'), '아무 키나 눌러 시작');
-
     fakeWindow.fire('keydown', { key: 'a', repeat: true });
-    assert.deepEqual(finished, [], 'held keys do not count');
-    fakeWindow.fire('keydown', { key: 'a' });
+    assert.deepEqual(finished, []);
+    fakeWindow.fire('keydown', { key: 'Escape' });
     assert.deepEqual(finished, [true]);
-});
-
-test('the gate cursor keeps clicking a pulsing key and grows impatient', () => {
-    const start = gatePose(0);
-    assert.equal(start.alpha, 0);
-    assert.equal(start.logo, 0);
-    assert.equal(gatePose(1).logo, 1, 'the logo steps aside for the key');
-
-    const press = gatePose(GATE_TAP * 0.75);
-    assert.equal(press.press, 1);
-    assert.equal(press.cursorLift, 0, 'the cursor touches the key');
-    const hover = gatePose(GATE_TAP * 0.3);
-    assert.equal(hover.press, 0);
-    assert.ok(hover.cursorLift > 40);
-    assert.equal(hover.ripple, 0, 'no ripple before the first click');
-    assert.ok(gatePose(GATE_TAP * 1.1).ripple > 0, 'each click ripples');
-
-    const pulse = (from) =>
-        Math.max(
-            ...Array.from(
-                { length: 20 },
-                (_, i) => gatePose(from + (GATE_TAP * i) / 20).pulse,
-            ),
-        );
-    assert.ok(pulse(GATE_TAP) > 1.04);
-    assert.ok(pulse(GATE_IMPATIENT + GATE_TAP) > pulse(GATE_TAP) + 0.04);
-
-    const spins = (from) =>
-        Array.from(
-            { length: 20 },
-            (_, i) => gatePose(from + (GATE_TAP * i) / 20).chair.swivel,
-        ).some((value) => value < -0.9);
-    assert.equal(gatePose(1).impatient, false);
-    assert.equal(spins(0), false, 'calm hops do not spin');
-    assert.equal(gatePose(GATE_IMPATIENT).impatient, true);
-    assert.ok(spins(GATE_IMPATIENT), 'an impatient chair spins');
 });
