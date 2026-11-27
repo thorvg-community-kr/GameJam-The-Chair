@@ -1,108 +1,34 @@
+import { SAMPLES } from './audio-samples';
+import { GAME_SOUNDS } from './game-sounds';
 import { OPENING_SOUNDS } from './opening-sounds';
-import { noise, notes, tone } from './sfx-layers';
-import birdUrl from '../../assets/sound/bird.wav?url';
-import landUrl from '../../assets/sound/chair-land.wav?url';
-import squeakUrl from '../../assets/sound/chair-squeak.wav?url';
-import clickUrl from '../../assets/sound/click.wav?url';
-import copierUrl from '../../assets/sound/copier.wav?url';
-import paperUrl from '../../assets/sound/paper.wav?url';
-import splashUrl from '../../assets/sound/splash.wav?url';
-import windUrl from '../../assets/sound/wind.wav?url';
+import { createLoopMixer } from './sfx-loops';
+import { WORLD_SOUNDS } from './world-sounds';
 import { createSfxGate } from '../presentation/sfx';
 
+import type { AudioName } from './audio-samples';
 import type { Layer, Noise, Tone } from './sfx-layers';
-import type { GameSfxName, SfxName } from '../presentation/sfx';
+import type { LoopRequest, SoundOptions } from '../presentation/audio-types';
+import type { SfxName } from '../presentation/sfx';
 
 export type { SfxName } from '../presentation/sfx';
 
 export type Sfx = {
-    play(name: SfxName, now?: number): void;
-    stop(): void;
+    play(name: SfxName, now?: number, options?: SoundOptions): void;
+    syncLoops(requests: readonly LoopRequest[]): void;
+    stop(keepUi?: boolean): void;
     unlock(): void;
     setVolume(gain: number): void;
     destroy(): void;
 };
 
-const GAME_SOUNDS: Record<GameSfxName, Layer[]> = {
-    jump: [tone(240, 760, 0.13, 'triangle', { peak: 0.2 })],
-    land: [
-        tone(150, 50, 0.12, 'sine', { peak: 0.35 }),
-        noise('lowpass', 500, 0.06, { peak: 0.2 }),
-    ],
-    bonk: [
-        tone(620, 150, 0.22, 'square', { peak: 0.18 }),
-        tone(1900, 1700, 0.3, 'sine', { peak: 0.1 }),
-        noise('bandpass', 900, 0.05, { peak: 0.3 }),
-    ],
-    paper: [noise('bandpass', 3200, 0.1, { to: 1400, peak: 0.28 })],
-    thud: [
-        tone(110, 40, 0.25, 'sine', { peak: 0.4 }),
-        noise('lowpass', 700, 0.14, { peak: 0.3 }),
-    ],
-    copier: [tone(110, 118, 0.22, 'sawtooth', { peak: 0.1, wobble: 40 })],
-    splash: [noise('bandpass', 2400, 0.4, { to: 500, peak: 0.35 })],
-    crash: [
-        noise('highpass', 2500, 0.45, { peak: 0.3 }),
-        tone(420, 90, 0.3, 'square', { peak: 0.1 }),
-        tone(980, 940, 0.5, 'triangle', { at: 0.04, peak: 0.08 }),
-    ],
-    dizzy: [tone(900, 300, 0.6, 'sine', { peak: 0.16, wobble: 14 })],
-    squeak: [
-        tone(1300, 2300, 0.07, 'sine', { peak: 0.14 }),
-        tone(2300, 1500, 0.09, 'sine', { at: 0.07, peak: 0.14 }),
-    ],
-    zap: [tone(2200, 140, 0.16, 'sawtooth', { peak: 0.12 })],
-    spray: [noise('highpass', 3500, 0.2, { to: 1800, peak: 0.22 })],
-    pickup: notes([660, 880, 1320], 0.06, 'square', 0.1),
-    checkpoint: notes([988, 1319], 0.08, 'triangle', 0.2),
-    clear: notes([523, 659, 784, 1047, 784, 1047], 0.09, 'square', 0.1),
-    fail: [
-        tone(392, 370, 0.3, 'sawtooth', { peak: 0.12 }),
-        tone(370, 349, 0.3, 'sawtooth', { at: 0.32, peak: 0.12 }),
-        tone(349, 330, 0.3, 'sawtooth', { at: 0.64, peak: 0.12 }),
-        tone(330, 250, 0.9, 'sawtooth', { at: 0.96, peak: 0.12, wobble: 7 }),
-    ],
-    fall: [tone(1800, 180, 0.75, 'sine', { peak: 0.16 })],
-    click: [tone(900, 300, 0.08, 'triangle')],
-    wind: [noise('lowpass', 2000, 1.25, { peak: 0.1 })],
-    bird: [tone(1400, 700, 0.2, 'triangle', { peak: 0.15 })],
-    honk: [
-        tone(330, 320, 0.22, 'square', { peak: 0.08 }),
-        tone(415, 405, 0.22, 'square', { peak: 0.08 }),
-    ],
-};
-
-const SAMPLE_NAMES = [
-    'copier',
-    'paper',
-    'splash',
-    'land',
-    'squeak',
-    'click',
-    'wind',
-    'bird',
-] satisfies SfxName[];
-
-export const SAMPLES: Partial<
-    Record<SfxName, { url: string; seconds: number }>
-> = {
-    copier: { url: copierUrl, seconds: 0.7 },
-    paper: { url: paperUrl, seconds: 0.35 },
-    splash: { url: splashUrl, seconds: 0.6 },
-    land: { url: landUrl, seconds: 0.45 },
-    squeak: { url: squeakUrl, seconds: 0.7 },
-    click: { url: clickUrl, seconds: 0.32 },
-    wind: { url: windUrl, seconds: 1.25 },
-    bird: { url: birdUrl, seconds: 0.85 },
-};
-
 export const SOUNDS: Record<SfxName, Layer[]> = {
     ...GAME_SOUNDS,
+    ...WORLD_SOUNDS,
     ...OPENING_SOUNDS,
 };
 
 export function soundLength(name: SfxName): number {
-    const sample = SAMPLES[name];
+    const sample = SAMPLES.get(name);
     if (sample) {
         return sample.seconds;
     }
@@ -205,21 +131,23 @@ function noiseBuffer(audio: AudioContext): AudioBuffer {
 function loadSamples(
     audio: AudioContext,
     signal: AbortSignal,
-    buffers: Map<SfxName, AudioBuffer>,
+    buffers: Map<AudioName, AudioBuffer>,
 ) {
-    for (const name of SAMPLE_NAMES) {
-        const sample = SAMPLES[name];
-        if (!sample) {
-            continue;
+    const pending = new Map<string, Promise<AudioBuffer>>();
+    for (const [name, sample] of SAMPLES) {
+        let decoded = pending.get(sample.url);
+        if (!decoded) {
+            decoded = fetch(sample.url, { signal })
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error('Sound unavailable');
+                    }
+                    return response.arrayBuffer();
+                })
+                .then((data) => audio.decodeAudioData(data));
+            pending.set(sample.url, decoded);
         }
-        void fetch(sample.url, { signal })
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error('Sound unavailable');
-                }
-                return response.arrayBuffer();
-            })
-            .then((data) => audio.decodeAudioData(data))
+        void decoded
             .then((buffer) => {
                 if (!signal.aborted) {
                     buffers.set(name, buffer);
@@ -229,98 +157,174 @@ function loadSamples(
     }
 }
 
-export function createSfx(initialGain: number): Sfx {
-    let context: AudioContext | null = null;
-    let output: GainNode | null = null;
-    let hiss: AudioBuffer | null = null;
-    let gain = initialGain;
-    const gate = createSfxGate();
-    const buffers = new Map<SfxName, AudioBuffer>();
-    let loading: AbortController | null = null;
+class SfxRuntime implements Sfx {
+    private context: AudioContext | null = null;
+    private output: GainNode | null = null;
+    private hiss: AudioBuffer | null = null;
+    private loading: AbortController | null = null;
+    private loops: ReturnType<typeof createLoopMixer> | null = null;
+    private readonly gate = createSfxGate();
+    private readonly buffers = new Map<AudioName, AudioBuffer>();
+    private readonly active = new Set<AudioScheduledSourceNode>();
+    private readonly uiActive = new Set<AudioScheduledSourceNode>();
 
-    const active = new Set<AudioScheduledSourceNode>();
+    constructor(private gain: number) {}
 
-    const stopActive = () => {
-        for (const source of active) {
+    private ready() {
+        if (!this.context) {
+            try {
+                this.context = new AudioContext();
+            } catch {
+                return null;
+            }
+            this.output = this.context.createGain();
+            this.output.gain.value = this.gain;
+            this.output.connect(this.context.destination);
+            this.hiss = noiseBuffer(this.context);
+            this.loading = new AbortController();
+            loadSamples(this.context, this.loading.signal, this.buffers);
+            this.loops = createLoopMixer(
+                this.context,
+                this.output,
+                this.buffers,
+            );
+        }
+        if (this.context.state === 'suspended') {
+            void this.context.resume();
+        }
+        return this.context;
+    }
+
+    private sample(
+        audio: AudioContext,
+        output: AudioNode,
+        buffer: AudioBuffer,
+        options: SoundOptions,
+    ) {
+        const source = audio.createBufferSource();
+        const level = audio.createGain();
+        level.gain.value = Math.max(0, Math.min(1, options.gain ?? 1));
+        source.buffer = buffer;
+        source.playbackRate.value = Math.max(
+            0.5,
+            Math.min(2, options.rate ?? 1),
+        );
+        source.connect(level).connect(output);
+        const active = options.channel === 'ui' ? this.uiActive : this.active;
+        active.add(source);
+        source.onended = () => {
+            active.delete(source);
+            source.disconnect();
+            level.disconnect();
+        };
+        source.start();
+    }
+
+    play(
+        name: SfxName,
+        now = performance.now() / 1000,
+        options: SoundOptions = {},
+    ) {
+        if (this.gain <= 0 || (options.gain ?? 1) <= 0) {
+            return;
+        }
+        const audio = this.ready();
+        if (!audio || !this.output || !this.hiss) {
+            return;
+        }
+        if (
+            !this.gate.pass(name, now, soundLength(name) / (options.rate ?? 1))
+        ) {
+            return;
+        }
+        const buffer = this.buffers.get(name);
+        if (buffer) {
+            this.sample(audio, this.output, buffer, options);
+            return;
+        }
+        this.synthesize(name, audio, this.output, options);
+    }
+
+    private synthesize(
+        name: SfxName,
+        audio: AudioContext,
+        output: AudioNode,
+        options: SoundOptions,
+    ) {
+        if (!this.hiss) {
+            return;
+        }
+        const active = options.channel === 'ui' ? this.uiActive : this.active;
+        for (const original of SOUNDS[name]) {
+            const layer = {
+                ...original,
+                peak:
+                    (original.peak ?? DEFAULT_PEAK) *
+                    Math.min(1, options.gain ?? 1),
+            };
+            if (layer.kind === 'tone') {
+                playTone(audio, output, layer, active);
+            } else {
+                playNoise(audio, output, layer, this.hiss, active);
+            }
+        }
+    }
+
+    syncLoops(requests: readonly LoopRequest[]) {
+        if (this.gain <= 0) {
+            this.loops?.stop();
+            return;
+        }
+        this.loops?.sync(requests);
+    }
+
+    stop(keepUi = false) {
+        for (const source of this.active) {
             try {
                 source.stop();
             } catch {}
         }
-        active.clear();
-        gate.clear();
-    };
-
-    const ready = () => {
-        if (!context) {
-            try {
-                context = new AudioContext();
-            } catch {
-                return null;
+        this.active.clear();
+        if (!keepUi) {
+            for (const source of this.uiActive) {
+                try {
+                    source.stop();
+                } catch {}
             }
-            output = context.createGain();
-            output.gain.value = gain;
-            output.connect(context.destination);
-            hiss = noiseBuffer(context);
-            loading = new AbortController();
-            loadSamples(context, loading.signal, buffers);
+            this.uiActive.clear();
         }
-        if (context.state === 'suspended') {
-            void context.resume();
-        }
-        return context;
-    };
+        this.gate.clear();
+        this.loops?.stop();
+    }
 
-    return {
-        play(name, now = performance.now() / 1000) {
-            if (gain <= 0 || !gate.pass(name, now, soundLength(name))) {
-                return;
-            }
-            const audio = ready();
-            if (!audio || !output || !hiss) {
-                return;
-            }
-            const buffer = buffers.get(name);
-            if (buffer) {
-                const source = audio.createBufferSource();
-                source.buffer = buffer;
-                source.connect(output);
-                active.add(source);
-                source.onended = () => {
-                    active.delete(source);
-                    source.disconnect();
-                };
-                source.start();
-                return;
-            }
-            for (const layer of SOUNDS[name]) {
-                if (layer.kind === 'tone') {
-                    playTone(audio, output, layer, active);
-                } else {
-                    playNoise(audio, output, layer, hiss, active);
-                }
-            }
-        },
-        stop() {
-            stopActive();
-        },
-        unlock() {
-            ready();
-        },
-        setVolume(next) {
-            gain = next;
-            if (output) {
-                output.gain.value = next;
-            }
-        },
-        destroy() {
-            loading?.abort();
-            loading = null;
-            buffers.clear();
-            stopActive();
-            void context?.close();
-            context = null;
-            output = null;
-            hiss = null;
-        },
-    };
+    unlock() {
+        this.ready();
+    }
+
+    setVolume(next: number) {
+        this.gain = next;
+        if (this.output) {
+            this.output.gain.value = next;
+        }
+        if (next <= 0) {
+            this.stop();
+        }
+    }
+
+    destroy() {
+        this.loading?.abort();
+        this.loading = null;
+        this.buffers.clear();
+        this.stop();
+        this.loops?.destroy();
+        this.loops = null;
+        void this.context?.close();
+        this.context = null;
+        this.output = null;
+        this.hiss = null;
+    }
+}
+
+export function createSfx(initialGain: number): Sfx {
+    return new SfxRuntime(initialGain);
 }

@@ -204,24 +204,26 @@ export function chairDispatch(): PreviewScene {
 export function officeTyping(): PreviewScene {
     const game = createGame();
     game.startStage(2);
-    const base = game.getSnapshot();
-    const state = { ...base, player: { ...base.player, x: STAGE_TWO.length } };
-    const effects = createEffects().snapshot();
-    return {
-        id: 'office-typing',
-        label: 'Office · Window typing',
-        duration: 1,
-        focusX: STAGE_TWO.offices[1],
-        markers: [
-            { at: 0, label: 'Ready' },
-            { at: 0.25, label: 'Hand raised' },
-            { at: 0.5, label: 'Key press' },
+    const state = parseState(game.serialize());
+    state.p.x = STAGE_TWO.offices[1] + 20;
+    state.p.y = 392;
+    state.ground = true;
+    game.restore(JSON.stringify(state));
+    const effects = createEffects();
+    const frames = [capture(game, effects)];
+    for (let i = 0; i < 360; i++) {
+        stepGame(game, effects);
+        frames.push(capture(game, effects));
+    }
+    return recordedScene(
+        'office-typing',
+        'Office · Window typing',
+        STAGE_TWO.offices[1],
+        [
+            { at: 0.1, label: 'Typing starts' },
+            { at: 1.5, label: 'Typing stops' },
+            { at: 4.6, label: 'Next phrase' },
         ],
-        sample(time) {
-            return {
-                state: { ...state, time: Math.max(0, Math.min(1, time)) },
-                effects,
-            };
-        },
-    };
+        frames,
+    );
 }

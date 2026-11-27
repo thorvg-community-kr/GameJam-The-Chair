@@ -100,7 +100,7 @@ test('office preview keeps one staff mix through the typing motion', () => {
     const typing = scene.sample(0.25).state;
     assert.equal(start.stage, 2);
     assert.equal(typing.corridor.appearanceSeed, start.corridor.appearanceSeed);
-    assert.equal(typing.time, 0.25);
+    assert.ok(Math.abs(typing.time - 0.25) < 1e-9);
 });
 
 test('duct preview seeks between powder intake, twitch and sneeze', () => {
