@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { loadSource } from './support/load.mjs';
+import { bundled } from './support/load.mjs';
 
 const {
     createGame,
@@ -17,7 +17,11 @@ const {
     SOUNDS,
     translate,
     previewScenes,
-} = await loadSource(`
+} = await bundled({
+    loader: { '.wav': 'dataurl' },
+    stdin: {
+        resolveDir: process.cwd(),
+        contents: `
     export { createGame } from './src/game/game';
     export { createOpening } from './src/ui/opening';
     export { createRenderCtx } from './tests/support/render-context';
@@ -26,7 +30,9 @@ const {
     export { SOUNDS } from './src/ui/sfx';
     export { translate } from './src/i18n';
     export { previewScenes } from './src/preview-scenes';
-`);
+`,
+    },
+});
 const B = OPENING_BEATS;
 
 test('the opening plays once per page load after either a skip or a full run', () => {

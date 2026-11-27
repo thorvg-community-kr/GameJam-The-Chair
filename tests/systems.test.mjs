@@ -165,6 +165,57 @@ test('the copier aims, waits, then fires a four-sheet burst; the first shot is h
     );
 });
 
+test('copiers cancel pending shots outside detection range and warn again on return', () => {
+    const dt = 1 / 120;
+    const initial = sys.createCopier();
+    const armed = sys.copierStep(initial, initial.x - 100, true, dt).copier;
+    for (const direction of [-1, 1]) {
+        const farX = initial.x + direction * 350;
+        let state = { ...armed, next: 0 };
+        for (let i = 0; i < 360; i++) {
+            const result = sys.copierStep(state, farX, true, dt);
+            assert.equal(result.fire, false, 'no distant office copier shot');
+            state = {
+                ...result.copier,
+                cool: Math.max(0, result.copier.cool - dt),
+            };
+        }
+        assert.equal(state.burst, 0);
+        const returned = sys.copierStep(
+            state,
+            initial.x + direction * 100,
+            true,
+            dt,
+        );
+        assert.equal(returned.fire, false, 'returning gets a full warning');
+        assert.equal(returned.copier.burst, 4);
+        assert.equal(returned.copier.dir, direction);
+        assert.ok(
+            sys.paperShot(returned.copier).every((paper) => paper.safe),
+            'cancelling the warning does not consume the harmless first shot',
+        );
+    }
+    const urgent = sys.createUrgentCopier();
+    const scanning = sys.urgentCopierStep(urgent, urgent.x - 100, dt).copier;
+    for (const pending of [
+        scanning,
+        { ...scanning, scan: 0, burst: 4, next: 0 },
+    ]) {
+        let state = pending;
+        for (let i = 0; i < 360; i++) {
+            const result = sys.urgentCopierStep(state, urgent.x + 1000, dt);
+            assert.equal(result.fire, false, 'no distant urgent copier shot');
+            assert.equal(result.started, false);
+            state = result.copier;
+        }
+        assert.equal(state.scan, 0);
+        assert.equal(state.burst, 0);
+        const returned = sys.urgentCopierStep(state, urgent.x - 100, dt);
+        assert.equal(returned.started, true);
+        assert.equal(returned.fire, false, 'returning gets a fresh scan');
+    }
+});
+
 test('sheets that reach the rider are reported once, in order, without touching the input', () => {
     const paper = {
         x: 500,

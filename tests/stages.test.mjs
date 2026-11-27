@@ -512,7 +512,7 @@ test('copier previews its shot and its first paper batch is safe', () => {
         'later shots retain the hazard',
     );
 });
-test('holding right runs into the copier papers while the copier keeps firing', () => {
+test('holding right meets copier papers, then leaves the firing range', () => {
     const game = createGame();
     game.startStage(1);
     const start = game.getSnapshot();
@@ -533,7 +533,7 @@ test('holding right runs into the copier papers while the copier keeps firing', 
             firstHitX = state.player.x;
             firstHitFocus = state.focus;
         }
-        if (state.player.x > state.copier.x + 350 && state.bursts >= 8) {
+        if (state.player.x > state.copier.x + 350) {
             break;
         }
     }
@@ -548,10 +548,17 @@ test('holding right runs into the copier papers while the copier keeps firing', 
         'the first copier hit costs 15 focus once per volley',
     );
     assert.ok(state.player.x > state.copier.x + 350);
-    assert.ok(
-        state.bursts >= 8,
-        'the copier must fire another volley after the rider leaves its trigger range',
-    );
+    assert.ok(state.bursts > 0, 'the copier fires while the rider is nearby');
+    game.step(dt);
+    const stopped = game.getSnapshot().bursts;
+    for (let i = 0; i < 120; i++) {
+        game.step(dt);
+        assert.equal(
+            game.getSnapshot().bursts,
+            stopped,
+            'no shots after leaving range',
+        );
+    }
 });
 test('cleared-stage history survives retries, stage changes and saved-game restoration', () => {
     const game = createGame({ progress: { completedStage: 1 } });

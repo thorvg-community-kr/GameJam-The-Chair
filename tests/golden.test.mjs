@@ -3,9 +3,10 @@ import test from 'node:test';
 
 import { GOLDEN_SCENARIOS } from './support/golden.mjs';
 
-// Canonical JSON fingerprints verified against unchanged gameplay at 867ac0a.
+// Office route updated: copiers cancel pending fire when the player leaves detection range.
+// Other fingerprints retain the gameplay verified at 867ac0a.
 const EXPECTED = {
-    'office route': '674b270a2aee5b1f',
+    'office route': 'c5b1d493333759fc',
     'office crash': 'b18a7a4073407019',
     'building exit': 'c257a2471db3a892',
     'building lift': '12cd32921b3f04a2',

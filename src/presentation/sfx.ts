@@ -1,3 +1,5 @@
+import { skyGust } from '../game/stages/sky/data';
+
 import type { GameSnapshot } from '../game/game';
 import type { CueId, GameEvent } from '../game/types';
 
@@ -19,7 +21,10 @@ export type GameSfxName =
     | 'clear'
     | 'fail'
     | 'fall'
-    | 'honk';
+    | 'honk'
+    | 'click'
+    | 'wind'
+    | 'bird';
 
 export type OpeningSfxName =
     | 'openingClockSix'
@@ -50,7 +55,7 @@ export type SfxName = GameSfxName | OpeningSfxName;
 
 export type SfxFrame = Pick<
     GameSnapshot,
-    'mode' | 'stage' | 'ground' | 'deaths' | 'player' | 'sky' | 'orbit'
+    'mode' | 'stage' | 'ground' | 'deaths' | 'player' | 'sky' | 'orbit' | 'time'
 >;
 
 // Speech-bubble and hint cues stay silent on purpose.
@@ -79,7 +84,7 @@ const CUE_SOUNDS: Record<CueId, SfxName | null> = {
     'light-hit': 'zap',
     'light-comment': null,
     spray: 'spray',
-    'extinguisher-pickup': 'pickup',
+    'extinguisher-pickup': 'click',
     'urgent-volley': 'copier',
     'bundle-hit': 'thud',
     'convoy-bump': 'honk',
@@ -145,6 +150,52 @@ function fellOff(
     );
 }
 
+function eventSound(event: GameEvent): SfxName | null {
+    if (event.type === 'cue') {
+        return cueSound(event.id);
+    }
+    return event.type === 'volley' ? 'copier' : null;
+}
+
+function docked(prev: SfxFrame, next: SfxFrame): boolean {
+    return (
+        prev.mode === 'play' &&
+        next.mode === 'play' &&
+        next.stage === 5 &&
+        prev.orbit?.phase === 'door' &&
+        next.orbit?.phase === 'parked'
+    );
+}
+
+function skySounds(
+    prev: SfxFrame,
+    next: SfxFrame,
+    events: readonly GameEvent[],
+): SfxName[] {
+    const sounds: SfxName[] = [];
+    if (
+        prev.mode === 'play' &&
+        next.mode === 'play' &&
+        !events.some((event) => event.type === 'reset')
+    ) {
+        if (next.stage === 4 && next.sky.phase === 'course') {
+            if (
+                skyGust(prev.time).strength < 0.05 &&
+                skyGust(next.time).strength >= 0.05
+            ) {
+                sounds.push('wind');
+            }
+            if (
+                next.sky.knockKind === 'bird' &&
+                next.sky.knock > prev.sky.knock
+            ) {
+                sounds.push('bird');
+            }
+        }
+    }
+    return sounds;
+}
+
 export function frameSounds(
     prev: SfxFrame | null,
     next: SfxFrame,
@@ -153,16 +204,20 @@ export function frameSounds(
     if (!prev || prev.stage !== next.stage) {
         return [];
     }
+    if (docked(prev, next)) {
+        return ['click'];
+    }
     if (silentFrame(prev) || silentFrame(next)) {
         return [];
     }
     const sounds: SfxName[] = [];
     for (const event of events) {
-        const sound = event.type === 'cue' ? cueSound(event.id) : null;
+        const sound = eventSound(event);
         if (sound && !sounds.includes(sound)) {
             sounds.push(sound);
         }
     }
+    sounds.push(...skySounds(prev, next, events));
     if (fellOff(prev, next, events)) {
         return [...sounds, 'fall'];
     }
