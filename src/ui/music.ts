@@ -5,7 +5,7 @@ import stage4Url from '../../assets/bgm/stage4.m4a?url';
 import stage5Url from '../../assets/bgm/stage5.m4a?url';
 import startUrl from '../../assets/bgm/start.m4a?url';
 
-import type { MusicTrack } from '../presentation/music';
+import type { MusicDuck, MusicTrack } from '../presentation/music';
 
 const TRACK_URLS: Record<MusicTrack, string> = {
     start: startUrl,
@@ -16,12 +16,16 @@ const TRACK_URLS: Record<MusicTrack, string> = {
     ending: endingUrl,
 };
 const VOLUME = 0.55;
-const DUCKED = 0.18;
+const DUCK_LEVELS: Record<MusicDuck, number> = {
+    none: VOLUME,
+    pause: 0.18,
+    death: 0.08,
+};
 const FADE_SECONDS = 1.2;
 const UNLOCK_EVENTS = ['pointerdown', 'keydown', 'touchend'] as const;
 
 export type Music = {
-    play(track: MusicTrack | null, ducked: boolean): void;
+    play(track: MusicTrack | null, duck?: MusicDuck): void;
     advance(dt: number): void;
     setVolume(gain: number): void;
     destroy(): void;
@@ -89,8 +93,8 @@ export function createMusic(initialGain = 1): Music {
     document.addEventListener('visibilitychange', onVisibility);
 
     return {
-        play(track, ducked) {
-            target = ducked ? DUCKED : VOLUME;
+        play(track, duck = 'none') {
+            target = DUCK_LEVELS[duck];
             if (track === current) {
                 return;
             }

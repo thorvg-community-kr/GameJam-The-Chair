@@ -6,7 +6,7 @@ import {
     LOCALE_STORAGE_KEY,
     translate,
 } from './i18n';
-import { musicTrack } from './presentation/music';
+import { musicDuck, musicTrack } from './presentation/music';
 import { openingSounds } from './presentation/opening-sfx';
 import { frameSounds } from './presentation/sfx';
 import { createEffects } from './render/effects';
@@ -225,7 +225,7 @@ if (startupSplashVisible) {
         () => {
             startupSplashVisible = false;
             sfx.unlock();
-            music.play('start', false);
+            music.play('start');
         },
     );
 }
@@ -349,7 +349,7 @@ function presentFrame() {
             openingSoundTime = null;
             playSounds(replay ? null : state, events);
         }
-        music.play(musicTrack(state, !!cutscene), state.mode === 'pause');
+        music.play(musicTrack(state, !!cutscene), musicDuck(state));
         if (cutscene) {
             renderer?.draw(
                 openingState(state, cutscene),
