@@ -7,6 +7,7 @@ import {
     translate,
 } from './i18n';
 import { musicTrack } from './presentation/music';
+import { openingSounds } from './presentation/opening-sfx';
 import { frameSounds } from './presentation/sfx';
 import { createEffects } from './render/effects';
 import { createRenderer } from './render/renderer';
@@ -246,8 +247,14 @@ const unbind = bindInput(root, hintedGame, {
     blocked: () =>
         simulationFailed || player.active || opening.active || !!settings?.open,
     onStart() {
+        sfx.unlock();
         if (!opening.seen) {
-            opening.start(() => unbind.sync());
+            openingSoundTime = -0.001;
+            opening.start(() => {
+                sfx.stop();
+                openingSoundTime = null;
+                unbind.sync();
+            });
         }
     },
 });
@@ -309,11 +316,18 @@ function draw() {
 let last: number | null = null;
 let musicLast: number | null = null;
 let sfxLast: SfxFrame | null = null;
+let openingSoundTime: number | null = null;
 function playSounds(state: SfxFrame | null, events: readonly GameEvent[]) {
     for (const sound of state ? frameSounds(sfxLast, state, events) : []) {
         sfx.play(sound);
     }
     sfxLast = state;
+}
+function playOpeningSounds(time: number) {
+    for (const sound of openingSounds(openingSoundTime, time)) {
+        sfx.play(sound);
+    }
+    openingSoundTime = time;
 }
 function presentFrame() {
     const { replay, state, events } = readPresentationFrame();
@@ -328,7 +342,13 @@ function presentFrame() {
         const visual = replay ? player.effects() : effects.snapshot();
         const cutscene = replay ? null : opening.frame();
         const cues = replay ? player.feedback() : feedback.snapshot();
-        playSounds(replay || cutscene ? null : state, events);
+        if (cutscene) {
+            playOpeningSounds(cutscene.t);
+            sfxLast = null;
+        } else {
+            openingSoundTime = null;
+            playSounds(replay ? null : state, events);
+        }
         music.play(musicTrack(state, !!cutscene), state.mode === 'pause');
         if (cutscene) {
             renderer?.draw(

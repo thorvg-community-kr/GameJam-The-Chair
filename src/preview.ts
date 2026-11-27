@@ -1,6 +1,9 @@
 import { browserLocale, keepLangOnLinks } from './i18n';
+import { openingSounds } from './presentation/opening-sfx';
 import { previewScenes } from './preview-scenes';
 import { createRenderer } from './render/renderer';
+import { loadAudioSettings, sfxGain } from './ui/audio-settings';
+import { createSfx } from './ui/sfx';
 import { createSplashPlayer } from './ui/splash';
 
 import type { Locale } from './i18n';
@@ -17,6 +20,7 @@ const backend = document.querySelector<HTMLElement>('#renderer')!;
 const locale: Locale = browserLocale();
 keepLangOnLinks();
 const renderer = createRenderer(root, () => locale);
+const sfx = createSfx(sfxGain(loadAudioSettings()));
 const splashCanvas =
     document.querySelector<HTMLCanvasElement>('#splash-preview')!;
 const splash = createSplashPlayer(splashCanvas);
@@ -32,6 +36,20 @@ let time = 0;
 let playing = false;
 let previousFrame: number | null = null;
 let scheduledFrame: number | null = null;
+let openingSoundTime: number | null = null;
+function playOpeningSounds(nextTime: number) {
+    if (!playing || !scene.opening) {
+        return;
+    }
+    if (openingSoundTime !== null && nextTime < openingSoundTime) {
+        sfx.stop();
+        openingSoundTime = -0.001;
+    }
+    for (const sound of openingSounds(openingSoundTime, nextTime)) {
+        sfx.play(sound);
+    }
+    openingSoundTime = nextTime;
+}
 function render() {
     const isSplash = scene.id === 'startup-splash';
     root.querySelector('.scene')?.classList.toggle('splash-scene', isSplash);
@@ -67,6 +85,8 @@ function render() {
 function pause() {
     playing = false;
     previousFrame = null;
+    openingSoundTime = null;
+    sfx.stop();
     if (scheduledFrame !== null) {
         cancelAnimationFrame(scheduledFrame);
     }
@@ -113,6 +133,7 @@ function frame(ms: number) {
         const next = time + Math.max(0, (ms - previousFrame) / 1000);
         seek(next >= scene.duration ? next % scene.duration : next, false);
     }
+    playOpeningSounds(time);
     previousFrame = ms;
     scheduledFrame = requestAnimationFrame(frame);
 }
@@ -141,6 +162,10 @@ playButton.addEventListener('click', () => {
     }
     playing = true;
     previousFrame = null;
+    if (scene.opening) {
+        sfx.unlock();
+        openingSoundTime = Math.max(-0.001, time - 0.001);
+    }
     playButton.textContent = 'Pause';
     playButton.setAttribute('aria-label', 'Pause animation');
     scheduledFrame = requestAnimationFrame(frame);
@@ -154,6 +179,7 @@ const resize = new ResizeObserver(() => requestAnimationFrame(render));
 resize.observe(root);
 window.addEventListener('pagehide', () => {
     resize.disconnect();
+    sfx.destroy();
     renderer.destroy();
     splash.destroy();
 });

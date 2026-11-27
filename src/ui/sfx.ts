@@ -1,64 +1,21 @@
+import { OPENING_SOUNDS } from './opening-sounds';
+import { noise, notes, tone } from './sfx-layers';
 import { createSfxGate } from '../presentation/sfx';
 
-import type { SfxName } from '../presentation/sfx';
+import type { Layer, Noise, Tone } from './sfx-layers';
+import type { GameSfxName, SfxName } from '../presentation/sfx';
 
 export type { SfxName } from '../presentation/sfx';
 
 export type Sfx = {
     play(name: SfxName, now?: number): void;
+    stop(): void;
     unlock(): void;
     setVolume(gain: number): void;
     destroy(): void;
 };
 
-type Tone = {
-    kind: 'tone';
-    at?: number;
-    from: number;
-    to: number;
-    seconds: number;
-    wave: OscillatorType;
-    peak?: number;
-    wobble?: number;
-};
-type Noise = {
-    kind: 'noise';
-    at?: number;
-    seconds: number;
-    filter: BiquadFilterType;
-    from: number;
-    to?: number;
-    peak?: number;
-};
-type Layer = Tone | Noise;
-
-const tone = (
-    from: number,
-    to: number,
-    seconds: number,
-    wave: OscillatorType,
-    extra: Partial<Tone> = {},
-): Tone => ({ kind: 'tone', from, to, seconds, wave, ...extra });
-const noise = (
-    filter: BiquadFilterType,
-    from: number,
-    seconds: number,
-    extra: Partial<Noise> = {},
-): Noise => ({ kind: 'noise', filter, from, seconds, ...extra });
-const notes = (
-    freqs: number[],
-    step: number,
-    wave: OscillatorType,
-    peak = 0.16,
-): Tone[] =>
-    freqs.map((f, i) =>
-        tone(f, f, i === freqs.length - 1 ? step * 3 : step, wave, {
-            at: i * step,
-            peak,
-        }),
-    );
-
-export const SOUNDS: Record<SfxName, Layer[]> = {
+const GAME_SOUNDS: Record<GameSfxName, Layer[]> = {
     jump: [tone(240, 760, 0.13, 'triangle', { peak: 0.2 })],
     land: [
         tone(150, 50, 0.12, 'sine', { peak: 0.35 }),
@@ -104,6 +61,11 @@ export const SOUNDS: Record<SfxName, Layer[]> = {
     ],
 };
 
+export const SOUNDS: Record<SfxName, Layer[]> = {
+    ...GAME_SOUNDS,
+    ...OPENING_SOUNDS,
+};
+
 export function soundLength(name: SfxName): number {
     return Math.max(
         ...SOUNDS[name].map((layer) => (layer.at ?? 0) + layer.seconds),
@@ -114,15 +76,31 @@ const DEFAULT_PEAK = 0.25;
 const SILENT = 0.0001;
 
 function envelope(env: GainNode, start: number, layer: Layer) {
+    const attack = Math.min(layer.attack ?? 0.005, layer.seconds * 0.6);
     env.gain.setValueAtTime(SILENT, start);
     env.gain.exponentialRampToValueAtTime(
         layer.peak ?? DEFAULT_PEAK,
-        start + 0.005,
+        start + attack,
     );
     env.gain.exponentialRampToValueAtTime(SILENT, start + layer.seconds);
 }
 
-function playTone(audio: AudioContext, out: AudioNode, layer: Tone) {
+function trackSource(
+    active: Set<AudioScheduledSourceNode>,
+    source: AudioScheduledSourceNode,
+) {
+    active.add(source);
+    source.onended = () => {
+        active.delete(source);
+    };
+}
+
+function playTone(
+    audio: AudioContext,
+    out: AudioNode,
+    layer: Tone,
+    active: Set<AudioScheduledSourceNode>,
+) {
     const start = audio.currentTime + (layer.at ?? 0);
     const osc = audio.createOscillator();
     const env = audio.createGain();
@@ -133,13 +111,15 @@ function playTone(audio: AudioContext, out: AudioNode, layer: Tone) {
         const lfo = audio.createOscillator();
         const depth = audio.createGain();
         lfo.frequency.value = layer.wobble;
-        depth.gain.value = layer.from * 0.04;
+        depth.gain.value = layer.from * (layer.wobbleDepth ?? 0.04);
         lfo.connect(depth).connect(osc.frequency);
+        trackSource(active, lfo);
         lfo.start(start);
         lfo.stop(start + layer.seconds);
     }
     envelope(env, start, layer);
     osc.connect(env).connect(out);
+    trackSource(active, osc);
     osc.start(start);
     osc.stop(start + layer.seconds);
 }
@@ -149,6 +129,7 @@ function playNoise(
     out: AudioNode,
     layer: Noise,
     buffer: AudioBuffer,
+    active: Set<AudioScheduledSourceNode>,
 ) {
     const start = audio.currentTime + (layer.at ?? 0);
     const src = audio.createBufferSource();
@@ -157,6 +138,9 @@ function playNoise(
     src.buffer = buffer;
     filter.type = layer.filter;
     filter.frequency.setValueAtTime(layer.from, start);
+    if (layer.q) {
+        filter.Q.setValueAtTime(layer.q, start);
+    }
     if (layer.to) {
         filter.frequency.exponentialRampToValueAtTime(
             layer.to,
@@ -165,6 +149,7 @@ function playNoise(
     }
     envelope(env, start, layer);
     src.connect(filter).connect(env).connect(out);
+    trackSource(active, src);
     src.start(start);
     src.stop(start + layer.seconds);
 }
@@ -184,6 +169,17 @@ export function createSfx(initialGain: number): Sfx {
     let hiss: AudioBuffer | null = null;
     let gain = initialGain;
     const gate = createSfxGate();
+    const active = new Set<AudioScheduledSourceNode>();
+
+    const stopActive = () => {
+        for (const source of active) {
+            try {
+                source.stop();
+            } catch {}
+        }
+        active.clear();
+        gate.clear();
+    };
 
     const ready = () => {
         if (!context) {
@@ -214,11 +210,14 @@ export function createSfx(initialGain: number): Sfx {
             }
             for (const layer of SOUNDS[name]) {
                 if (layer.kind === 'tone') {
-                    playTone(audio, output, layer);
+                    playTone(audio, output, layer, active);
                 } else {
-                    playNoise(audio, output, layer, hiss);
+                    playNoise(audio, output, layer, hiss, active);
                 }
             }
+        },
+        stop() {
+            stopActive();
         },
         unlock() {
             ready();
@@ -230,11 +229,11 @@ export function createSfx(initialGain: number): Sfx {
             }
         },
         destroy() {
+            stopActive();
             void context?.close();
             context = null;
             output = null;
             hiss = null;
-            gate.clear();
         },
     };
 }
