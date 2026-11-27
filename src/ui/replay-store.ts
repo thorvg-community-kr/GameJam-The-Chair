@@ -4,6 +4,7 @@ import { CONFIG_VERSION } from '../game/stages/index';
 import type {
     Recorder,
     ReplayData,
+    ReplayEdit,
     ReplayError,
     ReplayErrorEntry,
     ReplayFile,
@@ -142,6 +143,39 @@ export function saveBrowserData(data: ReplayData): void {
         attempts: data.attempts.slice(0, 1),
         errors: data.errors.map((entry) => ({ ...entry, replay: null })),
     });
+}
+const EDITS_KEY = 'the-chair-replay-edits';
+const MAX_SAVED_EDITS = 50;
+function readEdits(): Record<string, unknown> {
+    try {
+        const saved: unknown = JSON.parse(
+            localStorage.getItem(EDITS_KEY) || '{}',
+        );
+        return saved && typeof saved === 'object' && !Array.isArray(saved)
+            ? (saved as Record<string, unknown>)
+            : {};
+    } catch {
+        return {};
+    }
+}
+// Returns the raw saved edit; callers validate it against their replay.
+export function loadReplayEdit(key: string): unknown {
+    return readEdits()[key] ?? null;
+}
+export function saveReplayEdit(key: string, edit: ReplayEdit | null): void {
+    const edits = readEdits();
+    delete edits[key];
+    if (edit && (edit.markers.length || edit.range)) {
+        edits[key] = edit;
+    }
+    const keys = Object.keys(edits);
+    for (const old of keys.slice(
+        0,
+        Math.max(0, keys.length - MAX_SAVED_EDITS),
+    )) {
+        delete edits[old];
+    }
+    store(EDITS_KEY, edits);
 }
 export function loadBrowserData(): string | null {
     try {
