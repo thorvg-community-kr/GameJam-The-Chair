@@ -37,7 +37,7 @@ export function createSplashPlayer(element: HTMLCanvasElement): {
                 height: HEIGHT,
             });
             nextCanvas.add(picture);
-            cue = createGateCue(TVG, nextCanvas);
+            cue = createGateCue(TVG, nextCanvas, picture);
             animation = nextAnimation;
             canvas = nextCanvas;
             draw(0);
@@ -84,9 +84,47 @@ const INERT_KEYS = new Set([
     'Fn',
 ]);
 
+// Listens on the whole window so a tap outside the splash or a key pressed
+// after focus moved away still continues.
+function bindGateInput(onPress: () => void, onEscape: () => void): () => void {
+    const listeners = new AbortController();
+    const options = { capture: true, signal: listeners.signal };
+    window.addEventListener(
+        'keydown',
+        (event) => {
+            if (event.key === 'Tab' || event.key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            if (event.key === 'Escape') {
+                onEscape();
+            }
+            if (INERT_KEYS.has(event.key) || event.repeat) {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            onPress();
+        },
+        options,
+    );
+    window.addEventListener('click', onPress, options);
+    // Ending on touchend keeps iOS happy and swallows the ghost click that
+    // would otherwise land on the title underneath.
+    window.addEventListener(
+        'touchend',
+        (event) => {
+            event.preventDefault();
+            onPress();
+        },
+        { ...options, passive: false },
+    );
+    return () => listeners.abort();
+}
+
 // Any click, tap or key ends the splash inside that gesture, so `onFinish`
-// may start audio. Left alone, the splash waits on a hopping chair instead of
-// reaching the title silently.
+// may start audio. Left alone, the splash waits on a clicking-key cue instead
+// of reaching the title silently.
 export function showStartupSplash(
     root: HTMLElement,
     getLocale: () => Locale,
@@ -127,28 +165,16 @@ export function showStartupSplash(
             return;
         }
         closed = true;
+        unbind();
+        root.classList.remove('splashing');
         cancelAnimationFrame(frameId);
         player.destroy();
         screen.remove();
         root.querySelector<HTMLButtonElement>('[data-start]')?.focus();
         onFinish();
     };
-    screen.addEventListener('click', finish);
-    screen.addEventListener('keydown', (event) => {
-        if (event.key === 'Tab' || event.key === 'Escape') {
-            event.preventDefault();
-            event.stopPropagation();
-        }
-        if (event.key === 'Escape') {
-            openGate();
-        }
-        if (INERT_KEYS.has(event.key) || event.repeat) {
-            return;
-        }
-        event.preventDefault();
-        event.stopPropagation();
-        finish();
-    });
+    const unbind = bindGateInput(finish, openGate);
+    root.classList.add('splashing');
     screen.focus();
     function tick(ms: number) {
         if (closed) {

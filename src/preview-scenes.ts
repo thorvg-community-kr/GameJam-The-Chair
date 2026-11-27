@@ -47,7 +47,7 @@ import {
     skyToOrbit,
 } from './preview/sky';
 import { createEffects } from './render/effects';
-import { GATE_HOP } from './ui/splash-gate';
+import { GATE_IMPATIENT, GATE_TAP } from './ui/splash-gate';
 import { SPLASH_DURATION } from './ui/splash-meta';
 
 import type { PreviewRegistration } from './preview/registration';
@@ -76,16 +76,16 @@ export const previewScenes: readonly PreviewRegistration[] = (
         },
         {
             id: 'startup-gate',
-            label: 'Intro · Splash gate: the chair waits for a press',
+            label: 'Intro · Splash gate: a giant key begs for a press',
             create: () => ({
                 id: 'startup-gate',
-                label: 'Intro · Splash gate: the chair waits for a press',
-                duration: GATE_HOP * 3,
+                label: 'Intro · Splash gate: a giant key begs for a press',
+                duration: GATE_IMPATIENT + GATE_TAP * 3,
                 focusX: 400,
                 markers: [
-                    { at: 0.3, label: 'Hop' },
-                    { at: 0.75, label: 'Key press' },
-                    { at: GATE_HOP * 2 + 0.3, label: 'Impatient spin' },
+                    { at: 0.3, label: 'Logo steps aside' },
+                    { at: GATE_TAP * 1.75, label: 'Cursor clicks' },
+                    { at: GATE_IMPATIENT + 0.3, label: 'Impatient' },
                 ],
                 sample: () => ({
                     state: createGame().getSnapshot(),

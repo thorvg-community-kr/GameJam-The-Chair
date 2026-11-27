@@ -38,7 +38,7 @@
 | `src/ui/input.ts`, `src/ui/controls.ts` | 브라우저 조작을 facade 호출로 연결합니다. |
 | `src/i18n.ts` | 영어와 한국어 메시지 및 언어 선택을 담당합니다. |
 
-ThorVG 사용 예제는 장면의 layer 설정을 고른 뒤 `paint/thorvg.ts`까지 따라가며 읽습니다. 이 순서로 보면 mask나 blur를 사용하는 연출 목적과 실제 API 호출을 함께 이해할 수 있습니다. 시작 Lottie 재생은 `ui/splash.ts`의 별도 `Animation` 경로이고, 로고 뒤 입력 대기 연출은 같은 ThorVG 캔버스에 `Scene`·`Shape`를 얹고 `transform`으로 움직이는 `ui/splash-gate.ts`입니다.
+ThorVG 사용 예제는 장면의 layer 설정을 고른 뒤 `paint/thorvg.ts`까지 따라가며 읽습니다. 이 순서로 보면 mask나 blur를 사용하는 연출 목적과 실제 API 호출을 함께 이해할 수 있습니다. 시작 Lottie 재생은 `ui/splash.ts`의 별도 `Animation` 경로이고, 로고 뒤 입력 대기 연출은 같은 ThorVG 캔버스에 `Scene`·`Shape`를 얹고 로고 `Picture`와 함께 `transform`으로 움직이는 `ui/splash-gate.ts`입니다.
 
 ## 미리보기와 검증 도구
 
