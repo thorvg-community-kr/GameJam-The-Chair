@@ -9,9 +9,12 @@ const {
     createRenderCtx,
     drawOpening,
     openingFrame,
+    openingSounds,
     openingState,
     OPENING_BEATS,
     OPENING_DURATION,
+    OPENING_SOUND_CUES,
+    SOUNDS,
     translate,
     previewScenes,
 } = await loadSource(`
@@ -19,6 +22,8 @@ const {
     export { createOpening } from './src/ui/opening';
     export { createRenderCtx } from './tests/support/render-context';
     export { drawOpening, openingFrame, openingState, OPENING_BEATS, OPENING_DURATION } from './src/render/scene/opening';
+    export { openingSounds, OPENING_SOUND_CUES } from './src/presentation/opening-sfx';
+    export { SOUNDS } from './src/ui/sfx';
     export { translate } from './src/i18n';
     export { previewScenes } from './src/preview-scenes';
 `);
@@ -380,4 +385,41 @@ test('the opening preview is registered and seeks deterministically', () => {
     scene.sample(0);
     assert.deepEqual(scene.sample(B.chairHope + 1), at);
     assert.deepEqual(scene.opening(B.rage), openingFrame(B.rage));
+});
+
+test('opening sound cues track the timeline beats, stay silent before rage and have recipes', () => {
+    let lastAt = -1;
+    for (const cue of OPENING_SOUND_CUES) {
+        assert.ok(cue.at >= 0 && cue.at < OPENING_DURATION, cue.sound);
+        assert.ok(cue.at >= lastAt, `out-of-order cue ${cue.sound}`);
+        assert.ok(SOUNDS[cue.sound], `missing synth recipe ${cue.sound}`);
+        lastAt = cue.at;
+    }
+    const heard = [];
+    let prev = -0.001;
+    for (let step = 0; step <= Math.ceil(OPENING_DURATION * 60); step++) {
+        const next = Math.min(OPENING_DURATION, step / 60);
+        heard.push(...openingSounds(prev, next));
+        prev = next;
+    }
+    assert.deepEqual(
+        heard,
+        OPENING_SOUND_CUES.map((cue) => cue.sound),
+    );
+    assert.deepEqual(openingSounds(null, 1), []);
+    assert.deepEqual(openingSounds(5, 4), []);
+    assert.deepEqual(
+        openingSounds(B.darkChair, B.rage - 0.01),
+        [],
+        'the dark chair pause before rage stays silent',
+    );
+    assert.deepEqual(openingSounds(B.rage - 0.01, B.rage), ['openingRageSnap']);
+    for (const cue of OPENING_SOUND_CUES) {
+        if (cue.sound.startsWith('openingCreak')) {
+            assert.ok(
+                openingFrame(cue.at + 0.05).creakPulse > 0.2,
+                `creak cue aligns with visual pulse at ${cue.at}`,
+            );
+        }
+    }
 });
