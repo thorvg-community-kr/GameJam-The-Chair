@@ -521,6 +521,14 @@ function carryConvoyPlayer(
         p: Player;
     },
 ) {
+    if (
+        c.departure.kind === 'boarding' &&
+        c.departure.reason === 'abduction' &&
+        steer !== 0
+    ) {
+        c.convoy = 'free';
+        return;
+    }
     if (isJoinedConvoy(c.convoy) || followsBoarding) {
         const shuffle =
             isJoinedConvoy(c.convoy) && ground ? steer * STAGE_TWO.shuffle : 0;
