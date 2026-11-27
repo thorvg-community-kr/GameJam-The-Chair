@@ -1,3 +1,5 @@
+import { OPENING_SOUNDS } from './opening-sounds';
+import { noise, notes, tone } from './sfx-layers';
 import birdUrl from '../../assets/sound/bird.wav?url';
 import landUrl from '../../assets/sound/chair-land.wav?url';
 import squeakUrl from '../../assets/sound/chair-squeak.wav?url';
@@ -8,65 +10,20 @@ import splashUrl from '../../assets/sound/splash.wav?url';
 import windUrl from '../../assets/sound/wind.wav?url';
 import { createSfxGate } from '../presentation/sfx';
 
-import type { SfxName } from '../presentation/sfx';
+import type { Layer, Noise, Tone } from './sfx-layers';
+import type { GameSfxName, SfxName } from '../presentation/sfx';
 
 export type { SfxName } from '../presentation/sfx';
 
 export type Sfx = {
     play(name: SfxName, now?: number): void;
+    stop(): void;
     unlock(): void;
     setVolume(gain: number): void;
     destroy(): void;
 };
 
-type Tone = {
-    kind: 'tone';
-    at?: number;
-    from: number;
-    to: number;
-    seconds: number;
-    wave: OscillatorType;
-    peak?: number;
-    wobble?: number;
-};
-type Noise = {
-    kind: 'noise';
-    at?: number;
-    seconds: number;
-    filter: BiquadFilterType;
-    from: number;
-    to?: number;
-    peak?: number;
-};
-type Layer = Tone | Noise;
-
-const tone = (
-    from: number,
-    to: number,
-    seconds: number,
-    wave: OscillatorType,
-    extra: Partial<Tone> = {},
-): Tone => ({ kind: 'tone', from, to, seconds, wave, ...extra });
-const noise = (
-    filter: BiquadFilterType,
-    from: number,
-    seconds: number,
-    extra: Partial<Noise> = {},
-): Noise => ({ kind: 'noise', filter, from, seconds, ...extra });
-const notes = (
-    freqs: number[],
-    step: number,
-    wave: OscillatorType,
-    peak = 0.16,
-): Tone[] =>
-    freqs.map((f, i) =>
-        tone(f, f, i === freqs.length - 1 ? step * 3 : step, wave, {
-            at: i * step,
-            peak,
-        }),
-    );
-
-export const SOUNDS: Record<SfxName, Layer[]> = {
+const GAME_SOUNDS: Record<GameSfxName, Layer[]> = {
     jump: [tone(240, 760, 0.13, 'triangle', { peak: 0.2 })],
     land: [
         tone(150, 50, 0.12, 'sine', { peak: 0.35 }),
@@ -139,6 +96,11 @@ export const SAMPLES: Partial<
     bird: { url: birdUrl, seconds: 0.85 },
 };
 
+export const SOUNDS: Record<SfxName, Layer[]> = {
+    ...GAME_SOUNDS,
+    ...OPENING_SOUNDS,
+};
+
 export function soundLength(name: SfxName): number {
     const sample = SAMPLES[name];
     if (sample) {
@@ -153,15 +115,31 @@ const DEFAULT_PEAK = 0.25;
 const SILENT = 0.0001;
 
 function envelope(env: GainNode, start: number, layer: Layer) {
+    const attack = Math.min(layer.attack ?? 0.005, layer.seconds * 0.6);
     env.gain.setValueAtTime(SILENT, start);
     env.gain.exponentialRampToValueAtTime(
         layer.peak ?? DEFAULT_PEAK,
-        start + 0.005,
+        start + attack,
     );
     env.gain.exponentialRampToValueAtTime(SILENT, start + layer.seconds);
 }
 
-function playTone(audio: AudioContext, out: AudioNode, layer: Tone) {
+function trackSource(
+    active: Set<AudioScheduledSourceNode>,
+    source: AudioScheduledSourceNode,
+) {
+    active.add(source);
+    source.onended = () => {
+        active.delete(source);
+    };
+}
+
+function playTone(
+    audio: AudioContext,
+    out: AudioNode,
+    layer: Tone,
+    active: Set<AudioScheduledSourceNode>,
+) {
     const start = audio.currentTime + (layer.at ?? 0);
     const osc = audio.createOscillator();
     const env = audio.createGain();
@@ -172,13 +150,15 @@ function playTone(audio: AudioContext, out: AudioNode, layer: Tone) {
         const lfo = audio.createOscillator();
         const depth = audio.createGain();
         lfo.frequency.value = layer.wobble;
-        depth.gain.value = layer.from * 0.04;
+        depth.gain.value = layer.from * (layer.wobbleDepth ?? 0.04);
         lfo.connect(depth).connect(osc.frequency);
+        trackSource(active, lfo);
         lfo.start(start);
         lfo.stop(start + layer.seconds);
     }
     envelope(env, start, layer);
     osc.connect(env).connect(out);
+    trackSource(active, osc);
     osc.start(start);
     osc.stop(start + layer.seconds);
 }
@@ -188,6 +168,7 @@ function playNoise(
     out: AudioNode,
     layer: Noise,
     buffer: AudioBuffer,
+    active: Set<AudioScheduledSourceNode>,
 ) {
     const start = audio.currentTime + (layer.at ?? 0);
     const src = audio.createBufferSource();
@@ -196,6 +177,9 @@ function playNoise(
     src.buffer = buffer;
     filter.type = layer.filter;
     filter.frequency.setValueAtTime(layer.from, start);
+    if (layer.q) {
+        filter.Q.setValueAtTime(layer.q, start);
+    }
     if (layer.to) {
         filter.frequency.exponentialRampToValueAtTime(
             layer.to,
@@ -204,6 +188,7 @@ function playNoise(
     }
     envelope(env, start, layer);
     src.connect(filter).connect(env).connect(out);
+    trackSource(active, src);
     src.start(start);
     src.stop(start + layer.seconds);
 }
@@ -217,6 +202,33 @@ function noiseBuffer(audio: AudioContext): AudioBuffer {
     return buffer;
 }
 
+function loadSamples(
+    audio: AudioContext,
+    signal: AbortSignal,
+    buffers: Map<SfxName, AudioBuffer>,
+) {
+    for (const name of SAMPLE_NAMES) {
+        const sample = SAMPLES[name];
+        if (!sample) {
+            continue;
+        }
+        void fetch(sample.url, { signal })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error('Sound unavailable');
+                }
+                return response.arrayBuffer();
+            })
+            .then((data) => audio.decodeAudioData(data))
+            .then((buffer) => {
+                if (!signal.aborted) {
+                    buffers.set(name, buffer);
+                }
+            })
+            .catch(() => undefined);
+    }
+}
+
 export function createSfx(initialGain: number): Sfx {
     let context: AudioContext | null = null;
     let output: GainNode | null = null;
@@ -226,29 +238,16 @@ export function createSfx(initialGain: number): Sfx {
     const buffers = new Map<SfxName, AudioBuffer>();
     let loading: AbortController | null = null;
 
-    const loadSamples = (audio: AudioContext) => {
-        loading = new AbortController();
-        const { signal } = loading;
-        for (const name of SAMPLE_NAMES) {
-            const sample = SAMPLES[name];
-            if (!sample) {
-                continue;
-            }
-            void fetch(sample.url, { signal })
-                .then((response) => {
-                    if (!response.ok) {
-                        throw new Error('Sound unavailable');
-                    }
-                    return response.arrayBuffer();
-                })
-                .then((data) => audio.decodeAudioData(data))
-                .then((buffer) => {
-                    if (context === audio && !signal.aborted) {
-                        buffers.set(name, buffer);
-                    }
-                })
-                .catch(() => undefined);
+    const active = new Set<AudioScheduledSourceNode>();
+
+    const stopActive = () => {
+        for (const source of active) {
+            try {
+                source.stop();
+            } catch {}
         }
+        active.clear();
+        gate.clear();
     };
 
     const ready = () => {
@@ -262,7 +261,8 @@ export function createSfx(initialGain: number): Sfx {
             output.gain.value = gain;
             output.connect(context.destination);
             hiss = noiseBuffer(context);
-            loadSamples(context);
+            loading = new AbortController();
+            loadSamples(context, loading.signal, buffers);
         }
         if (context.state === 'suspended') {
             void context.resume();
@@ -284,17 +284,24 @@ export function createSfx(initialGain: number): Sfx {
                 const source = audio.createBufferSource();
                 source.buffer = buffer;
                 source.connect(output);
-                source.onended = () => source.disconnect();
+                active.add(source);
+                source.onended = () => {
+                    active.delete(source);
+                    source.disconnect();
+                };
                 source.start();
                 return;
             }
             for (const layer of SOUNDS[name]) {
                 if (layer.kind === 'tone') {
-                    playTone(audio, output, layer);
+                    playTone(audio, output, layer, active);
                 } else {
-                    playNoise(audio, output, layer, hiss);
+                    playNoise(audio, output, layer, hiss, active);
                 }
             }
+        },
+        stop() {
+            stopActive();
         },
         unlock() {
             ready();
@@ -309,11 +316,11 @@ export function createSfx(initialGain: number): Sfx {
             loading?.abort();
             loading = null;
             buffers.clear();
+            stopActive();
             void context?.close();
             context = null;
             output = null;
             hiss = null;
-            gate.clear();
         },
     };
 }

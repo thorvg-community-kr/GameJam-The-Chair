@@ -39,8 +39,92 @@ test('key actions map to sounds and speech cues stay silent', () => {
 });
 
 test('every sound has a synth recipe', () => {
-    for (const name of Object.keys(SOUNDS)) {
+    for (const [name, layers] of Object.entries(SOUNDS)) {
         assert.ok(soundLength(name) > 0, name);
+        for (const layer of layers) {
+            assert.ok(layer.seconds > 0, `${name} seconds`);
+            assert.ok(layer.from > 0, `${name} from`);
+            if (layer.to !== undefined) {
+                assert.ok(layer.to > 0, `${name} to`);
+            }
+        }
+    }
+});
+
+test('stopping sound effects silences active oscillators and noise sources', () => {
+    let stopped = 0;
+    const param = () => ({
+        value: 0,
+        setValueAtTime() {},
+        exponentialRampToValueAtTime() {},
+    });
+    const node = () => ({
+        connect(target) {
+            return target;
+        },
+    });
+    class FakeContext {
+        constructor() {
+            this.state = 'running';
+            this.currentTime = 0;
+            this.sampleRate = 8000;
+            this.destination = {};
+        }
+        createGain() {
+            return { ...node(), gain: param() };
+        }
+        createOscillator() {
+            return {
+                ...node(),
+                type: 'sine',
+                frequency: param(),
+                start() {},
+                stop() {
+                    stopped++;
+                },
+            };
+        }
+        createBufferSource() {
+            return {
+                ...node(),
+                buffer: null,
+                start() {},
+                stop() {
+                    stopped++;
+                },
+            };
+        }
+        createBiquadFilter() {
+            return {
+                ...node(),
+                type: 'lowpass',
+                frequency: param(),
+                Q: param(),
+            };
+        }
+        createBuffer(channels, length) {
+            return { getChannelData: () => new Float32Array(length) };
+        }
+        resume() {
+            return Promise.resolve();
+        }
+        close() {
+            return Promise.resolve();
+        }
+    }
+    Object.defineProperty(globalThis, 'AudioContext', {
+        value: FakeContext,
+        configurable: true,
+    });
+    const sfx = createSfx(1);
+    try {
+        sfx.play('openingRageSnap', 1);
+        const beforeStop = stopped;
+        sfx.stop();
+        assert.ok(stopped > beforeStop, 'active scheduled sources are stopped');
+    } finally {
+        sfx.destroy();
+        delete globalThis.AudioContext;
     }
 });
 

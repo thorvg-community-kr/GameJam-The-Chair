@@ -3,7 +3,7 @@ import { skyGust } from '../game/stages/sky/data';
 import type { GameSnapshot } from '../game/game';
 import type { CueId, GameEvent } from '../game/types';
 
-export type SfxName =
+export type GameSfxName =
     | 'jump'
     | 'land'
     | 'bonk'
@@ -25,6 +25,33 @@ export type SfxName =
     | 'click'
     | 'wind'
     | 'bird';
+
+export type OpeningSfxName =
+    | 'openingClockSix'
+    | 'openingClockSeven'
+    | 'openingClockEight'
+    | 'openingClockNine'
+    | 'openingClockSpin'
+    | 'openingClockSpinFast'
+    | 'openingIrisOpen'
+    | 'openingIrisQuick'
+    | 'openingIrisClose'
+    | 'openingRiderSigh'
+    | 'openingRiderTalk'
+    | 'openingPushIn'
+    | 'openingChairHope'
+    | 'openingChairSparkle'
+    | 'openingCreakLow'
+    | 'openingCreakMid'
+    | 'openingCreakHigh'
+    | 'openingChairWindup'
+    | 'openingChairKick'
+    | 'openingRiderPlop'
+    | 'openingTyping'
+    | 'openingRageSnap'
+    | 'openingHandoff';
+
+export type SfxName = GameSfxName | OpeningSfxName;
 
 export type SfxFrame = Pick<
     GameSnapshot,
