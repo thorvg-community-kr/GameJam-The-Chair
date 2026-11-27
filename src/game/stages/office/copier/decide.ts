@@ -41,12 +41,10 @@ export function copierStep(
 ): CopierResult {
     const next = { ...copier };
     let fire = false;
-    if (
-        office &&
-        (next.volley > 0 || Math.abs(playerX - next.x) < 350) &&
-        next.cool === 0 &&
-        next.burst === 0
-    ) {
+    if (!office || Math.abs(playerX - next.x) >= 350) {
+        return { copier: { ...next, burst: 0, next: 0 }, fire: false };
+    }
+    if (next.cool === 0 && next.burst === 0) {
         next.dir = playerX < next.x ? -1 : 1;
         next.volley++;
         next.burst = 4;
@@ -78,7 +76,7 @@ export function paperShot(copier: Readonly<Copier>): Paper[] {
         hit: false,
         landed: false,
         volley: copier.volley,
-        safe: copier.volley === 1 && copier.bursts === 0,
+        safe: copier.bursts === 0,
         kind: 'sheet' as const,
     }));
 }
@@ -132,14 +130,16 @@ export function urgentCopierStep(
 ): UrgentResult {
     const spec = LEVEL.urgentCopier;
     const next = { ...copier, cool: Math.max(0, copier.cool - dt) };
+    if (Math.abs(playerX - next.x) >= spec.wake) {
+        return {
+            copier: { ...next, scan: 0, burst: 0, next: 0 },
+            fire: false,
+            started: false,
+        };
+    }
     let fire = false;
     let started = false;
-    if (
-        next.scan === 0 &&
-        next.burst === 0 &&
-        next.cool === 0 &&
-        Math.abs(playerX - next.x) < spec.wake
-    ) {
+    if (next.scan === 0 && next.burst === 0 && next.cool === 0) {
         next.dir = playerX < next.x ? -1 : 1;
         next.volley++;
         next.scan = spec.scan;

@@ -18,12 +18,7 @@ export default defineConfig({
     },
     build: {
         rollupOptions: {
-            input: [
-                'index.html',
-                'preview.html',
-                'replay.html',
-                'sfx-review.html',
-            ],
+            input: ['index.html', 'preview.html', 'replay.html'],
         },
     },
 });
