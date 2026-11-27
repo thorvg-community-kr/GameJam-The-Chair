@@ -1,7 +1,9 @@
 import { SPLASH_DURATION } from './splash-meta';
 import splashData from '../../assets/powred.by.thorvg.1.json?raw';
+import { translate } from '../i18n';
 import { loadThorvg } from '../render/thorvg';
 
+import type { Locale } from '../i18n';
 import type { Animation, Canvas } from '@thorvg/webcanvas';
 
 const WIDTH = 960;
@@ -65,9 +67,56 @@ export function createSplashPlayer(element: HTMLCanvasElement): {
     };
 }
 
+const INERT_KEYS = new Set([
+    'Tab',
+    'Shift',
+    'Control',
+    'Alt',
+    'Meta',
+    'CapsLock',
+    'Fn',
+]);
+
+// Listens on the whole window so a tap outside the splash or a key pressed
+// after focus moved away still skips it.
+function bindSkipInput(onPress: () => void): () => void {
+    const listeners = new AbortController();
+    const options = { capture: true, signal: listeners.signal };
+    window.addEventListener(
+        'keydown',
+        (event) => {
+            if (event.key === 'Tab') {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            if (INERT_KEYS.has(event.key) || event.repeat) {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            onPress();
+        },
+        options,
+    );
+    window.addEventListener('click', onPress, options);
+    // Ending on touchend keeps iOS happy and swallows the ghost click that
+    // would otherwise land on the title underneath.
+    window.addEventListener(
+        'touchend',
+        (event) => {
+            event.preventDefault();
+            onPress();
+        },
+        { ...options, passive: false },
+    );
+    return () => listeners.abort();
+}
+
+// Plays the ThorVG logo, then goes straight to the title. A click, tap or key
+// skips it early; `onFinish` then runs inside that gesture and may start audio.
 export function showStartupSplash(
     root: HTMLElement,
-    getLocale: () => 'en' | 'ko',
+    getLocale: () => Locale,
     onFinish: () => void,
 ): () => void {
     const scene = root.querySelector<HTMLElement>('.scene');
@@ -78,12 +127,7 @@ export function showStartupSplash(
     screen.className = 'startup-splash';
     screen.setAttribute('role', 'button');
     screen.setAttribute('tabindex', '0');
-    screen.setAttribute(
-        'aria-label',
-        getLocale() === 'ko'
-            ? 'ThorVG 시작 화면 건너뛰기'
-            : 'Skip ThorVG splash',
-    );
+    screen.setAttribute('aria-label', translate('splash.skip', getLocale()));
     const canvas = document.createElement('canvas');
     canvas.setAttribute('aria-hidden', 'true');
     screen.append(canvas);
@@ -97,28 +141,16 @@ export function showStartupSplash(
             return;
         }
         closed = true;
+        unbind();
+        root.classList.remove('splashing');
         cancelAnimationFrame(frameId);
         player.destroy();
         screen.remove();
         root.querySelector<HTMLButtonElement>('[data-start]')?.focus();
         onFinish();
     };
-    screen.addEventListener('click', finish);
-    screen.addEventListener('keydown', (event) => {
-        if (
-            event.key === 'Escape' ||
-            event.key === 'Enter' ||
-            event.key === ' '
-        ) {
-            event.preventDefault();
-            event.stopPropagation();
-            finish();
-        }
-        if (event.key === 'Tab') {
-            event.preventDefault();
-            event.stopPropagation();
-        }
-    });
+    const unbind = bindSkipInput(finish);
+    root.classList.add('splashing');
     screen.focus();
     function tick(ms: number) {
         if (closed) {

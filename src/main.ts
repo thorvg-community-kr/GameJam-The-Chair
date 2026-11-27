@@ -75,15 +75,6 @@ const directStage: StageId | null = [1, 2, 3, 4, 5].includes(requestedStage)
     ? (requestedStage as StageId)
     : null;
 let startupSplashVisible = directStage === null;
-if (startupSplashVisible) {
-    showStartupSplash(
-        root,
-        () => locale,
-        () => {
-            startupSplashVisible = false;
-        },
-    );
-}
 for (const button of root.querySelectorAll<HTMLButtonElement>(
     '[data-locale]',
 )) {
@@ -227,7 +218,15 @@ const music = createMusic(bgmGain(audio));
 const sfx = createSfx(sfxGain(audio));
 let settings: SettingsPanel | null = null;
 if (startupSplashVisible) {
-    music.play('start', false);
+    showStartupSplash(
+        root,
+        () => locale,
+        () => {
+            startupSplashVisible = false;
+            sfx.unlock();
+            music.play('start', false);
+        },
+    );
 }
 const hintedInput = { left: 'left', right: 'right', spray: 'spray' } as const;
 const hintedGame: typeof game = {

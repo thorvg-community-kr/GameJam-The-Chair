@@ -115,3 +115,28 @@ test('parking at the orbit door switches to the ending theme', () => {
         'ending',
     );
 });
+
+test('a track blocked by autoplay stays silent and fades in after unlocking', () => {
+    const music = createMusic(1);
+    created.length = 0;
+    const play = FakeAudio.prototype.play;
+    FakeAudio.prototype.play = function () {
+        return Promise.reject(new Error('NotAllowedError'));
+    };
+    try {
+        music.play('start', false);
+        settle(music);
+        const [start] = created;
+        assert.equal(start.paused, true);
+        assert.equal(start.volume, 0, 'no volume builds up while blocked');
+
+        start.paused = false;
+        music.advance(0.1);
+        assert.ok(start.volume > 0 && start.volume < 0.2, 'fades in from zero');
+        settle(music);
+        assert.ok(start.volume > 0.5);
+    } finally {
+        FakeAudio.prototype.play = play;
+        music.destroy();
+    }
+});

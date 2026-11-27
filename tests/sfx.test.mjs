@@ -7,7 +7,7 @@ import { load } from './support/load.mjs';
 const { frameSounds, cueSound, createSfxGate, silentFrame } = await load(
     'src/presentation/sfx.ts',
 );
-const { SOUNDS, soundLength } = await load('src/ui/sfx.ts');
+const { SOUNDS, soundLength, createSfx } = await load('src/ui/sfx.ts');
 
 const frame = (patch = {}) => ({
     mode: 'play',
@@ -127,5 +127,46 @@ test('a real office run triggers jump, landing, bonk and failure', () => {
     }
     for (const sound of ['jump', 'land', 'bonk', 'fail']) {
         assert.ok(heard.has(sound), sound);
+    }
+});
+
+test('the splash gesture wakes the sound effect context up', () => {
+    const contexts = [];
+    class FakeContext {
+        constructor() {
+            this.state = 'suspended';
+            this.sampleRate = 8000;
+            this.destination = {};
+            contexts.push(this);
+        }
+        createGain() {
+            return { gain: { value: 0 }, connect() {} };
+        }
+        createBuffer(channels, length) {
+            return { getChannelData: () => new Float32Array(length) };
+        }
+        resume() {
+            this.state = 'running';
+            return Promise.resolve();
+        }
+        close() {
+            return Promise.resolve();
+        }
+    }
+    Object.defineProperty(globalThis, 'AudioContext', {
+        value: FakeContext,
+        configurable: true,
+    });
+    const sfx = createSfx(0.5);
+    try {
+        assert.equal(contexts.length, 0, 'no context before a gesture');
+        sfx.unlock();
+        assert.equal(contexts.length, 1);
+        assert.equal(contexts[0].state, 'running');
+        sfx.unlock();
+        assert.equal(contexts.length, 1, 'one context is reused');
+    } finally {
+        sfx.destroy();
+        delete globalThis.AudioContext;
     }
 });
