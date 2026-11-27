@@ -1,0 +1,379 @@
+[
+  {
+    "id": "gas-loop",
+    "seconds": 1,
+    "peak": 0.22,
+    "loop": true,
+    "layers": [
+      {
+        "kind": "noise",
+        "cutoff": 4500,
+        "seconds": 1,
+        "gain": 1,
+        "highpass": true,
+        "attack": 0.02,
+        "release": 0.02
+      },
+      {
+        "kind": "noise",
+        "cutoff": 1800,
+        "seconds": 1,
+        "gain": 0.35,
+        "attack": 0.02,
+        "release": 0.02
+      }
+    ]
+  },
+  {
+    "id": "vent-loop",
+    "seconds": 1,
+    "peak": 0.16,
+    "loop": true,
+    "layers": [
+      {
+        "kind": "tone",
+        "from": 80,
+        "to": 80,
+        "seconds": 1,
+        "gain": 0.3,
+        "pulse": 8,
+        "attack": 0.02,
+        "release": 0.02
+      },
+      {
+        "kind": "noise",
+        "cutoff": 800,
+        "seconds": 1,
+        "gain": 0.5,
+        "pulse": 12,
+        "attack": 0.02,
+        "release": 0.02
+      }
+    ]
+  },
+  {
+    "id": "lift-loop",
+    "seconds": 1,
+    "peak": 0.13,
+    "loop": true,
+    "layers": [
+      {
+        "kind": "tone",
+        "from": 72,
+        "to": 72,
+        "seconds": 1,
+        "gain": 0.6,
+        "harmonic": true,
+        "attack": 0.02,
+        "release": 0.02
+      },
+      {
+        "kind": "tone",
+        "from": 120,
+        "to": 120,
+        "seconds": 1,
+        "gain": 0.15,
+        "pulse": 3,
+        "attack": 0.02,
+        "release": 0.02
+      },
+      {
+        "kind": "noise",
+        "cutoff": 420,
+        "seconds": 1,
+        "gain": 0.2,
+        "attack": 0.02,
+        "release": 0.02
+      }
+    ]
+  },
+  {
+    "id": "scan-loop",
+    "seconds": 1,
+    "peak": 0.11,
+    "loop": true,
+    "layers": [
+      {
+        "kind": "tone",
+        "from": 680,
+        "to": 680,
+        "seconds": 1,
+        "gain": 0.4,
+        "pulse": 2,
+        "attack": 0.02,
+        "release": 0.02
+      },
+      {
+        "kind": "tone",
+        "from": 1020,
+        "to": 1020,
+        "seconds": 1,
+        "gain": 0.08,
+        "pulse": 4,
+        "attack": 0.02,
+        "release": 0.02
+      }
+    ]
+  },
+  {
+    "id": "door-slide",
+    "seconds": 0.6,
+    "peak": 0.22,
+    "loop": false,
+    "layers": [
+      {
+        "kind": "noise",
+        "cutoff": 1400,
+        "seconds": 0.55,
+        "gain": 0.8,
+        "attack": 0.035,
+        "release": 0.14
+      },
+      {
+        "kind": "tone",
+        "from": 190,
+        "to": 95,
+        "seconds": 0.45,
+        "gain": 0.15,
+        "attack": 0.02
+      }
+    ]
+  },
+  {
+    "id": "bin-rattle",
+    "seconds": 0.65,
+    "peak": 0.32,
+    "loop": false,
+    "layers": [
+      {
+        "kind": "tone",
+        "from": 220,
+        "to": 75,
+        "seconds": 0.18,
+        "gain": 0.8
+      },
+      {
+        "kind": "tone",
+        "from": 680,
+        "to": 320,
+        "seconds": 0.2,
+        "gain": 0.3,
+        "at": 0.08
+      },
+      {
+        "kind": "noise",
+        "cutoff": 3500,
+        "seconds": 0.48,
+        "gain": 0.55,
+        "at": 0.1,
+        "decay": 4
+      },
+      {
+        "kind": "tone",
+        "from": 400,
+        "to": 120,
+        "seconds": 0.2,
+        "gain": 0.4,
+        "at": 0.3
+      }
+    ]
+  },
+  {
+    "id": "wood-creak",
+    "seconds": 0.5,
+    "peak": 0.23,
+    "loop": false,
+    "layers": [
+      {
+        "kind": "tone",
+        "from": 280,
+        "to": 580,
+        "seconds": 0.4,
+        "gain": 0.7,
+        "harmonic": true,
+        "pulse": 23,
+        "attack": 0.025,
+        "release": 0.12
+      },
+      {
+        "kind": "noise",
+        "cutoff": 1800,
+        "seconds": 0.35,
+        "gain": 0.1,
+        "attack": 0.02
+      }
+    ]
+  },
+  {
+    "id": "metal-rattle",
+    "seconds": 0.45,
+    "peak": 0.24,
+    "loop": false,
+    "layers": [
+      {
+        "kind": "tone",
+        "from": 1300,
+        "to": 1050,
+        "seconds": 0.35,
+        "gain": 0.4,
+        "pulse": 19,
+        "decay": 3
+      },
+      {
+        "kind": "tone",
+        "from": 2130,
+        "to": 2050,
+        "seconds": 0.4,
+        "gain": 0.24,
+        "decay": 4
+      },
+      {
+        "kind": "noise",
+        "cutoff": 2400,
+        "seconds": 0.18,
+        "gain": 0.25,
+        "decay": 3
+      }
+    ]
+  },
+  {
+    "id": "launch-windup",
+    "seconds": 0.8,
+    "peak": 0.22,
+    "loop": false,
+    "layers": [
+      {
+        "kind": "tone",
+        "from": 70,
+        "to": 430,
+        "seconds": 0.76,
+        "gain": 0.5,
+        "harmonic": true,
+        "attack": 0.04,
+        "release": 0.07
+      },
+      {
+        "kind": "noise",
+        "cutoff": 1200,
+        "seconds": 0.8,
+        "gain": 0.3,
+        "attack": 0.3,
+        "release": 0.04
+      }
+    ]
+  },
+  {
+    "id": "launch-kick",
+    "seconds": 0.35,
+    "peak": 0.4,
+    "loop": false,
+    "layers": [
+      {
+        "kind": "tone",
+        "from": 180,
+        "to": 48,
+        "seconds": 0.3,
+        "gain": 0.7,
+        "decay": 3
+      },
+      {
+        "kind": "noise",
+        "cutoff": 2300,
+        "seconds": 0.28,
+        "gain": 0.5,
+        "decay": 3
+      }
+    ]
+  },
+  {
+    "id": "satellite-alert",
+    "seconds": 0.27,
+    "peak": 0.24,
+    "loop": false,
+    "layers": [
+      {
+        "kind": "tone",
+        "from": 1200,
+        "to": 700,
+        "seconds": 0.1,
+        "gain": 0.5
+      },
+      {
+        "kind": "tone",
+        "from": 1200,
+        "to": 700,
+        "seconds": 0.1,
+        "gain": 0.5,
+        "at": 0.13
+      }
+    ]
+  },
+  {
+    "id": "gear-shift",
+    "seconds": 0.45,
+    "peak": 0.2,
+    "loop": false,
+    "layers": [
+      {
+        "kind": "tone",
+        "from": 90,
+        "to": 380,
+        "seconds": 0.4,
+        "gain": 0.5,
+        "harmonic": true,
+        "attack": 0.025,
+        "release": 0.1
+      },
+      {
+        "kind": "noise",
+        "cutoff": 600,
+        "seconds": 0.15,
+        "gain": 0.15
+      }
+    ]
+  },
+  {
+    "id": "ui-tap",
+    "seconds": 0.06,
+    "peak": 0.15,
+    "loop": false,
+    "layers": [
+      {
+        "kind": "tone",
+        "from": 1100,
+        "to": 700,
+        "seconds": 0.045,
+        "gain": 0.45
+      },
+      {
+        "kind": "noise",
+        "cutoff": 2000,
+        "seconds": 0.025,
+        "gain": 0.1
+      }
+    ]
+  },
+  {
+    "id": "ui-confirm",
+    "seconds": 0.18,
+    "peak": 0.2,
+    "loop": false,
+    "layers": [
+      {
+        "kind": "tone",
+        "from": 740,
+        "to": 740,
+        "seconds": 0.08,
+        "gain": 0.4
+      },
+      {
+        "kind": "tone",
+        "from": 1110,
+        "to": 1110,
+        "seconds": 0.1,
+        "gain": 0.4,
+        "at": 0.07
+      }
+    ]
+  }
+]
