@@ -32,7 +32,9 @@ for (const direction of ['left', 'right']) {
         });
         game.restore(JSON.stringify(state));
         game.setInput(direction);
-        for (let tick = 0; tick < 240; tick++) {game.step(1 / 120);}
+        for (let tick = 0; tick < 240; tick++) {
+            game.step(1 / 120);
+        }
         const end = game.getSnapshot();
         assert.ok(
             direction === 'right'
