@@ -2,20 +2,24 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { begin } from './support/harness.mjs';
-import { load } from './support/load.mjs';
+import { load, bundled } from './support/load.mjs';
 
 const { frameSounds, cueSound, createSfxGate, silentFrame } = await load(
     'src/presentation/sfx.ts',
 );
-const { SOUNDS, soundLength, createSfx } = await load('src/ui/sfx.ts');
+const { SOUNDS, soundLength, createSfx } = await bundled({
+    entryPoints: ['src/ui/sfx.ts'],
+    loader: { '.wav': 'dataurl' },
+});
 
 const frame = (patch = {}) => ({
+    time: 0,
     mode: 'play',
     stage: 1,
     ground: true,
     deaths: 0,
     player: { x: 0, y: 0, vx: 0, vy: 0, a: 0, w: 0 },
-    sky: { phase: 'course' },
+    sky: { phase: 'course', knock: 0, knockKind: null },
     orbit: undefined,
     ...patch,
 });
@@ -27,7 +31,7 @@ test('key actions map to sounds and speech cues stay silent', () => {
     assert.equal(cueSound('spray'), 'spray');
     assert.equal(cueSound('checkpoint'), 'checkpoint');
     assert.equal(cueSound('stage-clear'), 'clear');
-    assert.equal(cueSound('extinguisher-pickup'), 'pickup');
+    assert.equal(cueSound('extinguisher-pickup'), 'click');
     assert.equal(cueSound('head-hit'), 'bonk');
     assert.equal(cueSound('head-game-over'), 'fail');
     assert.equal(cueSound('head-comment'), null);
@@ -169,4 +173,33 @@ test('the splash gesture wakes the sound effect context up', () => {
         sfx.destroy();
         delete globalThis.AudioContext;
     }
+});
+
+test('recorded effects follow volleys, bird impacts, gusts and docking', () => {
+    assert.deepEqual(
+        frameSounds(frame(), frame(), [
+            { type: 'volley' },
+            cue('first-volley'),
+        ]),
+        ['copier'],
+    );
+    const sky = frame({ stage: 4, time: 4.5 });
+    assert.deepEqual(frameSounds(sky, { ...sky, time: 4.7 }, []), ['wind']);
+    assert.deepEqual(
+        frameSounds(
+            sky,
+            { ...sky, sky: { phase: 'course', knockKind: 'bird', knock: 0.7 } },
+            [],
+        ),
+        ['bird'],
+    );
+    const door = frame({ stage: 5, orbit: { phase: 'door' } });
+    const parked = frame({ stage: 5, orbit: { phase: 'parked' } });
+    assert.deepEqual(frameSounds(door, parked, []), ['click']);
+    assert.deepEqual(frameSounds(parked, parked, []), []);
+    assert.deepEqual(frameSounds({ ...door, mode: 'pause' }, parked, []), []);
+    assert.deepEqual(
+        frameSounds(sky, { ...sky, time: 4.7 }, [{ type: 'reset' }]),
+        [],
+    );
 });

@@ -1,0 +1,90 @@
+[
+  {
+    "id": "copier",
+    "source": "copier",
+    "start": 0.05,
+    "end": 0.75,
+    "highpass": 65,
+    "lowpass": 11000,
+    "fadeIn": 0.008,
+    "fadeOut": 0.07,
+    "peak": 0.42
+  },
+  {
+    "id": "paper",
+    "source": "paper",
+    "start": 0,
+    "end": 0.35,
+    "highpass": 85,
+    "lowpass": 12000,
+    "fadeIn": 0.003,
+    "fadeOut": 0.045,
+    "peak": 0.48
+  },
+  {
+    "id": "splash",
+    "source": "water",
+    "start": 4.8,
+    "end": 5.4,
+    "highpass": 65,
+    "lowpass": 11500,
+    "fadeIn": 0.008,
+    "fadeOut": 0.09,
+    "peak": 0.46
+  },
+  {
+    "id": "chair-land",
+    "source": "chair",
+    "start": 3.4,
+    "end": 3.85,
+    "highpass": 70,
+    "lowpass": 9500,
+    "fadeIn": 0.012,
+    "fadeOut": 0.085,
+    "peak": 0.35
+  },
+  {
+    "id": "chair-squeak",
+    "source": "chair",
+    "start": 10.6,
+    "end": 11.3,
+    "highpass": 70,
+    "lowpass": 9500,
+    "fadeIn": 0.02,
+    "fadeOut": 0.1,
+    "peak": 0.32
+  },
+  {
+    "id": "click",
+    "source": "click",
+    "start": 0,
+    "end": 0.32,
+    "highpass": 90,
+    "lowpass": 12000,
+    "fadeIn": 0.003,
+    "fadeOut": 0.04,
+    "peak": 0.35
+  },
+  {
+    "id": "wind",
+    "source": "wind",
+    "start": 0.55,
+    "end": 1.8,
+    "highpass": 45,
+    "lowpass": 7500,
+    "fadeIn": 0.07,
+    "fadeOut": 0.18,
+    "peak": 0.25
+  },
+  {
+    "id": "bird",
+    "source": "bird",
+    "start": 0.1,
+    "end": 0.95,
+    "highpass": 120,
+    "lowpass": 11000,
+    "fadeIn": 0.012,
+    "fadeOut": 0.1,
+    "peak": 0.38
+  }
+]
