@@ -3,6 +3,7 @@ import { officeTint } from '../office/window-view';
 
 import type { OpeningFrame } from './timeline';
 import type { RenderCtx } from '../../context';
+import type { Bounds } from '../../types';
 export function drawSunbeams(ctx: RenderCtx, frame: OpeningFrame): void {
     const strength = (1 - frame.dusk) * frame.lighting;
     if (strength <= 0) {
@@ -39,7 +40,12 @@ export function drawSunbeams(ctx: RenderCtx, frame: OpeningFrame): void {
     }
     ctx.endLayer();
 }
-export function drawOfficeLight(ctx: RenderCtx, frame: OpeningFrame): void {
+/** `iris` bounds what the iris lets through; null when nothing hides the office. */
+export function drawOfficeLight(
+    ctx: RenderCtx,
+    frame: OpeningFrame,
+    iris: Bounds | null,
+): void {
     const { dusk, lighting } = frame;
     if (lighting <= 0) {
         return;
@@ -50,7 +56,7 @@ export function drawOfficeLight(ctx: RenderCtx, frame: OpeningFrame): void {
         blend: 'multiply',
         opacity: lighting * tint.strength,
     });
-    screenRect(ctx, tint.color);
+    screenRect(ctx, tint.color, iris);
     ctx.endLayer();
     const p = ctx.player;
     if (dusk > 0) {
@@ -61,6 +67,7 @@ export function drawOfficeLight(ctx: RenderCtx, frame: OpeningFrame): void {
             blend: 'add',
             opacity: lighting * dusk * 0.85,
         });
+        // The glow is fully transparent past r, which adds nothing.
         screenRect(
             ctx,
             radial(ctx, lx, ly, r, {
@@ -70,13 +77,17 @@ export function drawOfficeLight(ctx: RenderCtx, frame: OpeningFrame): void {
                     [1, '#2a3b6000'],
                 ],
             }),
+            intersect(
+                { left: lx - r, top: ly - r, right: lx + r, bottom: ly + r },
+                iris,
+            ),
         );
         ctx.endLayer();
     }
     const vignette = lighting * Math.max(dusk * 0.55, frame.rage * 0.9);
     if (vignette > 0) {
+        // One shape, so its opacity folds into the stops without a layer.
         const r = Math.hypot(ctx.W, ctx.H) / 2;
-        ctx.beginLayer({ key: 'opening-vignette', opacity: vignette });
         screenRect(
             ctx,
             radial(ctx, ctx.W / 2, ctx.H / 2, r, {
@@ -85,10 +96,21 @@ export function drawOfficeLight(ctx: RenderCtx, frame: OpeningFrame): void {
                     [0.55, '#0b0d1800'],
                     [1, '#0b0d18e0'],
                 ],
+                alpha: vignette,
             }),
+            iris,
         );
-        ctx.endLayer();
     }
+}
+function intersect(a: Bounds, b: Bounds | null): Bounds {
+    return b
+        ? {
+              left: Math.max(a.left, b.left),
+              top: Math.max(a.top, b.top),
+              right: Math.min(a.right, b.right),
+              bottom: Math.min(a.bottom, b.bottom),
+          }
+        : a;
 }
 export function drawChairMood(ctx: RenderCtx, frame: OpeningFrame): void {
     if (frame.hum > 0) {

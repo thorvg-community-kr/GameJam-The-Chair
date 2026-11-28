@@ -1,5 +1,6 @@
 import {
     circle,
+    clipPolygon,
     dialCircle,
     linear,
     mix,
@@ -322,24 +323,37 @@ function drawWindowBackdrop(
             blur: 10,
             opacity: (1 - dusk) * 0.55,
         });
-        polygon(
-            ctx,
+        // Light past three sigma off screen never blurs back into view.
+        const reach = 30;
+        const patch = clipPolygon(
             [
                 [wx + ww, wy],
                 [wx + ww + radius * 2.4, wy + radius * 0.7],
                 [wx + ww + radius * 2.4, wy + wh + radius * 1.4],
                 [wx + ww, wy + wh],
             ],
-            linear(
-                ctx,
-                [wx + ww, 0],
-                [wx + ww + radius * 2.4, 0],
-                [
-                    [0, '#ffd59a'],
-                    [1, '#ffd59a00'],
-                ],
-            ),
+            {
+                left: -reach,
+                top: -reach,
+                right: ctx.W + reach,
+                bottom: ctx.H + reach,
+            },
         );
+        if (patch.length >= 3) {
+            polygon(
+                ctx,
+                patch,
+                linear(
+                    ctx,
+                    [wx + ww, 0],
+                    [wx + ww + radius * 2.4, 0],
+                    [
+                        [0, '#ffd59a'],
+                        [1, '#ffd59a00'],
+                    ],
+                ),
+            );
+        }
         ctx.endLayer();
     }
     drawClockScene(layer, radius, at, ctx, {
@@ -684,7 +698,8 @@ export function irisHole(ctx: RenderCtx, frame: OpeningFrame): IrisHole | null {
         r: frame.iris * (Math.hypot(ctx.W, ctx.H) / 2 + R) + 1,
     };
 }
-function commandBounds(cmd: DrawCommand): Bounds | null {
+/** A conservative screen box of what the command paints, or null if unknown. */
+export function commandBounds(cmd: DrawCommand): Bounds | null {
     if (cmd.layer?.retained) {
         return cmd.layer.retained.bounds;
     }
@@ -699,7 +714,14 @@ function commandBounds(cmd: DrawCommand): Bounds | null {
         ys.push(c[1], c[3], c[5]);
     }
     // Blur spreads about three sigma past the shape.
-    const pad = (cmd.stroke?.width ?? 0) / 2 + (cmd.layer?.blur ?? 0) * 3 + 1;
+    const layer = cmd.layer;
+    const shadow = layer?.dropShadow;
+    const pad =
+        (cmd.stroke?.width ?? 0) / 2 +
+        (layer?.blur ?? 0) * 3 +
+        (layer?.motionBlur?.distance ?? 0) +
+        (shadow ? shadow.distance + shadow.sigma * 3 : 0) +
+        1;
     return {
         left: Math.min(...xs) - pad,
         top: Math.min(...ys) - pad,
