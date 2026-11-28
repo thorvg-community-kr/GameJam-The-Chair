@@ -295,6 +295,10 @@ function drawThighAndKnee(
     });
 }
 
+// Sloped shoulders: full width at the shoulder line, narrowing toward the neck.
+const shoulderWidth = (y: number) =>
+    14.6 - 5.0 * Math.min(1, Math.max(0, (y - 21.5) / 6.5));
+
 function drawTorso(view: SkyProjection, bob: number) {
     view.part(() => {
         view.profile(
@@ -302,13 +306,19 @@ function drawTorso(view: SkyProjection, bob: number) {
                 [-16.2, -(-62.2) - 35 + bob],
                 [-5.0, -(-63.0) - 35 + bob],
                 [5.8, -(-60.2) - 35 + bob],
+                [6.08, -(-56.5) - 35 + bob],
                 [8.4, -(-25.5) - 35 + bob],
                 [-16.2, -(-25.5) - 35 + bob],
+                [-16.2, -(-56.5) - 35 + bob],
             ],
             14.6,
             ART.palette.shirt,
             0,
-            { bevel: 0.9, shade: true },
+            {
+                bevel: 0.9,
+                shade: true,
+                widthAt: (_x, y) => shoulderWidth(y - bob),
+            },
         );
         const chestX = (y: number) => 5.8 + ((y + 60.2) * 2.6) / 34.7;
         const on = (y: number, z: number, lift = 0.25) =>
@@ -367,7 +377,7 @@ function armGeometry(side: number, bob: number, elapsed: number, rest: number) {
         Math.sin(elapsed * 24 + (side > 0 ? 0 : Math.PI)) * 1.1 * (1 - rest) +
         lift;
     const handY = LAPTOP_BASE_TOP - 2.3 + tap;
-    const sh = p3(-5.5, -57.5, side * 18.4, bob);
+    const sh = p3(-5.5, -56.0, side * 13.6, bob);
     const elb = p3(-4.5, -34.8, side * 18.6, bob);
     const wrist = p3(22.0, handY + 0.9, side * 11.4, bob);
     const t = (ARM_SPLIT_X - elb[0]) / (wrist[0] - elb[0]);
@@ -385,11 +395,9 @@ function drawUpperArm(
     view.part(() => {
         view.rod(sh, elb, 3.6, '#e6e0cc', {
             sides: 10,
-            capA: true,
             capB: true,
             shade: true,
         });
-        view.oval(sh, [3.8, 4.0, 3.6], '#ebe6d4');
         view.rod(
             p3(-5.1, -39.5, side * 18.7, bob),
             p3(-5.0, -34.8, side * 18.8, bob),
