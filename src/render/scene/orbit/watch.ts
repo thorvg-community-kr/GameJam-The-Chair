@@ -21,7 +21,6 @@ type Spot = {
     seed: number;
     kind: CctvKind;
     size: number;
-    appear: number;
     bird?: SkyRobot;
 };
 const pick = (random: () => number) =>
@@ -40,7 +39,6 @@ function routeCctvs(
         seed: seed + i,
         kind: pick(random),
         size: 1.3 + random() * 1.1,
-        appear: 0.5,
     }));
 }
 const REVEAL_COLUMNS = [60, 210, 360, 640, 790, 940];
@@ -55,13 +53,10 @@ const REVEAL_BIRDS: Partial<Record<number, SkyRobot>> = {
 };
 function revealCctvs(seed: number, glide: number): Spot[] {
     const random = seeded(seed);
-    const count = REVEAL_ROWS.length * REVEAL_COLUMNS.length;
-    const order = Array.from({ length: count }, (_, i) => ({
-        i,
-        key: random(),
-    }))
-        .sort((a, b) => a.key - b.key)
-        .map((item) => item.i);
+    // Preserve the layout after removing the randomized appearance order.
+    for (let i = 0; i < REVEAL_ROWS.length * REVEAL_COLUMNS.length; i++) {
+        random();
+    }
     return REVEAL_ROWS.flatMap((row, r) =>
         REVEAL_COLUMNS.map((column, c) => {
             const depth = 700 + random() * 860;
@@ -76,7 +71,6 @@ function revealCctvs(seed: number, glide: number): Spot[] {
                 seed: seed + r * 10 + c,
                 kind: pick(random),
                 size: 1.3 + random() * 1.3,
-                appear: 0.04 + (0.56 * order.indexOf(index)) / count,
                 ...(REVEAL_BIRDS[index] ? { bird: REVEAL_BIRDS[index] } : {}),
             };
         }),
@@ -112,10 +106,8 @@ export const ORBIT_WATCH = {
     glide: GLIDE,
     reveal: revealCctvs(4100, GLIDE),
     route: routeCctvs(5200, 10, 600, 4700),
-    satelliteAppear: 0.35,
-    beacon: { x: 90, y: 760, z: 7400, appear: 0.55 },
+    beacon: { x: 90, y: 760, z: 7400 },
     glints: cloudGlints(6300),
-    glintsFrom: 0.92,
     before: 200,
     after: 40,
     blink: 7,
@@ -237,11 +229,9 @@ export function orbitWatchers(
     travel: number,
     t: number,
     {
-        shown = 1,
         satelliteLightPoint = point,
         satellites = [],
     }: {
-        shown?: number;
         satelliteLightPoint?: RoutePoint;
         satellites?: ReadonlyArray<{
             x: number;
@@ -251,17 +241,12 @@ export function orbitWatchers(
     } = {},
 ): Lamp[] {
     const lamps = [...ORBIT_WATCH.reveal, ...ORBIT_WATCH.route]
-        .filter(
-            (spot) =>
-                spot.appear <= shown && point(spot.x, spot.y, spot.z)[0] > 0,
-        )
+        .filter((spot) => point(spot.x, spot.y, spot.z)[0] > 0)
         .flatMap((spot) => floating(view, point, spot, travel, t));
-    if (ORBIT_WATCH.satelliteAppear <= shown) {
-        for (const at of satellites) {
-            const ahead = satelliteLightPoint(at.x, at.y, at.z)[0];
-            if (ahead > 0 && ahead < 6000) {
-                lamps.push(satellite(view, satelliteLightPoint, at, travel, t));
-            }
+    for (const at of satellites) {
+        const ahead = satelliteLightPoint(at.x, at.y, at.z)[0];
+        if (ahead > 0 && ahead < 6000) {
+            lamps.push(satellite(view, satelliteLightPoint, at, travel, t));
         }
     }
     return lamps;
@@ -430,7 +415,12 @@ export function orbitBeacon(
         layer,
     });
 }
-export function orbitCloudGlints(ctx: RenderCtx, alpha = 1): void {
+export function orbitCloudGlints(
+    ctx: RenderCtx,
+    view: SkyProjection,
+    point: RoutePoint,
+    alpha = 1,
+): void {
     if (alpha <= 0) {
         return;
     }
@@ -442,8 +432,15 @@ export function orbitCloudGlints(ctx: RenderCtx, alpha = 1): void {
             continue;
         }
         const k = (wave - 0.55) / 0.45;
-        const x = glint.x * ctx.W;
-        const y = glint.y * ctx.H;
+        const at = point(
+            (glint.x - 0.5) * 24000,
+            (0.37 - glint.y) * 12000,
+            20000,
+        );
+        if (view.depth(at) <= 80) {
+            continue;
+        }
+        const [x, y] = view.project(at);
         const glow = 7 + 9 * k;
         const core = 2 + 1.6 * k;
         const color = glint.red ? '#ffd399' : '#fffbe2';

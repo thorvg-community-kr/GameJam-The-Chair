@@ -21,7 +21,6 @@ import {
 } from './satellite-light';
 import { orbitViewfinder } from './viewfinder';
 import {
-    ORBIT_WATCH,
     orbitBeacon,
     orbitCloudGlints,
     orbitWatchers,
@@ -589,30 +588,22 @@ class OrbitDrawing {
         endingFade(this.ctx, this.ending);
     }
     private drawAtmosphere() {
-        if (this.turn >= ORBIT_WATCH.glintsFrom) {
-            orbitCloudGlints(this.ctx, this.clouds);
-        }
-        if (this.turn >= ORBIT_WATCH.beacon.appear) {
-            orbitBeacon(this.ctx, this.view, this.point);
-        }
-        this.lamps =
-            this.turn > 0
-                ? orbitWatchers(
-                      this.view,
-                      this.point,
-                      this.travel,
-                      this.ctx.t,
-                      {
-                          shown: this.turn,
-                          satelliteLightPoint: this.satelliteLightPoint,
-                          satellites: satelliteSpots(
-                              this.shot.aims ?? NO_AIMS,
-                              this.travel,
-                              this.shot.speed,
-                          ),
-                      },
-                  )
-                : [];
+        orbitCloudGlints(this.ctx, this.view, this.point, this.clouds);
+        orbitBeacon(this.ctx, this.view, this.point);
+        this.lamps = orbitWatchers(
+            this.view,
+            this.point,
+            this.travel,
+            this.ctx.t,
+            {
+                satelliteLightPoint: this.satelliteLightPoint,
+                satellites: satelliteSpots(
+                    this.shot.aims ?? NO_AIMS,
+                    this.travel,
+                    this.shot.speed,
+                ),
+            },
+        );
         this.split = {
             depth: this.chair.depth([0, this.pivot, 0]) + 90,
             part: 'far' as const,
@@ -621,9 +612,7 @@ class OrbitDrawing {
         orbitWatchGlow(this.ctx, this.view, this.lamps);
         this.plane = (x: number, y: number) =>
             this.view.project(this.satelliteLightPoint(x, y, this.travel));
-        this.lightShown =
-            smooth((this.turn - ORBIT_WATCH.satelliteAppear) / 0.3) *
-            (1 - smooth(this.ending.centre * 4));
+        this.lightShown = 1 - smooth(this.ending.centre * 4);
         orbitSatelliteLight(
             this.ctx,
             this.view,

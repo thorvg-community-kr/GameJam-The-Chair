@@ -11,7 +11,6 @@ const {
     ORBIT_WATCH,
     orbitWatchers,
     createSkyProjection,
-    revealChairOrbit,
     revealGlideStart,
     revealTravel,
     STAGE_FOUR,
@@ -24,7 +23,7 @@ const {
     export { drawOrbit } from './src/render/scene/orbit';
     export { cctvLamp, ORBIT_WATCH, orbitWatchers } from './src/render/scene/orbit/watch';
     export { createSkyProjection } from './src/render/scene/shared/projection';
-    export { revealChairOrbit, revealGlideStart, revealTravel } from './src/render/scene/sky/camera';
+    export { revealGlideStart, revealTravel } from './src/render/scene/sky/camera';
     export { STAGE_FOUR } from './src/game/stages/sky/data';
     export { attendanceBubble } from './src/render/scene/shared/attendance-bubble';
     export { orbitReaction } from './src/render/scene/orbit/reaction';
@@ -116,29 +115,29 @@ test('the reveal glides forward to exactly where stage five starts', () => {
         'every reveal camera is behind the view before stage five',
     );
 });
+test('turning the camera changes projections without spawning or moving watchers', () => {
+    const render = (turn) => {
+        const view = createSkyProjection(1000, 510, turn);
+        const lamps = orbitWatchers(
+            view,
+            (x, y, z) => [z + ORBIT_WATCH.glide, 15 + y, x],
+            -ORBIT_WATCH.glide,
+            0,
+        );
+        return { lamps, commands: view.commands() };
+    };
+    const side = render(0);
+    const middle = render(0.5);
+    const rear = render(1);
+    assert.ok(side.lamps.length >= ORBIT_WATCH.reveal.length);
+    assert.deepEqual(side.lamps, middle.lamps);
+    assert.deepEqual(middle.lamps, rear.lamps);
+    assert.notDeepEqual(side.commands, rear.commands);
+});
 test('the cameras get time to sink in before the glide, which arrives at stage five already at cruise speed', () => {
     const { settle, turn, hold } = STAGE_FOUR.reveal;
     const start = revealGlideStart(settle);
     const end = settle + turn + hold;
-    const seen = (appear) => {
-        for (let at = settle; at <= settle + turn; at += 1 / 120) {
-            if (revealChairOrbit(at, settle) >= appear) {
-                return at;
-            }
-        }
-        return Infinity;
-    };
-    const appears = ORBIT_WATCH.reveal.map((spot) => spot.appear);
-    const first = seen(Math.min(...appears));
-    const last = seen(Math.max(...appears));
-    assert.ok(
-        last - first >= 3.5,
-        `the cameras turn up one by one over ${(last - first).toFixed(1)} s`,
-    );
-    assert.ok(
-        start - last >= 1.5,
-        `every camera is in view for ${(start - last).toFixed(1)} s before the glide`,
-    );
     assert.equal(
         revealTravel(start, settle, ORBIT_WATCH.glide),
         -ORBIT_WATCH.glide,
@@ -342,7 +341,6 @@ test('nothing the chair has flown past is drawn between it and the camera', () =
     const satellite = { x: 0, y: 560, z: 3000 };
     const watchers = (travel) =>
         orbitWatchers(view, (x, y, z) => [z - travel, 15 + y, x], travel, 0, {
-            shown: 1,
             satelliteLightPoint: undefined,
             satellites: [satellite],
         });
