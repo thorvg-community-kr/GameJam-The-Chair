@@ -75,6 +75,8 @@ type CloudShape = {
     puffs: Puff[];
     top: number;
     bottom: number;
+    left: number;
+    right: number;
 };
 const FLAT_BOTTOM = 34;
 const shapes = new Map<string, CloudShape>();
@@ -107,27 +109,110 @@ function envelope(
     }
     return edge;
 }
-function smoothLoop(points: Vector[], from: number, to: number): Curve[] {
+const SMOOTH_TURN = Math.cos((25 * Math.PI) / 180);
+function unit(x: number, y: number): Vector {
+    const length = Math.hypot(x, y) || 1;
+    return [x / length, y / length];
+}
+function bezierAt(p0: Vector, c: Curve, t: number): Vector {
+    const u = 1 - t;
+    const a = u * u * u;
+    const b = 3 * u * u * t;
+    const d = 3 * u * t * t;
+    const e = t * t * t;
+    return [
+        a * p0[0] + b * c[0] + d * c[2] + e * c[4],
+        a * p0[1] + b * c[1] + d * c[3] + e * c[5],
+    ];
+}
+function segmentDistance(p: Vector, a: Vector, b: Vector) {
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const t = Math.max(
+        0,
+        Math.min(
+            1,
+            ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) /
+                (dx * dx + dy * dy || 1),
+        ),
+    );
+    return Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t);
+}
+// Fits the dense envelope with as few cubics as the tolerance allows: smooth
+// runs and the flat underside collapse, while the cusps between puffs stay
+// sharp because their one-sided tangents are kept.
+function fitCurves(
+    points: Vector[],
+    from: number,
+    to: number,
+    { closed, tolerance }: { closed: boolean; tolerance: number },
+): Curve[] {
     const n = points.length;
     const at = (i: number) => points[((i % n) + n) % n];
-    const curves: Curve[] = [];
-    for (let i = from; i < to; i++) {
-        const p0 = at(i - 1);
-        const p1 = at(i);
-        const p2 = at(i + 1);
-        const p3 = at(i + 2);
-        curves.push([
-            p1[0] + (p2[0] - p0[0]) / 6,
-            p1[1] + (p2[1] - p0[1]) / 6,
-            p2[0] - (p3[0] - p1[0]) / 6,
-            p2[1] - (p3[1] - p1[1]) / 6,
-            p2[0],
-            p2[1],
-        ]);
-    }
-    return curves;
+    const tangent = (i: number, side: 'in' | 'out'): Vector => {
+        const p = at(i);
+        const before = unit(p[0] - at(i - 1)[0], p[1] - at(i - 1)[1]);
+        const after = unit(at(i + 1)[0] - p[0], at(i + 1)[1] - p[1]);
+        // The clipped underside meets the puffs at a true corner.
+        const base =
+            p[1] === FLAT_BOTTOM &&
+            (at(i - 1)[1] === FLAT_BOTTOM || at(i + 1)[1] === FLAT_BOTTOM);
+        const edge = base || (!closed && (i <= from || i >= to));
+        if (edge || before[0] * after[0] + before[1] * after[1] < SMOOTH_TURN) {
+            if (!closed && i <= from) {
+                return after;
+            }
+            if (!closed && i >= to) {
+                return before;
+            }
+            return side === 'in' ? before : after;
+        }
+        return unit(before[0] + after[0], before[1] + after[1]);
+    };
+    const fit = (a: number, b: number): Curve[] => {
+        const p0 = at(a);
+        const p3 = at(b);
+        const h = Math.hypot(p3[0] - p0[0], p3[1] - p0[1]) / 3;
+        const d0 = tangent(a, 'out');
+        const d1 = tangent(b, 'in');
+        const curve: Curve = [
+            p0[0] + d0[0] * h,
+            p0[1] + d0[1] * h,
+            p3[0] - d1[0] * h,
+            p3[1] - d1[1] * h,
+            p3[0],
+            p3[1],
+        ];
+        if (b - a <= 1) {
+            return [curve];
+        }
+        const samples: Vector[] = [];
+        for (let k = 0; k <= 16; k++) {
+            samples.push(bezierAt(p0, curve, k / 16));
+        }
+        let worst = 0;
+        let split = a;
+        for (let k = a + 1; k < b; k++) {
+            let error = Infinity;
+            for (let m = 0; m < 16; m++) {
+                error = Math.min(
+                    error,
+                    segmentDistance(at(k), samples[m], samples[m + 1]),
+                );
+            }
+            if (error > worst) {
+                worst = error;
+                split = k;
+            }
+        }
+        return worst <= tolerance
+            ? [curve]
+            : [...fit(a, split), ...fit(split, b)];
+    };
+    return fit(from, to);
 }
-function buildShape(seed: number, samples: number): CloudShape {
+const SAMPLES = 64;
+function buildShape(seed: number, tolerance: number): CloudShape {
     const random = seeded(seed);
     const count = 4 + Math.floor(random() * 3);
     const width = 230 + random() * 130;
@@ -153,8 +238,8 @@ function buildShape(seed: number, samples: number): CloudShape {
     ];
     const left = Math.min(...lumps.map((l) => l.x - l.rx)) + 0.01;
     const right = Math.max(...lumps.map((l) => l.x + l.rx)) - 0.01;
-    const xs = Array.from({ length: samples + 1 }, (_, k) => {
-        const u = k / samples;
+    const xs = Array.from({ length: SAMPLES + 1 }, (_, k) => {
+        const u = k / SAMPLES;
         return (
             left + ((right - left) * (u + (1 - Math.cos(Math.PI * u)) / 2)) / 2
         );
@@ -175,12 +260,20 @@ function buildShape(seed: number, samples: number): CloudShape {
     const crestTo = Math.round(crown.length * 0.95);
     return {
         start: points[0],
-        outline: smoothLoop(points, 0, points.length),
+        outline: fitCurves(points, 0, points.length, {
+            closed: true,
+            tolerance,
+        }),
         crestStart: points[crestFrom],
-        crest: smoothLoop(points, crestFrom, crestTo),
+        crest: fitCurves(points, crestFrom, crestTo, {
+            closed: false,
+            tolerance,
+        }),
         puffs,
         top: Math.min(...crown.map((p) => p[1])),
         bottom: FLAT_BOTTOM,
+        left,
+        right,
     };
 }
 function shapeFor(seed: number, detail: 'full' | 'reduced') {
@@ -192,7 +285,7 @@ function shapeFor(seed: number, detail: 'full' | 'reduced') {
         }
         shapes.set(
             key,
-            (shape = buildShape(seed, detail === 'full' ? 64 : 32)),
+            (shape = buildShape(seed, detail === 'full' ? 0.3 : 0.8)),
         );
     }
     return shape;
@@ -209,37 +302,21 @@ function circle(x: number, y: number, r: number): [Vector, Curve[]] {
         ],
     ];
 }
-export function puffCloud(
+function drawCloud(
     ctx: RenderCtx,
-    x: number,
-    y: number,
-    size: number,
+    shape: CloudShape,
     {
-        seed,
         tone,
-        options = {},
+        alpha,
+        fade,
+        detail,
     }: {
-        seed: number;
         tone: CloudTone;
-        options?: CloudOptions;
+        alpha: number;
+        fade: boolean;
+        detail: 'full' | 'reduced';
     },
-): void {
-    const projected = size * ctx.localScale * ctx.scale;
-    const detail =
-        options.detail === 'full' ||
-        (options.detail !== 'reduced' && projected >= 0.9)
-            ? 'full'
-            : 'reduced';
-    const shape = shapeFor(seed, detail);
-    const alpha = options.alpha ?? 1;
-    const ox = ctx.ox;
-    const oy = ctx.oy;
-    const scale = ctx.localScale;
-    const rotation = ctx.rotation;
-    ctx.ox = x;
-    ctx.oy = y;
-    ctx.localScale = size;
-    ctx.rotation = 0;
+) {
     ctx.effectPath(
         shape.start,
         shape.outline,
@@ -247,12 +324,12 @@ export function puffCloud(
             stops: [
                 [0, tone.top],
                 [0.5, tone.middle],
-                [1, options.fade ? ctx.tint(tone.belly, 0) : tone.belly],
+                [1, fade ? ctx.tint(tone.belly, 0) : tone.belly],
             ],
             alpha,
         }),
     );
-    if (!options.fade) {
+    if (!fade) {
         ctx.effectPath(
             shape.start,
             shape.outline,
@@ -295,10 +372,95 @@ export function puffCloud(
         color: ctx.tint(tone.rim, 0.7 * alpha),
         cap: 'round',
     });
-    ctx.ox = ox;
-    ctx.oy = oy;
-    ctx.localScale = scale;
-    ctx.rotation = rotation;
+}
+// Effects on the enclosing layer would be lost on a retained Scene.
+function retainable(ctx: RenderCtx) {
+    return (
+        !ctx.mirror &&
+        (!ctx.layer || Object.keys(ctx.layer).every((key) => key === 'key'))
+    );
+}
+export function puffCloud(
+    ctx: RenderCtx,
+    x: number,
+    y: number,
+    size: number,
+    {
+        seed,
+        tone,
+        options = {},
+    }: {
+        seed: number;
+        tone: CloudTone;
+        options?: CloudOptions;
+    },
+): void {
+    const projected = size * ctx.localScale * ctx.scale;
+    const detail =
+        options.detail === 'full' ||
+        (options.detail !== 'reduced' && projected >= 0.9)
+            ? 'full'
+            : 'reduced';
+    const shape = shapeFor(seed, detail);
+    // Quantized to the 8-bit channel the paint receives, so a fading cloud
+    // only rebuilds when its pixels would actually change.
+    const level = Math.round(
+        Math.max(0, Math.min(1, options.alpha ?? 1)) * 255,
+    );
+    if (level === 0) {
+        return;
+    }
+    const style = {
+        tone,
+        alpha: level / 255,
+        fade: !!options.fade,
+        detail,
+    } as const;
+    if (retainable(ctx)) {
+        const pad = 2;
+        ctx.retainedGroup(
+            `cloud:${seed}`,
+            {
+                left: x + (shape.left - pad) * size,
+                top: y + (shape.top - pad) * size,
+                right: x + (shape.right + pad) * size,
+                bottom: y + (shape.bottom + pad) * size,
+            },
+            () => drawCloud(ctx, shape, style),
+            {
+                geometry: [
+                    'cloud',
+                    seed,
+                    detail,
+                    style.fade ? 'fade' : 'solid',
+                    level,
+                    tone.top,
+                    tone.middle,
+                    tone.belly,
+                    tone.highlight,
+                    tone.rim,
+                ].join(':'),
+                place: { x, y, scale: size },
+            },
+        );
+        return;
+    }
+    const ox = ctx.ox;
+    const oy = ctx.oy;
+    const scale = ctx.localScale;
+    const rotation = ctx.rotation;
+    ctx.ox = x;
+    ctx.oy = y;
+    ctx.localScale = size;
+    ctx.rotation = 0;
+    try {
+        drawCloud(ctx, shape, style);
+    } finally {
+        ctx.ox = ox;
+        ctx.oy = oy;
+        ctx.localScale = scale;
+        ctx.rotation = rotation;
+    }
 }
 export function breadCloud(
     ctx: RenderCtx,

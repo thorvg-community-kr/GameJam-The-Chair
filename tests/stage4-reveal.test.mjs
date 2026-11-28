@@ -744,7 +744,8 @@ test('the ending clouds are bread clouds, not flat pale ovals', () => {
     ])) {
         const commands = revealFrame(phase, age);
         assert.ok(
-            cloudBodies(commands, CLOUD_TONES.bread).length >= 5,
+            // Off-screen clouds are culled, so mid-turn only four remain.
+            cloudBodies(commands, CLOUD_TONES.bread).length >= 4,
             `${phase} ${age}: bread clouds stay on screen`,
         );
         assert.ok(

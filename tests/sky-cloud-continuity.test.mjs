@@ -12,25 +12,28 @@ function cloudsAt(drift) {
     const ctx = createRenderCtx({});
     ctx.cam = 3400;
     ctx.t = (drift - ctx.cam * 0.18) / 4;
-    const clouds = new Map();
-    ctx.effectPath = (start, curves, fill) => {
-        if (
-            JSON.stringify(fill.stops?.[0]?.[1]) !==
-            JSON.stringify(ctx.rgba('#f8d98d', 0.72))
-        ) {
-            return;
-        }
-        const x = ctx.ox - ctx.cam;
-        if (x < 200 || x > 850) {
-            return;
-        }
-        clouds.set(JSON.stringify(curves), {
-            x,
-            y: ctx.oy,
-            size: ctx.localScale,
-        });
-    };
     drawSky(ctx);
+    const clouds = new Map();
+    for (const command of ctx.commands) {
+        const retained = command.layer?.retained;
+        if (
+            !retained?.geometry.startsWith('cloud:') ||
+            JSON.stringify(command.fill?.stops?.[0]?.[1]) !==
+                JSON.stringify(ctx.rgba('#f8d98d', 184 / 255))
+        ) {
+            continue;
+        }
+        const m = retained.transform;
+        const x = m.e13 / ctx.scale;
+        if (x < 200 || x > 850) {
+            continue;
+        }
+        clouds.set(retained.geometry, {
+            x,
+            y: m.e23 / ctx.scale - ctx.vertical,
+            size: m.e11 / ctx.scale,
+        });
+    }
     return clouds;
 }
 
