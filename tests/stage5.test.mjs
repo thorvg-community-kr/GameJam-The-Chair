@@ -1023,6 +1023,28 @@ function flightFrame(setup) {
     drawOrbit(ctx);
     return ctx.commands;
 }
+test('Earth fades in gradually at the atmosphere boundary', () => {
+    const land = (z) =>
+        flightFrame((state) => {
+            state.orbit.z = z;
+        }).filter((command) => command.layer?.key === 'orbit-earth-surface');
+    const boundary = STAGE_FIVE.heights.air;
+    assert.equal(land(boundary).length, 0);
+    const first = land(boundary + 1);
+    const middle = land(boundary + 1200);
+    assert.ok(first.length > 0 && middle.length > 0);
+    const opacity = (commands) =>
+        Math.max(
+            ...commands.map((command) =>
+                parseInt(command.fill.slice(7, 9), 16),
+            ),
+        );
+    assert.ok(
+        opacity(first) <= 1,
+        'land starts transparent instead of flashing green',
+    );
+    assert.ok(opacity(middle) > 1 && opacity(middle) < 255);
+});
 test('the edge of the play area shows on the chair itself, and speed lines only when fast', () => {
     const tape = (commands) =>
         commands.filter(

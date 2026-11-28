@@ -63,44 +63,9 @@ export function drawSky(ctx: RenderCtx): void {
     const ending =
         ctx.state.sky.phase === 'reveal' || ctx.state.sky.phase === 'depth';
     if (ending) {
-        const reveal =
-            ctx.state.sky.phase === 'depth'
-                ? 1
-                : Math.min(1, ctx.state.sky.age / 0.9);
-        if (reveal >= 1) {
-            drawSkyReveal(ctx);
-            return;
-        }
-        drawCourse(ctx);
-        const course = ctx.commands;
-        ctx.commands = [];
         drawSkyReveal(ctx);
-        const clip = {
-            kind: 'path' as const,
-            points: [
-                [ctx.W * (1 - reveal), 0],
-                [ctx.W, 0],
-                [ctx.W, ctx.H],
-                [ctx.W * (1 - reveal), ctx.H],
-            ] as Array<[number, number]>,
-            fill: '#000000',
-        };
-        ctx.commands = [
-            ...course,
-            ...ctx.commands.map((command) => ({
-                ...command,
-                layer: {
-                    ...command.layer,
-                    key: 'sky-reveal-wipe-' + (command.layer?.key ?? 'scene'),
-                    clip,
-                },
-            })),
-        ];
         return;
     }
-    drawCourse(ctx);
-}
-function drawCourse(ctx: RenderCtx): void {
     atmosphere(ctx);
     skyWarningScraps(ctx);
     skyBuilding(ctx);

@@ -169,7 +169,7 @@ function backdrop(
         skyBottom,
     );
     const horizon = orbitEarth(ctx, shot.travel, earth, 0, {
-        strength: heights.air > 0 ? 1 : 0,
+        strength: heights.air,
         night: heights.shadow * (1 - shot.ending.dawn),
         spin,
     });
@@ -467,7 +467,7 @@ class OrbitDrawing {
         this.turn = turn;
         this.ending = ending;
         this.since = since;
-        this.clouds = orbitHeights(this.travel).air < 1 ? 1 : 0;
+        this.clouds = 1 - orbitHeights(this.travel).air;
         this.wide = this.ending.wide;
         this.blend = smooth(this.shot.entry);
         this.mix = (a: number, b: number, k: number) => a + (b - a) * k;

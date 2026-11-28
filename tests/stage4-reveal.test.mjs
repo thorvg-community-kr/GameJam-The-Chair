@@ -668,20 +668,17 @@ test('the departure leaves scenery behind before the quiet side view and is seek
         'backward seeking restores the departure scenery',
     );
 });
-test('the reveal wipes across the course before the camera turns', () => {
-    const clips = (age) =>
-        revealFrame('reveal', age)
-            .filter((command) =>
-                command.layer?.key?.startsWith('sky-reveal-wipe-'),
-            )
-            .map((command) => command.layer.clip.points);
-    const start = clips(0);
-    const middle = clips(0.45);
-    assert.ok(start.length > 0 && middle.length > 0);
-    assert.equal(start[0][0][0], start[0][1][0]);
-    assert.equal(middle[0][0][0], middle[0][1][0] / 2);
-    assert.deepEqual(clips(0.9), []);
-    assert.deepEqual(clips(0), start);
+test('the reveal starts without a screen wipe', () => {
+    for (const age of [0, 0.225, 0.45, 0.9]) {
+        const commands = revealFrame('reveal', age);
+        assert.ok(commands.length > 0);
+        assert.ok(
+            commands.every(
+                (command) =>
+                    !command.layer?.key?.startsWith('sky-reveal-wipe-'),
+            ),
+        );
+    }
 });
 test('arrival spray shortens and settles into the existing chair animation', () => {
     const chair = (time, spray, arrival) => {
@@ -746,7 +743,7 @@ test('the ending clouds are bread clouds, not flat pale ovals', () => {
         );
     }
 });
-test('ending clouds retain bread colours as the camera turns after the wipe', () => {
+test('ending clouds retain bread colours as the camera turns', () => {
     const { settle, turn, hold } = STAGE_FOUR.reveal;
     const bodies = (commands) =>
         commands.filter(
