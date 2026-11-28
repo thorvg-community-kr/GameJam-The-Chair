@@ -301,6 +301,32 @@ test('clock frames use one ThorVG mask, trims, clips and blur', () => {
         'the clock shadow is a radial gradient, not a blurred layer',
     );
 
+    let inGroup = false;
+    const blendInGroup = [];
+    const blendLayers = [];
+    for (const c of iris.commands.slice(open)) {
+        if (c.kind === 'group') {
+            inGroup = !!c.group;
+            continue;
+        }
+        if (c.layer?.blend && c.layer.blend !== 'normal') {
+            (inGroup ? blendInGroup : blendLayers).push(c.layer);
+        }
+    }
+    assert.deepEqual(
+        blendInGroup.map((l) => l.key),
+        [],
+        'blend layers stay outside the masked group so they blend with the office',
+    );
+    assert.ok(
+        blendLayers.some((l) => l.key === 'opening-sunbeams'),
+        'the sunbeams still screen over the office',
+    );
+    assert.ok(
+        blendLayers.every((l) => l.clip && !l.mask),
+        'blend layers take the iris as a clip, not a mask',
+    );
+
     const wide = render(B.riderOvertime - 0.1);
     const covered = new Set(
         wide.commands
