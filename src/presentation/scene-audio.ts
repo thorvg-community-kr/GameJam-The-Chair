@@ -33,7 +33,7 @@ function photograph(prev: GameSnapshot, next: GameSnapshot, audio: SceneAudio) {
         prev.orbit &&
         next.orbit.freeze > prev.orbit.freeze
     ) {
-        addSound(audio, 'shutter', 0.9);
+        addSound(audio, 'shutter', 1);
     }
 }
 

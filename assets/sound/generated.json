@@ -90,7 +90,7 @@
   {
     "id": "scan-loop",
     "seconds": 1,
-    "peak": 0.11,
+    "peak": 0.2,
     "loop": true,
     "layers": [
       {

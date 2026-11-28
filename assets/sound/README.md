@@ -35,7 +35,7 @@ The linked public libraries identify these effects as CC0: [SFXMint license](htt
 | Rooftop takeoff | Synthesized windup, kick and edited wind |
 | Sky desks, signs, floating gear | Synthesized wood creak and metal rattle |
 | Approaching bird and bird collision | Edited squawk and existing impact recording |
-| Satellite tracking, lock and capture | Synthesized scan and warning; edited shutter |
+| Satellite tracking, lock and capture | Synthesized scan until the shot, lock warning; dedicated edited shutter |
 | Orbit speed steps | Synthesized motor rise |
 | Bin fall | Synthesized hollow knocks and paper-like noise |
 | Menu buttons and volume confirmation | Synthesized tap and confirmation |

@@ -122,21 +122,30 @@ test('nearby vents announce the warning before blowing and distant vents stay qu
     );
 });
 
-test('the last photograph preview contains a real freeze and one shutter cue', () => {
+test('the last photograph whirs before one shutter cue and stays quiet after it', () => {
     const scene = previewScenes
         .find((item) => item.id === 'orbit-photo')
         .create();
     assert.equal(scene.markers.length, 1);
     let previous = scene.sample(0).state;
     let shutters = 0;
+    let whirBefore = false;
+    let whirAfter = false;
     for (let t = 1 / 60; t < scene.duration; t += 1 / 60) {
         const next = scene.sample(t).state;
-        shutters += names(sceneAudio(previous, next)).filter(
-            (name) => name === 'shutter',
-        ).length;
+        const audio = sceneAudio(previous, next);
+        shutters += names(audio).filter((name) => name === 'shutter').length;
+        const whir = audio.loops.some((loop) => loop.name === 'satelliteScan');
+        if (shutters === 0) {
+            whirBefore ||= whir;
+        } else {
+            whirAfter ||= whir;
+        }
         previous = next;
     }
     assert.equal(shutters, 1);
+    assert.ok(whirBefore, 'the scan whir leads into the photograph');
+    assert.ok(!whirAfter, 'the scan whir stops once the shutter fires');
 });
 
 test('world audio stays silent in release and parked ending frames', () => {

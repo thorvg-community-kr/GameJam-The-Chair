@@ -19,6 +19,7 @@ import metalRattleUrl from '../../assets/sound/metal-rattle.wav?url';
 import paperUrl from '../../assets/sound/paper.wav?url';
 import satelliteAlertUrl from '../../assets/sound/satellite-alert.wav?url';
 import scanLoopUrl from '../../assets/sound/scan-loop.wav?url';
+import shutterUrl from '../../assets/sound/shutter.wav?url';
 import splashUrl from '../../assets/sound/splash.wav?url';
 import typingShortUrl from '../../assets/sound/typing-short.wav?url';
 import typingUrl from '../../assets/sound/typing.wav?url';
@@ -54,7 +55,7 @@ export const SAMPLES = new Map<AudioName, { url: string; seconds: number }>([
     ['uiError', { url: uiErrorUrl, seconds: 0.33 }],
     ['liftArrival', { url: liftArriveUrl, seconds: 1.3 }],
     ['birdCall', { url: birdCallUrl, seconds: 0.43 }],
-    ['shutter', { url: clickUrl, seconds: 0.32 }],
+    ['shutter', { url: shutterUrl, seconds: 0.24 }],
     ['sprayLever', { url: clickUrl, seconds: 0.32 }],
     ['spray', { url: clickUrl, seconds: 0.32 }],
     ['woodCreak', { url: woodCreakUrl, seconds: 0.5 }],
