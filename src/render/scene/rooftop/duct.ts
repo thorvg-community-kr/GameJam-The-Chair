@@ -940,7 +940,7 @@ export function rooftopVents(ctx: RenderCtx): void {
                 for (let i = 0; i < 4; i++) {
                     const u = (phase.age * (1.5 + phase.age * 2) + i / 4) % 1;
                     ctx.ellipse(
-                        cx - 30 - u * 40,
+                        cx - 14 - u * 40,
                         cy - 14 + i * 9 - u * 10,
                         3 + u * 7,
                         2 + u * 4,
@@ -956,7 +956,7 @@ export function rooftopVents(ctx: RenderCtx): void {
                     0.6,
                 );
                 const angle = vent.axis === 'y' ? 90 : vent.dir > 0 ? 0 : 180;
-                ductSteam(ctx, cx - 30, cy, phase.age * pace, {
+                ductSteam(ctx, cx - 14, cy, phase.age * pace, {
                     duration: vent.blow * pace,
                     strength: 0.9,
                     blurAngle: angle,
@@ -974,27 +974,40 @@ function ventGrille(
         age: number;
     },
 ) {
-    ctx.gradientPolygon(
+    ctx.polygon(
         [
-            [x, y - 20],
-            [x - 16, y - 20],
-            [x - 16, y + 20],
-            [x, y + 20],
+            [x, y - 30],
+            [x - 13, y - 26],
+            [x - 13, y + 26],
+            [x, y + 30],
         ],
-        ctx.gradientFill(0, y - 20, 0, y + 20, {
-            stops: [
-                [0, PIPE.light],
-                [0.3, PIPE.shine],
-                [0.55, PIPE.base],
-                [1, PIPE.dark],
-            ],
-        }),
+        '#9fabb9',
     );
-    pipeLip(ctx, x - 30, y - 28, 16, 56);
+    ctx.polygon(
+        [
+            [x - 2, y - 25],
+            [x - 11, y - 22],
+            [x - 11, y + 22],
+            [x - 2, y + 25],
+        ],
+        '#22374e',
+    );
+    for (let i = 0; i < 4; i++) {
+        const ly = y - 17 + i * 11;
+        ctx.rod(x - 2, ly + 5, x - 11, ly - 2, {
+            w: 2.5,
+            c: '#c3ccd6',
+        });
+    }
+    for (const by of [y - 27, y + 27]) {
+        ctx.ellipse(x - 7, by, 1.6, 1.6, {
+            c: '#566b82',
+        });
+    }
     const lit =
         phase.kind === 'blow' ||
         (phase.kind === 'warn' && Math.sin(phase.age * 26) > 0);
-    ctx.ellipse(x - 7, y - 34, 3, 3, {
+    ctx.ellipse(x - 7, y - 36, 3, 3, {
         c: lit ? '#ff5b4a' : '#6a2a27',
     });
 }

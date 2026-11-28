@@ -228,13 +228,12 @@ export function desk(ctx: RenderCtx, x: number): void {
     ctx.rect(x + 40, F - 110, 63, 5, '#526274');
 }
 const POT = {
-    rim: '#8a5634',
-    rimLight: '#b77a4c',
-    mouth: '#1f120b',
-    shine: '#c98f5f',
-    body: '#7a4527',
-    shade: '#3e2010',
-    stroke: '#b98557',
+    rim: '#2a2b2e',
+    rimLight: '#55585e',
+    mouth: '#08090a',
+    shine: '#6b6f76',
+    body: '#25272b',
+    shade: '#0b0c0e',
 };
 export function binBack(ctx: RenderCtx): void {
     const F = ctx.F;
@@ -247,7 +246,7 @@ export function binFront(ctx: RenderCtx): void {
     const bin = ctx.bin;
     const { x, a, b } = bin;
     const base = bin.bottom;
-    ctx.ellipse(x, base + 2, 92, 9, { c: '#00000030' });
+    ctx.ellipse(x, base + 2, 92, 9, { c: '#00000040' });
     ctx.effectPath(
         [a + 8, F + 2],
         [
@@ -255,43 +254,19 @@ export function binFront(ctx: RenderCtx): void {
             [x - 20, base + 4, x + 20, base + 4, b - 34, base],
             [b + 34, base - 30, b + 30, F + 30, b - 8, F + 2],
         ],
-        ctx.radialFill(x - 40, F + 30, 150, [
+        ctx.radialFill(x - 45, F + 28, 160, [
             [0, POT.shine],
-            [0.45, POT.body],
+            [0.35, POT.body],
             [1, POT.shade],
         ]),
     );
-    for (const k of [0, 1]) {
-        const y = F + 38 + k * 14;
-        ctx.strokePath(
-            [a - 6 + k * 3, y],
-            [
-                [a + 30, y - 10, a + 50, y + 10, x - 20, y],
-                [x + 10, y - 10, x + 30, y + 10, b - 40, y],
-                [b - 20, y - 6, b - 4, y + 4, b + 6 - k * 3, y],
-            ],
-            { width: 2.5, color: ctx.tint(POT.stroke, 0.7) },
-        );
-    }
     ctx.strokePath(
         [a + 4, F + 30],
         [[a - 8, F + 55, a + 2, base - 30, a + 22, base - 14]],
-        { width: 5, color: ctx.tint('#ffe2bf', 0.35) },
+        { width: 5, color: ctx.tint('#ffffff', 0.18) },
     );
-    ctx.ellipse(x, F + 3, 84, 9, { c: POT.rimLight });
-    ctx.rod(x - 78, F + 6, x + 78, F + 6, { w: 3, c: POT.rim });
-    potHammer(ctx, b + 48, F + 80);
-}
-function potHammer(ctx: RenderCtx, x: number, y: number) {
-    ctx.withTransform({ ox: x, oy: y, rotation: -0.2 }, () => {
-        ctx.rod(0, 0, 0, -125, { w: 7, c: '#7b5a3a' });
-        ctx.rod(-1.5, -4, -1.5, -121, { w: 2, c: '#a58257' });
-        ctx.rect(-6, -18, 12, 18, '#2c2a28');
-        ctx.rect(-24, -145, 48, 24, '#4a4f56');
-        ctx.rect(-24, -145, 48, 6, '#7c848e');
-        ctx.rect(-28, -147, 6, 28, '#383c42');
-        ctx.rect(22, -147, 6, 28, '#383c42');
-    });
+    ctx.ellipse(x, F + 3, 86, 10, { c: POT.rimLight });
+    ctx.rod(x - 80, F + 7, x + 80, F + 7, { w: 4, c: POT.rim });
 }
 export function practiceFloor(ctx: RenderCtx): void {
     if (ctx.cam > 340) {
