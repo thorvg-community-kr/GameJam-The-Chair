@@ -26,3 +26,22 @@ export function musicTrack(
     }
     return STAGE_TRACKS[state.stage];
 }
+
+// How far the music steps back. Kept separate from the user's volume so a
+// duck never touches the stored master/bgm settings.
+export type MusicDuck = 'none' | 'pause' | 'death';
+
+export function musicDuck(state: Pick<GameSnapshot, 'mode'>): MusicDuck {
+    switch (state.mode) {
+        case 'pause':
+            return 'pause';
+        case 'impact':
+        case 'focuslost':
+        case 'dead':
+            return 'death';
+        case 'intro':
+        case 'play':
+        case 'won':
+            return 'none';
+    }
+}
