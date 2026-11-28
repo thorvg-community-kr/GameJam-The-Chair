@@ -25,13 +25,11 @@ export type EndingPose = {
     sweat?: number;
     /** Head yaw toward the rider's left (+z) in radians. */
     headYaw?: number;
-    face?: FaceDetails;
     tint?: {
         chair?: (color: string) => string;
         rider?: (color: string) => string;
     };
 };
-export type FaceDetails = { look: number; blink: number; mouth: number };
 const NECK: Point3 = [-2, 33, 0];
 const GLASSES_BIAS = 8;
 const BACKREST_PIVOT: Point3 = [-24, -25, 0];
@@ -158,7 +156,7 @@ function posedChair(
     const headView = placedProjection(riderView, (p) =>
         rotateY(p, NECK, headYaw),
     );
-    riderHead(headView, redraw(headView), pose.face);
+    riderHead(headView, redraw(headView));
     riderArms(riderView, body, rest);
     return draw.bob;
 }
@@ -489,7 +487,6 @@ function frontTie(view: SkyProjection, { point }: ChairDrawing) {
 function riderHead(
     view: SkyProjection,
     { C: palette, bob, oval }: ChairDrawing,
-    details?: FaceDetails,
 ) {
     const face: Vector[] = [
         [-10, -77],
@@ -522,14 +519,7 @@ function riderHead(
     // turns, so pull them forward while they face the camera.
     const facing =
         view.depth([15, 49, 0]) < view.depth([-10, 49, 0]) ? GLASSES_BIAS : 0;
-    view.biased(facing, () => endingGlasses(view, bob, details));
-    if (details && details.mouth > 0) {
-        oval(13, -70.2, 0, 0.8, {
-            ry: 2.4 * details.mouth,
-            rz: 2 * details.mouth,
-            color: '#4a2626',
-        });
-    }
+    view.biased(facing, () => endingGlasses(view, bob));
 }
 function laptop(view: SkyProjection, { profile, point, bob }: ChairDrawing) {
     const top = laptopDetails(view, point, profile);

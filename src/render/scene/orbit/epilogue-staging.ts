@@ -77,7 +77,6 @@ const darken =
                     .padStart(2, '0'),
             )
             .join('');
-const face = (look = 0, blink = 0, mouth = 0) => ({ look, blink, mouth });
 
 function tap(u: number): EpilogueStage {
     const hit = 0.4;
@@ -97,7 +96,7 @@ function tap(u: number): EpilogueStage {
             lift: 30,
             zoom: 1,
         },
-        figures: [{ backrest, rider, face: face() }],
+        figures: [{ backrest, rider }],
         punch: u >= hit ? 0.04 * (1 - smooth((u - hit) / 0.35)) : 0,
         star:
             u >= hit && u < hit + 0.25
@@ -117,7 +116,6 @@ function look(u: number): EpilogueStage {
         figures: [
             {
                 headYaw: 35 * DEG * smooth((u - 0.3) / 0.5),
-                face: face(smooth((u - 0.15) / 0.15), pulse(u, 0.32, 0.14)),
             },
         ],
         punch: 0,
@@ -146,7 +144,6 @@ function shake(u: number): EpilogueStage {
             {
                 chair: (p) => roll(p, FLOOR, wiggle(u - 0.1)),
                 rider: (p) => roll(p, FLOOR, 1.15 * wiggle(u - 0.1 - late)),
-                face: face(0, 0, smooth((u - 0.25) / 0.12)),
             },
         ],
         punch: 0,
@@ -168,7 +165,6 @@ function strain(u: number): EpilogueStage {
                 splay: smooth(u / 0.5),
                 tremble: Math.sin(u * 95) * 0.9 * Math.min(1, u / 0.1),
                 sweat: sweat <= 1 ? sweat : -1,
-                face: face(0, 0, 1),
             },
         ],
         punch: 0,
@@ -211,7 +207,6 @@ function drop(u: number): EpilogueStage {
                     u < RELEASE
                         ? (p) => tipForward(p, FRONT_WHEEL, tip)
                         : thrown,
-                face: face(0, 0, 0.6),
             },
         ],
         punch: 0,
@@ -233,11 +228,6 @@ function bewildered(u: number, t: number): EpilogueStage {
             },
             {
                 rider: (p) => shift(roll(p, BODY, lean), [0, bob, 0]),
-                face: face(
-                    0,
-                    pulse(u, 0.45, 0.14) + pulse(u, 0.78, 0.14),
-                    0.25,
-                ),
             },
         ],
         punch: 0,
@@ -245,7 +235,6 @@ function bewildered(u: number, t: number): EpilogueStage {
 }
 function stare(beat: EpilogueBeat): EpilogueStage {
     const bob = Math.sin(beat.t * 2.2) * 1.2;
-    const length = beat.shot < 2 ? 0.8 : 0.4;
     const onChair = beat.cut === 'stare-chair';
     const chair: EndingPose = {
         parts: 'chair',
@@ -259,7 +248,6 @@ function stare(beat: EpilogueBeat): EpilogueStage {
                 ADRIFT[1] - bob,
                 ADRIFT[2],
             ]),
-        face: face(0, onChair ? pulse(beat.u, length * 0.45, 0.14) : 0, 0.25),
         tint: onChair ? undefined : { rider: darken(0.32) },
     };
     return {
