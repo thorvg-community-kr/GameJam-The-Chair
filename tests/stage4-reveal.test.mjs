@@ -571,20 +571,32 @@ test('the reveal turns steadily from the side to behind the chair, keeping it ce
         );
     }
 });
-test('the watchers are present in the side view and remain opaque while the camera turns', () => {
+test('the watchers stay hidden until the camera turns, then remain opaque', () => {
     const { settle, turn } = STAGE_FOUR.reveal;
+    const glows = new Set([
+        'orbit-cctv-rec',
+        'orbit-cctv-light',
+        'orbit-robot-eye',
+    ]);
     const watch = (phase, age) =>
         revealFrame(phase, age).filter(
             (command) =>
-                !command.layer && ['#ff4a3a', '#5e1d1a'].includes(command.fill),
+                glows.has(command.layer?.key) ||
+                (!command.layer &&
+                    ['#ff4a3a', '#5e1d1a'].includes(command.fill)),
         );
-    assert.ok(watch('reveal', settle * 0.9).length > 0);
+    for (const age of [0, 0.42, settle * 0.9, settle - 0.01]) {
+        assert.equal(watch('reveal', age).length, 0, `hidden at ${age}s`);
+    }
+    assert.ok(watch('reveal', settle + 0.2).length > 0, 'shown as it turns');
     const early = watch('reveal', settle + turn * 0.3);
     const late = watch('reveal', settle + turn * 0.8);
     assert.ok(early.length > 0 && late.length > 0);
     for (const commands of [early, late, watch('depth', 1)]) {
         assert.ok(
-            commands.every((command) => command.fill.length === 7),
+            commands
+                .filter((command) => !command.layer)
+                .every((command) => command.fill.length === 7),
             'no fade',
         );
     }
