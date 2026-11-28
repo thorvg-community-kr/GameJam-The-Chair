@@ -5,7 +5,7 @@ import { ORBIT_ENDING } from './ending-timeline';
 import { stageEpilogue } from './epilogue-staging';
 import { orbitHeights, orbitHighSky } from './heights';
 import { createSkyProjection, placedProjection } from '../shared/projection';
-import { endingChair, riderProjection } from '../sky/ending-art';
+import { endingChair } from '../sky/ending-art';
 
 import type { EarthCamera } from './earth';
 import type { OrbitEndingState } from './ending';
@@ -178,10 +178,15 @@ export function drawEpilogue(
     stage.figures.forEach((pose, i) => {
         const view =
             i === stage.front ? placedProjection(near, toFocus) : world;
-        const bob = endingChair(view, 0, 0, 0, { rest: 1, pose });
-        if (pose.parts !== 'chair') {
-            endingLaptopScreen(riderProjection(view, pose), ending, bob);
-        }
+        endingChair(view, 0, 0, 0, {
+            rest: 1,
+            pose,
+            screen:
+                pose.parts !== 'chair'
+                    ? (riderView, bob) =>
+                          endingLaptopScreen(riderView, ending, bob)
+                    : undefined,
+        });
     });
     if (stage.puff) {
         puff(world, stage.puff.at, stage.puff.k);

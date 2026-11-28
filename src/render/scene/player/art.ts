@@ -55,9 +55,9 @@ export const PLAYER_OUTLINES = {
         [-10, -77],
     ],
     laptop: [
-        [21, -31],
-        [54, -31],
-        [65, -59],
-        [33, -59],
+        [24, -28],
+        [49.5, -28],
+        [56.5, -53],
+        [31.5, -53],
     ],
 } satisfies Record<string, Vector[]>;
