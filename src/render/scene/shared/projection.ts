@@ -45,6 +45,8 @@ export function createSkyProjection(
         options?: {
             widthAt?: (x: number, y: number) => number;
             bevel?: number;
+            /** Rounds the sides like a head instead of a flat slab; the side cap shrinks to this scale. */
+            round?: number;
             place?: (p: Point3) => Point3;
         },
     ) => void;
@@ -124,7 +126,10 @@ class SkyProjectionRuntime {
         points: Point3[];
         color: string;
         depth: number;
+        seal: boolean;
     }>;
+    /** Faces drawn while set get a hairline of their own colour to hide anti-aliasing seams. */
+    private sealing = false;
     private curves!: Array<{
         command: DrawCommand;
         depth: number;
@@ -149,6 +154,7 @@ class SkyProjectionRuntime {
         this.faces.push({
             points,
             color,
+            seal: this.sealing,
             depth:
                 points.reduce((sum, p) => sum + this.depth(p), 0) /
                     points.length -
@@ -187,6 +193,8 @@ class SkyProjectionRuntime {
         options?: {
             widthAt?: (x: number, y: number) => number;
             bevel?: number;
+            /** Rounds the sides like a head instead of a flat slab; the side cap shrinks to this scale. */
+            round?: number;
             place?: (p: Point3) => Point3;
         },
     ) => void = (
@@ -197,12 +205,15 @@ class SkyProjectionRuntime {
         options?: {
             widthAt?: (x: number, y: number) => number;
             bevel?: number;
+            /** Rounds the sides like a head instead of a flat slab; the side cap shrinks to this scale. */
+            round?: number;
             place?: (p: Point3) => Point3;
         },
     ) => {
         const {
             widthAt,
             bevel = 0.86,
+            round,
             place = (p: Point3) => p,
         } = options ?? {};
         const cx = outline.reduce((sum, p) => sum + p[0], 0) / outline.length;
@@ -225,17 +236,39 @@ class SkyProjectionRuntime {
                 place([cx, cy, z - halfWidth]),
                 place([cx, cy, z + halfWidth]),
             ) < LOD_PIXELS;
-        const rings = thin
-            ? [ring(-halfWidth, 1), ring(halfWidth, 1)]
-            : [
-                  ring(-halfWidth, bevel),
-                  ring(-halfWidth * 0.65, 1),
-                  ring(halfWidth * 0.65, 1),
-                  ring(halfWidth, bevel),
-              ];
+        // Each band is [angle from the middle plane, ring]; flat colours
+        // darken toward the sides so a rounded section reads as volume.
+        const turns = thin
+            ? [-90, 90]
+            : round === undefined
+              ? [-90, -50, 50, 90]
+              : [-90, -58, -24, 24, 58, 90];
+        const rings = turns.map((deg) => {
+            const a = (deg * Math.PI) / 180;
+            if (thin) {
+                return ring(Math.sign(a) * halfWidth, 1);
+            }
+            if (round === undefined) {
+                return Math.abs(deg) === 90
+                    ? ring(Math.sign(a) * halfWidth, bevel)
+                    : ring(Math.sign(a) * halfWidth * 0.65, 1);
+            }
+            return ring(
+                halfWidth * Math.sin(a),
+                round + (1 - round) * Math.cos(a),
+            );
+        });
+        this.sealing = round !== undefined;
         this.polygon([...rings[0]].reverse(), this.shade(color, 0.94));
         this.polygon(rings[rings.length - 1], color);
         for (let r = 0; r < rings.length - 1; r++) {
+            const middle = ((turns[r] + turns[r + 1]) / 2) * (Math.PI / 180);
+            const factor =
+                round === undefined
+                    ? r === 1 || thin
+                        ? 0.96
+                        : 1.02
+                    : 0.95 + 0.06 * Math.cos(middle);
             for (let i = 0; i < points.length; i++) {
                 const next = (i + 1) % points.length;
                 this.polygon(
@@ -245,10 +278,11 @@ class SkyProjectionRuntime {
                         rings[r + 1][next],
                         rings[r + 1][i],
                     ],
-                    this.shade(color, r === 1 || thin ? 0.96 : 1.02),
+                    this.shade(color, factor),
                 );
             }
         }
+        this.sealing = false;
     };
     private oval: (center: Point3, radii: Point3, color: string) => void = (
         center: Point3,
@@ -386,6 +420,10 @@ class SkyProjectionRuntime {
                             kind: 'path' as const,
                             points: v,
                             fill: c,
+                            ...(face.seal &&
+                            (c.length === 7 || c.endsWith('ff'))
+                                ? { stroke: { width: 1, color: c } }
+                                : {}),
                         },
                     },
                 ];
@@ -434,6 +472,8 @@ class SkyProjectionRuntime {
             options?: {
                 widthAt?: (x: number, y: number) => number;
                 bevel?: number;
+                /** Rounds the sides like a head instead of a flat slab; the side cap shrinks to this scale. */
+                round?: number;
                 place?: (p: Point3) => Point3;
             },
         ) => void;

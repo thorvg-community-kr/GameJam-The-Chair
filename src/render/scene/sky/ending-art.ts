@@ -32,6 +32,8 @@ export type EndingPose = {
 };
 const NECK: Point3 = [-2, 33, 0];
 const GLASSES_BIAS = 8;
+/** Side-cap scale of the head; below 1 it rounds into the cheeks and temples. */
+const HEAD_ROUND = 0.62;
 const BACKREST_PIVOT: Point3 = [-24, -25, 0];
 const rotateY = (p: Point3, c: Point3, a: number): Point3 => {
     const x = p[0] - c[0];
@@ -505,6 +507,7 @@ function riderHead(
                 const fullness = Math.max(0, Math.min(1, (y - 31 - bob) / 20));
                 return 5 + fullness * 7;
             },
+            round: HEAD_ROUND,
         },
     );
     endingHair(view, bob);
