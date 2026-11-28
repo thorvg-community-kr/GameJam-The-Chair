@@ -522,6 +522,7 @@ export function potFall(): PreviewScene {
                 state: {
                     ...base,
                     time: at,
+                    inBin: at >= 1.4,
                     player: {
                         ...base.player,
                         x: LEVEL.bin.x - 60 + 60 * Math.min(1, at / 0.8),

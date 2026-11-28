@@ -105,8 +105,8 @@ const messages = {
         ko: '머리가 먼저 퇴근했습니다.',
     },
     'panel.binTitle': {
-        en: 'Getting over it is harder than it looks.',
-        ko: '항아리에서 나가는 건 생각보다 어렵다.',
+        en: 'Recycled along with your work.',
+        ko: '업무와 함께 분리배출.',
     },
     'panel.focusTitle': { en: 'Wait, where am I?', ko: '앗, 여기가 어디지?' },
     'panel.liftKicker': { en: 'Forced clock-out', ko: '강제 퇴근' },
