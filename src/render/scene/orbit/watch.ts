@@ -139,7 +139,6 @@ function swerve(p: Point3, ahead: number): Point3 {
 const CCTV_REACH = 60;
 const BIRD_REACH = 90;
 const GLOW_MARGIN = 64;
-const BIRD_FAR_PX = 18;
 function floating(
     view: SkyProjection,
     point: RoutePoint,
@@ -161,18 +160,11 @@ function floating(
     }
     const state = cctvLamp(spot.z - travel, t);
     if (spot.bird) {
-        // Pick detail from the full-grown size so the reveal grow-in never swaps meshes.
-        const full = view.footprint(
-            anchor,
-            BIRD_REACH * 1.2 * spot.size,
-            Infinity,
-        );
         const { eyes, glow } = robotBirdModel(
             view,
             spot.bird,
             placer(anchor, yaw, size * 1.2),
             t * 9 + spot.seed,
-            full < BIRD_FAR_PX ? 'far' : 'near',
         );
         return eyes.map((at) => ({ at, state, glow: glow * size * 1.2 }));
     }

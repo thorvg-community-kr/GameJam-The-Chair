@@ -38,7 +38,7 @@ function band(path: Path, width: number): Vector[] {
     ];
 }
 
-const BODY_PATH: Path = {
+const BODY = outline({
     start: [-22, -10],
     curves: [
         [-14, -18, 2, -12, 14, -5],
@@ -46,8 +46,7 @@ const BODY_PATH: Path = {
         [-6, 12, -14, 6, -18, 2],
         [-24, -2, -26, -6, -22, -10],
     ],
-};
-const BODY = outline(BODY_PATH);
+});
 const BEAK = outline({
     start: [-22, -8],
     curves: [
@@ -55,22 +54,20 @@ const BEAK = outline({
         [-28, 0, -25, -1, -22, -1],
     ],
 });
-const TAIL_PATH: Path = {
+const TAIL = outline({
     start: [12, -3],
     curves: [
         [26, -6, 40, -6, 52, -3],
         [40, 2, 26, 6, 13, 5],
     ],
-};
-const TAIL = outline(TAIL_PATH);
-const WING_PATH: Path = {
+});
+const WING = outline({
     start: [2, -3],
     curves: [
         [8, -24, 16, -34, 26, -26],
         [18, -13, 12, -2, 12, 1],
     ],
-};
-const WING = outline(WING_PATH);
+});
 const BELLY = outline({
     start: [16, 3],
     curves: [
@@ -151,61 +148,13 @@ function lensEye(view: SkyProjection, place: Place, side: number, r: number) {
     return place([EYE[0], EYE[1], w + side * 1.6]);
 }
 
-const FAR_BODY = outline(BODY_PATH, 2);
-const FAR_TAIL = outline(TAIL_PATH, 2);
-const FAR_WING = outline(WING_PATH, 2);
-
-function wingPlace(place: Place, side: number, spin: number) {
-    const angle = 0.95 + 0.55 * Math.sin(spin);
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-    const root = side * bodyWidth(-6) * 0.8;
-    return ([u, v, z]: Point3): Point3 => {
-        const d = (v - SHOULDER) * 1.6;
-        return place([
-            u,
-            SHOULDER + d * cos - z * sin + (u + 8) * 0.35,
-            root + side * (d * sin + z * cos),
-        ]);
-    };
-}
-
-function farBird(
-    view: SkyProjection,
-    f: Finish,
-    place: Place,
-    spin: number,
-): { eyes: Point3[]; glow: number } {
-    view.profile(FAR_TAIL, 3, f.tail, 0, { place });
-    view.profile(FAR_BODY, HALF, f.body, 0, { place });
-    for (const side of [-1, 1]) {
-        view.profile(FAR_WING, 1.6, f.wing + 'ff', 0, {
-            place: wingPlace(place, side, spin),
-        });
-    }
-    const [a, b] = [place([0, 0, 0]), place([1, 0, 0])];
-    const r = f.eye * Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
-    const eyes = [-1, 1].map((side) => {
-        const at = place([EYE[0], EYE[1], side * (bodyWidth(EYE[0]) + 1)]);
-        view.oval(at, [r, r, r * 0.45], '#d81e10');
-        return at;
-    });
-    return { eyes, glow: f.eye * 2.6 };
-}
-
-export type BirdDetail = 'near' | 'far';
-
 export function robotBirdModel(
     view: SkyProjection,
     robot: SkyRobot,
     place: Place,
     spin: number,
-    detail: BirdDetail = 'near',
 ): { eyes: Point3[]; glow: number } {
     const f = FINISH[robot];
-    if (detail === 'far') {
-        return farBird(view, f, place, spin);
-    }
     view.profile(TAIL, 3, f.tail, 0, { place });
     view.profile(BODY, HALF, f.body, 0, {
         place,
@@ -228,8 +177,19 @@ export function robotBirdModel(
             widthAt: (u) => bodyWidth(u) + 0.5,
         });
     }
+    const angle = 0.95 + 0.55 * Math.sin(spin);
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
     for (const side of [-1, 1]) {
-        const wing = wingPlace(place, side, spin);
+        const root = side * bodyWidth(-6) * 0.8;
+        const wing = ([u, v, z]: Point3): Point3 => {
+            const d = (v - SHOULDER) * 1.6;
+            return place([
+                u,
+                SHOULDER + d * cos - z * sin + (u + 8) * 0.35,
+                root + side * (d * sin + z * cos),
+            ]);
+        };
         view.profile(WING, 1.6, f.wing + 'ff', 0, { place: wing });
         view.profile(
             WING.map(
