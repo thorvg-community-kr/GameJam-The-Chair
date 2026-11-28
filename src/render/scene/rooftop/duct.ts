@@ -64,10 +64,7 @@ export function rooftopDuct(ctx: RenderCtx): void {
     }
 }
 function drawDuctBack(ctx: RenderCtx, x: number, y: number) {
-    const top = -150;
-    pipeBody(ctx, [x + 126, top, x + 180, y + 32], 'x');
-    pipeBody(ctx, [x + 20, y - 33, x + 126, y + 32], 'y');
-    ctx.rod(x + 126, y - 33, x + 126, y + 32, { w: 2.5, c: PIPE.line });
+    pipeBody(ctx, [x + 20, y - 33, x + 122, y + 32], 'y');
     pipeLip(ctx, x - 6, y - 46, 30, 92);
 }
 function pipeBands(ctx: RenderCtx, from: number, to: number, axis: 'x' | 'y') {
