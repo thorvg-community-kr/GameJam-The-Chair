@@ -75,6 +75,8 @@ function effective(spec: LayerSpec) {
         (!!spec.blend && spec.blend !== 'normal') ||
         !!spec.blur ||
         (!!spec.motionBlur && spec.motionBlur.distance > 0.5) ||
+        !!spec.tint ||
+        !!spec.dropShadow ||
         !!spec.clip ||
         !!spec.mask ||
         !!spec.retained
@@ -90,6 +92,8 @@ function blendOnly(spec: LayerSpec) {
         (spec.opacity === undefined || spec.opacity >= 1) &&
         !spec.blur &&
         !(spec.motionBlur && spec.motionBlur.distance > 0.5) &&
+        !spec.tint &&
+        !spec.dropShadow &&
         !spec.clip &&
         !spec.mask &&
         !spec.retained &&

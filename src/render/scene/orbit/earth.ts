@@ -40,6 +40,10 @@ export function earthAltitude(z: number): number {
         280 * smooth((z - H.space) / (H.shadow - H.space))
     );
 }
+/** Angle of the horizon below level, seen from the chair's altitude. */
+export function earthHorizonDip(z: number): number {
+    return Math.acos(R / (R + earthAltitude(z)));
+}
 const TRACK: Array<[number, number]> = [
     [84, 10],
     [88, 12],
@@ -504,18 +508,17 @@ function earthView(z: number, yaw: number, camera: EarthCamera, spin = 0) {
         });
         return out.length >= 3 ? out.map(toScreen) : [];
     };
-    const horizon: Vector[] = [];
-    for (let a = -86; a <= 86; a += 4) {
-        const t = a * rad;
-        horizon.push(
-            project(
-                add(
-                    scale(up, limb),
-                    add(scale(forward, Math.cos(t)), right, Math.sin(t)),
-                    Math.sqrt(1 - limb * limb),
-                ),
+    const horizonAt = (t: number) =>
+        project(
+            add(
+                scale(up, limb),
+                add(scale(forward, Math.cos(t)), right, Math.sin(t)),
+                Math.sqrt(1 - limb * limb),
             ),
         );
+    const horizon: Vector[] = [];
+    for (let a = -86; a <= 86; a += 4) {
+        horizon.push(horizonAt(a * rad));
     }
     const visible = (n: V3) => dot(n, up) >= limb && toCamera(n)[2] >= NEAR;
     return {
@@ -523,6 +526,7 @@ function earthView(z: number, yaw: number, camera: EarthCamera, spin = 0) {
         outline,
         visible,
         horizon,
+        horizonAt,
         middle: horizon[Math.floor(horizon.length / 2)],
     };
 }
@@ -810,6 +814,19 @@ export function earthHorizonAhead(
     spin = 0,
 ): Vector {
     return earthView(travel, yaw, camera, spin).middle;
+}
+/** Screen point on the horizon at `bearing` radians right of the camera, if in view. */
+export function earthHorizonAt(
+    travel: number,
+    camera: EarthCamera,
+    bearing: number,
+    spin = 0,
+): Vector | undefined {
+    const a = Math.atan2(Math.sin(bearing), Math.cos(bearing));
+    if (Math.abs(a) > 86 * rad) {
+        return undefined;
+    }
+    return earthView(travel, 0, camera, spin).horizonAt(a);
 }
 export function earthSkyBottom(
     travel: number,

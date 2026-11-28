@@ -1,5 +1,5 @@
 import { basinCloudSeeds, orbitCloudBank, orbitSky } from './atmosphere';
-import { earthSkyBottom, orbitEarth } from './earth';
+import { earthHorizonAt, earthSkyBottom, orbitEarth } from './earth';
 import {
     endingChairLights,
     endingFade,
@@ -61,6 +61,8 @@ export type OrbitShot = {
     ending: OrbitEndingState;
 };
 const SHOULDER = 0.38;
+/** Where the sun rises, in radians right of the flight heading; fixed in the world. */
+const SUN_BEARING = -0.15;
 // Same nebula as the epilogue, softer while the run is still on.
 const SPACE_NEBULA = 0.6;
 const READ = { zoom: 0.7, offsetX: 0.3, centerY: 0.24 };
@@ -168,7 +170,7 @@ function backdrop(
     );
     const horizon = orbitEarth(ctx, shot.travel, earth, 0, {
         strength: heights.air > 0 ? 1 : 0,
-        night: heights.shadow * (1 - shot.ending.wide),
+        night: heights.shadow * (1 - shot.ending.dawn),
         spin,
     });
     return { heights, horizon };
@@ -658,11 +660,14 @@ class OrbitDrawing {
         if (this.heights.shadow > 0 && this.horizon) {
             orbitShadow(
                 this.ctx,
-                {
-                    ...this.heights,
-                    shadow: this.heights.shadow * (1 - this.wide),
-                },
-                this.horizon,
+                this.heights,
+                earthHorizonAt(
+                    this.travel,
+                    this.earth,
+                    SUN_BEARING - this.turned,
+                    this.turned,
+                ),
+                this.ending.dawn,
             );
         }
         skyDeparture(this.ctx, this.shot.departure);

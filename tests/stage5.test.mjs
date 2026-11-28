@@ -224,7 +224,8 @@ test('the orbit preview reaches the Earth shadow, seeks backwards, and renders f
             const commands = ctx.commands;
             if (
                 frame.state.orbit.phase === 'parked' &&
-                orbitEnding(frame.state.orbit).dark >= 1
+                orbitEnding(frame.state.orbit).dark >= 1 &&
+                !orbitEnding(frame.state.orbit).epilogue
             ) {
                 assert.ok(
                     commands.some(
@@ -509,9 +510,9 @@ test('the ending: the extinguisher floats off, the signal drops bar by bar, the 
 });
 test('after THE END the epilogue plays its cuts in order and then holds the last frame', () => {
     const E = ORBIT_ENDING;
-    assert.equal(epilogueBeat(E.tap - 0.01), null);
+    assert.equal(epilogueBeat(E.reveal - 0.01), null);
     const cuts = [];
-    for (let t = E.tap; t < E.hold + 1; t += 1 / 30) {
+    for (let t = E.reveal; t < E.hold + 1; t += 1 / 30) {
         const cut = epilogueBeat(t).cut;
         if (cuts.at(-1) !== cut) {
             cuts.push(cut);
@@ -535,6 +536,97 @@ test('after THE END the epilogue plays its cuts in order and then holds the last
     assert.deepEqual(held.labels, [], 'no title over the epilogue');
     assert.deepEqual(held.layer('orbit-ending-black'), []);
     assert.ok(held.commands.length > 200, 'the scene is drawn again');
+});
+test('THE END stays on black until the epilogue fades up on its first cut', () => {
+    const E = ORBIT_ENDING;
+    const black = (frame) => {
+        const card = frame.layer('orbit-ending-black');
+        return card.length ? parseInt(card[0].fill.slice(7, 9), 16) / 255 : 0;
+    };
+    assert.ok(
+        E.reveal >= E.titleOut + 0.4,
+        'the title is gone before the reveal',
+    );
+    for (const t of [E.titleOut + 0.45, E.reveal - 0.02]) {
+        const frame = endingFrame(t);
+        assert.equal(orbitEnding({ phase: 'parked', settled: 1 + t }).dark, 1);
+        assert.equal(black(frame), 1, `still black at ${t}`);
+        assert.deepEqual(
+            frame.layer('orbit-earth-limb'),
+            [],
+            'no ending shot behind it',
+        );
+    }
+    const fading = [E.reveal + 0.1, (E.reveal + E.tap) / 2, E.tap - 0.1].map(
+        (t) => endingFrame(t),
+    );
+    assert.ok(
+        fading.every((frame) => frame.layer('orbit-earth-limb').length > 0),
+        'the epilogue earth is what fades up',
+    );
+    assert.ok(
+        black(fading[0]) > black(fading[1]) &&
+            black(fading[1]) > black(fading[2]),
+        'and the black lifts steadily',
+    );
+    assert.equal(epilogueBeat(E.reveal + 0.1).cut, 'tap');
+    assert.deepEqual(endingFrame(E.tap + 0.1).layer('orbit-ending-black'), []);
+});
+test('the ending stays at night as the camera pulls back and only dawns with time', () => {
+    const E = ORBIT_ENDING;
+    const cities = (t) => endingFrame(t).layer('orbit-earth-lights').length;
+    assert.ok(
+        E.dawnFrom > E.wide,
+        'the pull-back is over before the sun rises',
+    );
+    for (const t of [E.wideFrom - 1, (E.wideFrom + E.wide) / 2, E.wide + 0.5]) {
+        assert.ok(cities(t) > 0, `city lights stay on at ${t}`);
+    }
+    const shade = (t) => {
+        const [shadow] = endingFrame(t).layer('orbit-earth-shadow');
+        return shadow ? parseInt(shadow.fill.slice(7, 9), 16) : 0;
+    };
+    assert.equal(shade(E.wideFrom - 1), shade(E.wide + 0.5), 'same night');
+    assert.ok(
+        shade((E.dawnFrom + E.dawn) / 2) < shade(E.wide + 0.5),
+        'the shadow lifts as dawn comes',
+    );
+    assert.equal(cities(E.dawn + 0.5), 0, 'and by the end it is day');
+    assert.deepEqual(endingFrame(E.dawn + 0.5).layer('orbit-earth-shadow'), []);
+});
+test('every epilogue cut keeps the horizon on screen over the same ground', () => {
+    const E = ORBIT_ENDING;
+    for (let t = E.tap; t < E.hold; t += 0.1) {
+        const frame = endingFrame(t);
+        const limb = frame.layer('orbit-earth-limb')[0];
+        assert.ok(limb, `earth drawn at ${t.toFixed(1)}`);
+        const ys = limb.points
+            .filter(([x]) => x >= 0 && x <= 1000)
+            .map(([, y]) => y);
+        assert.ok(ys.length > 0, `horizon in frame at ${t.toFixed(1)}`);
+        assert.ok(
+            Math.min(...ys) > 0 && Math.min(...ys) < frame.height * 0.75,
+            `horizon in the frame at ${t.toFixed(1)} (${Math.min(...ys).toFixed(0)})`,
+        );
+    }
+});
+test('over-the-shoulder figures are shaded in their own ThorVG scene, not blacked out', () => {
+    const E = ORBIT_ENDING;
+    for (const t of [E.stare + 0.4, E.stare + 1.2]) {
+        const stage = stageEpilogue(epilogueBeat(t));
+        assert.ok(stage.front !== undefined);
+        assert.ok(stage.figures.every((pose) => !pose.tint));
+        const front = endingFrame(t).layer('epilogue-over-shoulder');
+        assert.ok(
+            front.length > 20,
+            'the foreground figure is in its own layer',
+        );
+        assert.ok(front[0].layer.tint && front[0].layer.dropShadow);
+    }
+    assert.deepEqual(
+        endingFrame(E.bewildered + 0.5).layer('epilogue-over-shoulder'),
+        [],
+    );
 });
 test('the epilogue keeps pose and props continuous across its cuts', () => {
     const E = ORBIT_ENDING;

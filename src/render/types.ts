@@ -41,6 +41,16 @@ export type LayerSpec = {
     motionBlur?: { distance: number; angle: number };
     blend?: Blend;
     opacity?: number;
+    /** ThorVG Tint: maps the layer's darks and lights onto two colours. */
+    tint?: { black: string; white: string; intensity: number };
+    /** ThorVG DropShadow; a light colour reads as a rim light. Degrees clockwise from +x. */
+    dropShadow?: {
+        color: string;
+        opacity: number;
+        angle: number;
+        distance: number;
+        sigma: number;
+    };
     clip?: PathCommand;
     mask?: PathCommand;
     maskInvert?: boolean;

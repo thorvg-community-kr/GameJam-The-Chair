@@ -23,6 +23,8 @@ export type OrbitEndingState = {
     focus: number;
     wide: number;
     spin: number;
+    /** 0 in the Earth's shadow, 1 once the sun is up; driven by time, not the camera. */
+    dawn: number;
     swivel: number;
     recline: number;
     message: number;
@@ -49,15 +51,14 @@ export function orbitEnding(orbit: Readonly<OrbitState>): OrbitEndingState {
         focus: smooth((t - E.focusFrom) / (E.focus - E.focusFrom)) * (1 - wide),
         wide,
         spin,
+        dawn: smooth((t - E.dawnFrom) / (E.dawn - E.dawnFrom)),
         swivel: spin,
         recline: smooth((t - E.spinFrom) / 4) * (1 - smooth((t - E.spin) / 2)),
         message: smooth((t - E.disconnect) / 0.3),
         read: smooth((t - E.disconnect + 0.3) / 1.2) * (1 - wide),
         rest: smooth((t - E.disconnect - 0.2) / 0.6),
         lightsOut: smooth((t - E.spin) / (E.lightsOut - E.spin)),
-        dark:
-            smooth((t - E.lightsOut) / (E.dark - E.lightsOut)) *
-            (1 - smooth((t - E.reveal) / (E.tap - E.reveal))),
+        dark: smooth((t - E.lightsOut) / (E.dark - E.lightsOut)),
         title:
             smooth((t - E.dark) / 0.5) * (1 - smooth((t - E.titleOut) / 0.4)),
         loose: orbit.phase === 'parked' && t >= E.release ? t - E.release : -1,
