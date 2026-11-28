@@ -4,14 +4,14 @@ import test from 'node:test';
 import { GOLDEN_SCENARIOS } from './support/golden.mjs';
 
 // Office route updated: copiers cancel pending fire when the player leaves detection range.
-// Other fingerprints retain the gameplay verified at 867ac0a.
+// Snapshots now include deterministic unplugged cables and recovering corridor lighting.
 const EXPECTED = {
-    'office route': 'c5b1d493333759fc',
-    'office crash': 'b18a7a4073407019',
-    'building exit': 'c257a2471db3a892',
-    'building lift': '12cd32921b3f04a2',
-    'rooftop to sky': 'e0c6fb6d705954cc',
-    'rooftop duct': '0331a8e9043e23b7',
+    'office route': '0ddbca0f0841aec1',
+    'office crash': '27479557d42744e6',
+    'building exit': 'ba4f337b941f83ab',
+    'building lift': 'f3d4a45dcf055429',
+    'rooftop to sky': '36b8fe7bcf52f001',
+    'rooftop duct': '8e590d01adb0d50b',
 };
 
 for (const [name, run] of Object.entries(GOLDEN_SCENARIOS)) {

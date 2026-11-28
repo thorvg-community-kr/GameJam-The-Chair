@@ -646,6 +646,19 @@ export function corridorStep(
         seed = draw.state;
         return draw.value;
     };
+    for (const cable of c.unplugged) {
+        cable.age = Math.min(1, cable.age + dt);
+    }
+    c.blackout.age = Math.min(1, c.blackout.age + dt);
+    if (c.blackout.level > 0) {
+        c.blackout.remaining -= dt;
+        if (c.blackout.remaining <= 0) {
+            c.blackout.level--;
+            c.blackout.remaining =
+                c.blackout.level > 0 ? ORIENTATION.blackout.recovery : 0;
+            c.blackout.age = 0;
+        }
+    }
     updateTyping(c, p.x, dt, random);
     dispatchChairs(c, furniture, p.x, dt);
     const allReleased = furniture.every((chair) => chair.released);
@@ -662,6 +675,21 @@ export function corridorStep(
         dt,
     });
     const { kick, tripped } = tripRider(c, p, front.vx);
+    if (
+        tripped >= 0 &&
+        ORIENTATION.obstacles[tripped].kind === 'cable' &&
+        !c.unplugged.some((cable) => cable.obstacle === tripped)
+    ) {
+        c.unplugged.push({ obstacle: tripped, age: 0 });
+        c.blackout = {
+            level: Math.min(
+                ORIENTATION.blackout.maxLevel,
+                c.blackout.level + 1,
+            ),
+            remaining: ORIENTATION.blackout.recovery,
+            age: 0,
+        };
+    }
     updateChairChat(c, furniture, p, { allReleased, nearby, dt });
     const stopRider = updateDeparture(c, furniture, p, {
         ground,

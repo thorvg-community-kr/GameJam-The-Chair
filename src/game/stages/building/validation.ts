@@ -140,6 +140,8 @@ export function building(value: unknown, path: string): void {
             'chat',
             'lesson',
             'tripped',
+            'unplugged',
+            'blackout',
             'convoy',
             'pace',
             'departure',
@@ -172,6 +174,7 @@ export function building(value: unknown, path: string): void {
         -1,
         STAGE_TWO.orientation.obstacles.length - 1,
     );
+    cableLighting(corridor, path);
     choice(
         corridor.convoy,
         ['free', 'carried', 'leading', 'airborne', 'leading-airborne'],
@@ -199,4 +202,57 @@ export function building(value: unknown, path: string): void {
             point(office.offset, `${path}.corridor.offices[${index}].offset`);
         },
     );
+}
+
+function cableLighting(corridor: Record<string, unknown>, path: string): void {
+    const unplugged = array(
+        corridor.unplugged,
+        `${path}.corridor.unplugged`,
+        STAGE_TWO.orientation.obstacles.length,
+    );
+    const seen = new Set<number>();
+    for (const [index, value] of unplugged.entries()) {
+        const itemPath = `${path}.corridor.unplugged[${index}]`;
+        const cable = record(value, itemPath);
+        exact(cable, ['obstacle', 'age'], itemPath);
+        const id = integer(
+            cable.obstacle,
+            `${itemPath}.obstacle`,
+            0,
+            STAGE_TWO.orientation.obstacles.length - 1,
+        );
+        if (
+            STAGE_TWO.orientation.obstacles[id].kind !== 'cable' ||
+            seen.has(id)
+        ) {
+            throw new Error(`${itemPath} must reference a unique cable`);
+        }
+        seen.add(id);
+        const age = finite(cable.age, `${itemPath}.age`);
+        if (age < 0 || age > 1) {
+            throw new Error(`${itemPath}.age out of range`);
+        }
+    }
+    const blackout = record(corridor.blackout, `${path}.corridor.blackout`);
+    exact(blackout, ['level', 'remaining', 'age'], `${path}.corridor.blackout`);
+    integer(
+        blackout.level,
+        `${path}.corridor.blackout.level`,
+        0,
+        STAGE_TWO.orientation.blackout.maxLevel,
+    );
+    const remaining = finite(
+        blackout.remaining,
+        `${path}.corridor.blackout.remaining`,
+    );
+    const age = finite(blackout.age, `${path}.corridor.blackout.age`);
+    if (
+        remaining < 0 ||
+        remaining > STAGE_TWO.orientation.blackout.recovery ||
+        age < 0 ||
+        age > 1 ||
+        (blackout.level === 0 && remaining !== 0)
+    ) {
+        throw new Error(`${path}.corridor.blackout timers out of range`);
+    }
 }

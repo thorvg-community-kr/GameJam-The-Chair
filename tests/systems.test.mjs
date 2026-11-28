@@ -558,6 +558,8 @@ test('corridor decisions: convoy landing, lift ride, meeting and chatter use the
         appearanceSeed: 1,
         room: { kind: 'corridor' },
         meetingVisited: false,
+        unplugged: [],
+        blackout: { level: 0, remaining: 0, age: 1 },
         dispatchAge: 0,
         dispatchStarted: false,
         chat: { kind: 'waiting' },

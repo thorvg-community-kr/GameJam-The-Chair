@@ -227,3 +227,42 @@ export function officeTyping(): PreviewScene {
         frames,
     );
 }
+
+export function cableBlackout(stacked = false): PreviewScene {
+    const x = stacked ? 5960 : 4050;
+    const game = convoyRide(x, 0, true);
+    const saved = parseState(game.serialize());
+    saved.p.vx = 0;
+    saved.building.corridor.convoy = 'free';
+    saved.building.corridor.chat = { kind: 'waiting' };
+    for (const [i, chair] of saved.building.furniture.entries()) {
+        chair.x = x + 1200 + i * 130;
+    }
+    if (stacked) {
+        saved.building.corridor.unplugged = [0, 1, 2].map((obstacle) => ({
+            obstacle,
+            age: 1,
+        }));
+        saved.building.corridor.blackout = { level: 3, remaining: 2, age: 1 };
+    }
+    game.restore(JSON.stringify(saved));
+    const effects = createEffects();
+    const frames = [capture(game, effects)];
+    for (let i = 0; i < 600; i++) {
+        stepGame(game, effects);
+        frames.push(capture(game, effects));
+    }
+    return recordedScene(
+        stacked ? 'cable-blackout-stacked' : 'cable-blackout',
+        stacked
+            ? 'Building · Cable: four-step recovery'
+            : 'Building · Cable: unplug and relight',
+        x,
+        [
+            { at: 0.1, label: 'Unplug' },
+            { at: 2.1, label: 'Recovery' },
+            { at: stacked ? 8.2 : 2.3, label: 'Lights restored' },
+        ],
+        frames,
+    );
+}

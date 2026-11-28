@@ -34,6 +34,7 @@ const ORIENTATION = {
     drag: 0.4,
     spin: 0.4,
     damage: 20,
+    blackout: { maxLevel: 4, recovery: 2, flicker: 0.24 },
     obstacles: [
         { kind: 'cable', x: 4050, width: 40, height: 12 },
         { kind: 'cable', x: 4400, width: 40, height: 12 },
@@ -255,6 +256,8 @@ export type Corridor = {
     chat: ChairChat;
     lesson: number;
     tripped: number;
+    unplugged: Array<{ obstacle: number; age: number }>;
+    blackout: { level: number; remaining: number; age: number };
     convoy: 'free' | 'carried' | 'leading' | 'airborne' | 'leading-airborne';
     pace: 'casual' | 'express';
     departure: ChairDeparture;
@@ -291,6 +294,8 @@ export function createCorridor(
                   )
                 : -1,
         tripped: -1,
+        unplugged: [],
+        blackout: { level: 0, remaining: 0, age: 1 },
         convoy: 'free',
         pace: 'casual',
         departure: { kind: checkpoint >= 4 ? 'gone' : 'none' },

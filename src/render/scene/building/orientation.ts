@@ -42,7 +42,7 @@ export function obstacleHop(x: number): number {
 }
 export function orientationFloor(ctx: RenderCtx): void {
     let sleeper = 0;
-    for (const obstacle of obstacles) {
+    for (const [index, obstacle] of obstacles.entries()) {
         if (obstacle.kind === 'sleeper') {
             sleeper++;
         }
@@ -50,7 +50,7 @@ export function orientationFloor(ctx: RenderCtx): void {
             continue;
         }
         if (obstacle.kind === 'cable') {
-            cable(ctx, obstacle);
+            cable(ctx, obstacle, index);
         } else {
             sleepingColleague(
                 ctx,
@@ -61,7 +61,15 @@ export function orientationFloor(ctx: RenderCtx): void {
         }
     }
 }
-function cable(ctx: RenderCtx, { x, width, height }: Obstacle) {
+function cable(ctx: RenderCtx, { x, width, height }: Obstacle, index: number) {
+    const unplugged = ctx.state.corridor.unplugged.find(
+        (item) => item.obstacle === index,
+    );
+    const age = unplugged?.age ?? 0;
+    const u = unplugged ? Math.min(1, age / 0.48) : 0;
+    const pull = Math.min(1, u * 4);
+    const px = x - 81 + pull * 35;
+    const py = 398 + 18 * u - Math.sin(u * Math.PI) * 25;
     ctx.rect(x - 90, 380, 18, 22, '#e6e2d4');
     ctx.ellipse(x - 84, 391, 1.6, 3.5, {
         c: '#5c6266',
@@ -70,10 +78,28 @@ function cable(ctx: RenderCtx, { x, width, height }: Obstacle) {
         c: '#5c6266',
     });
     ctx.strokePath(
-        [x - 81, 398],
-        [[x - 80, 418, x - 60, 419, x - width / 2, FLOOR - 3]],
+        [px, py],
+        [[px + 2, 418, x - 60, 419, x - width / 2, FLOOR - 3]],
         { width: 4, color: '#2f343b', cap: 'round' },
     );
+    ctx.withTransform({ ox: px, oy: py, rotation: u * Math.PI * 0.7 }, () => {
+        ctx.rect(-5, -9, 10, 13, '#555d65');
+        ctx.rect(-3, -14, 2, 5, '#cbd0d3');
+        ctx.rect(1, -14, 2, 5, '#cbd0d3');
+    });
+    if (unplugged && age < 0.16) {
+        for (let i = 0; i < 3; i++) {
+            const a = -1.1 + i * 0.9;
+            const distance = 5 + age * 80;
+            ctx.rod(
+                x - 81 + Math.cos(a) * distance,
+                395 + Math.sin(a) * distance,
+                x - 81 + Math.cos(a) * (distance + 5),
+                395 + Math.sin(a) * (distance + 5),
+                { w: 2, c: '#ffe69a' },
+            );
+        }
+    }
     const w = width / 2;
     ctx.polygon(
         [
@@ -168,4 +194,47 @@ function sleepingColleague(
         );
     }
     ctx.rect(x + w - 12, FLOOR - 4, 22, 4, '#6f7687');
+}
+
+export function orientationLighting(ctx: RenderCtx): void {
+    if (ctx.state.stage !== 2 || ctx.state.corridor.room.kind !== 'corridor') {
+        return;
+    }
+    const { level, age } = ctx.state.corridor.blackout;
+    const flicker =
+        age < STAGE_TWO.orientation.blackout.flicker
+            ? Math.floor(age / 0.06) % 2 === 0
+                ? 0.12
+                : -0.08
+            : 0;
+    const strength = Math.max(0, Math.min(0.78, level * 0.17 + flicker));
+    if (strength === 0) {
+        return;
+    }
+    const left = ctx.cam;
+    const top = -ctx.vertical;
+    const width = ctx.W / ctx.scale;
+    const height = ctx.H / ctx.scale;
+    const radius = Math.max(235, 470 - level * 55);
+    ctx.withLayer({ key: 'orientation-blackout', blend: 'multiply' }, () => {
+        ctx.gradientPolygon(
+            [
+                [left, top],
+                [left + width, top],
+                [left + width, top + height],
+                [left, top + height],
+            ],
+            ctx.radialFill(
+                ctx.player.x + 65,
+                ctx.player.y - 15,
+                radius,
+                [
+                    [0, '#10182700'],
+                    [0.48, '#10182700'],
+                    [1, '#101827'],
+                ],
+                strength,
+            ),
+        );
+    });
 }

@@ -2,6 +2,7 @@ import { createGame } from './game/game';
 import { liftArrivalAudio, orbitPhoto, skySurfaceAudio } from './preview/audio';
 import {
     orientationRun,
+    cableBlackout,
     expressRun,
     meetingVisit,
     chairDispatch,
@@ -210,6 +211,16 @@ export const previewScenes: readonly PreviewRegistration[] = (
                         { at: 3.4, label: 'Downdraft' },
                     ],
                 ),
+        },
+        {
+            id: 'cable-blackout',
+            label: 'Building · Cable: unplug and relight',
+            create: () => cableBlackout(),
+        },
+        {
+            id: 'cable-blackout-stacked',
+            label: 'Building · Cable: four-step recovery',
+            create: () => cableBlackout(true),
         },
         {
             id: 'orientation-cable',

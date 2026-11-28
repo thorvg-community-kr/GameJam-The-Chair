@@ -6,6 +6,7 @@ import { createPaintPool, paint, thorvgTextWidth } from './paint';
 import { resetRenderStats } from './perf';
 import { drawBuilding } from './scene/building';
 import { STAGE_PRESENTATION } from '../presentation/stages';
+import { orientationLighting } from './scene/building/orientation';
 import { deathBurst } from './scene/effects/death-burst';
 import { focusVignette } from './scene/effects/focus-vignette';
 import { drawWorld } from './scene/office/world';
@@ -370,6 +371,7 @@ class RendererRuntime {
                     burst,
                 );
             }
+            orientationLighting(ctx);
             focusVignette(ctx);
             if (talk) {
                 drawTalk(ctx, talk);
