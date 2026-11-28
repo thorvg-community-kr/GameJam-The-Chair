@@ -31,6 +31,34 @@ export function cloudEntry(): PreviewScene {
     );
 }
 
+export function cloudContinuity(): PreviewScene {
+    const game = createGame();
+    game.startStage(4);
+    const base = game.getSnapshot();
+    const effects = createEffects().snapshot();
+    return {
+        id: 'cloud-continuity',
+        label: 'Sky · Cloud scroll boundary',
+        duration: 74,
+        focusX: 3982,
+        markers: [
+            { at: 0, label: 'One full scroll cycle at any viewport width' },
+        ],
+        sample(time) {
+            return {
+                state: {
+                    ...base,
+                    time: 55 + time,
+                    sky: { ...base.sky, phase: 'course', lift: 1 },
+                    player: { ...base.player, x: 3982, y: -2200 },
+                    ground: false,
+                },
+                effects,
+            };
+        },
+    };
+}
+
 export function skyGustCycle(): PreviewScene {
     const game = createGame();
     game.startStage(4);
