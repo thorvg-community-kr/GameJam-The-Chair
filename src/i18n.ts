@@ -300,6 +300,7 @@ const messages = {
     'tool.rangeClear': { en: 'Clear range', ko: '구간 해제' },
     'tool.rangeNone': { en: 'Whole replay', ko: '전체 리플레이' },
     'tool.rangeLoop': { en: '⟲ Loop range (L)', ko: '⟲ 구간 반복 (L)' },
+    'tool.copyClip': { en: 'Copy range JSON', ko: '구간 JSON 복사' },
     'tool.downloadClip': { en: 'Download range', ko: '구간 내려받기' },
     'menu.canvasAria': {
         en: 'Chair escape game.',

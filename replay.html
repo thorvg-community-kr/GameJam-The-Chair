@@ -45,6 +45,24 @@
               </div>
             </div>
           </div>
+          <section class="tool-panel tool-edit">
+            <h2 data-i18n="tool.edit">Edit</h2>
+            <button type="button" id="add-marker" data-i18n="tool.addMarker" disabled>+ Marker (M)</button>
+            <ol class="tool-user-markers" id="user-markers"></ol>
+            <div class="tool-edit-row">
+              <button type="button" id="range-start" data-i18n="tool.rangeStart" disabled>[ Start (I)</button>
+              <button type="button" id="range-end" data-i18n="tool.rangeEnd" disabled>End (O) ]</button>
+            </div>
+            <p class="tool-range" id="range-info"></p>
+            <div class="tool-edit-row">
+              <button type="button" id="range-loop" data-i18n="tool.rangeLoop" aria-pressed="false" disabled>⟲ Loop range (L)</button>
+              <button type="button" id="range-clear" data-i18n="tool.rangeClear" disabled>Clear range</button>
+            </div>
+            <div class="tool-edit-row">
+              <button type="button" id="download-clip" data-i18n="tool.downloadClip" disabled>Download range</button>
+              <button type="button" id="copy-clip" data-i18n="tool.copyClip" disabled>Copy range JSON</button>
+            </div>
+          </section>
           <section class="tool-panel">
             <h2 data-i18n="tool.commands">Commands</h2>
             <ol class="tool-commands" id="commands"></ol>
@@ -60,21 +78,6 @@
             <dl class="tool-facts" id="file-info"></dl>
             <pre class="tool-error" id="error-info" hidden></pre>
             <button type="button" id="download-replay" data-i18n="tool.downloadReplay">Download replay</button>
-          </section>
-          <section class="tool-panel tool-edit">
-            <h2 data-i18n="tool.edit">Edit</h2>
-            <button type="button" id="add-marker" data-i18n="tool.addMarker" disabled>+ Marker (M)</button>
-            <ol class="tool-user-markers" id="user-markers"></ol>
-            <div class="tool-edit-row">
-              <button type="button" id="range-start" data-i18n="tool.rangeStart" disabled>[ Start (I)</button>
-              <button type="button" id="range-end" data-i18n="tool.rangeEnd" disabled>End (O) ]</button>
-            </div>
-            <p class="tool-range" id="range-info"></p>
-            <div class="tool-edit-row">
-              <button type="button" id="range-loop" data-i18n="tool.rangeLoop" aria-pressed="false" disabled>⟲ Loop range (L)</button>
-              <button type="button" id="range-clear" data-i18n="tool.rangeClear" disabled>Clear range</button>
-            </div>
-            <button type="button" id="download-clip" data-i18n="tool.downloadClip" disabled>Download range</button>
           </section>
           <section class="tool-panel">
             <h2 data-i18n="tool.markers">Markers</h2>

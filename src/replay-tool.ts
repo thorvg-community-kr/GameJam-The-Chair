@@ -209,7 +209,7 @@ function applyEdit(timeline: Timeline, save = true) {
     for (const id of ['#add-marker', '#range-start', '#range-end']) {
         $<HTMLButtonElement>(id).disabled = false;
     }
-    for (const id of ['#range-clear', '#download-clip', '#range-loop']) {
+    for (const id of ['#range-clear', '#download-clip', '#copy-clip', '#range-loop']) {
         $<HTMLButtonElement>(id).disabled = !range;
     }
     syncLoop();
@@ -467,6 +467,20 @@ $('#download-clip').addEventListener('click', () => {
             `the-chair-replay-stage${selected.file.start.stage}-clip-${stamp()}.json`,
             clipReplay(timeline, edit.range, edit),
         );
+    }
+});
+$('#copy-clip').addEventListener('click', () => {
+    const timeline = player.timeline;
+    if (selected && timeline && edit.range) {
+        copyText(JSON.stringify(clipReplay(timeline, edit.range, edit), null, 2))
+            .then((copied) => {
+                status.textContent = t(
+                    copied ? 'replay.copied' : 'replay.copyFailed',
+                );
+            })
+            .catch(() => {
+                status.textContent = t('replay.copyFailed');
+            });
     }
 });
 window.addEventListener('keydown', (event) => {
