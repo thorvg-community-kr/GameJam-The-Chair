@@ -497,3 +497,39 @@ export function urgentCopier(
         frames,
     );
 }
+
+export function potFall(): PreviewScene {
+    const game = createGame();
+    game.reset();
+    const base = game.getSnapshot();
+    const effects = createEffects().snapshot();
+    const duration = 2;
+    const focusX = LEVEL.bin.x;
+    return {
+        id: 'pot-fall',
+        label: 'Office · Falling into the pot',
+        duration,
+        focusX,
+        markers: [
+            { at: 0, label: 'Above the pot' },
+            { at: 0.8, label: 'Rim' },
+            { at: 1.4, label: 'Swallowed' },
+        ],
+        sample(time) {
+            const at = Math.max(0, Math.min(duration, time));
+            const fall = Math.min(1, at / 1.4);
+            return {
+                state: {
+                    ...base,
+                    time: at,
+                    player: {
+                        ...base.player,
+                        x: LEVEL.bin.x - 60 + 60 * Math.min(1, at / 0.8),
+                        y: 300 + 170 * fall * fall,
+                    },
+                },
+                effects,
+            };
+        },
+    };
+}

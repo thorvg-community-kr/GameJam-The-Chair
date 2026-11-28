@@ -14,7 +14,7 @@ export const ART = {
         { desk: 2630, x: 2701, y: 275 },
         { desk: 3050, x: 3121, y: 275 },
     ],
-    binBottom: 520,
+    binBottom: 600,
     player: { offsetX: 0, offsetY: 0, scale: 1 },
     debugCollisions: false,
 };

@@ -64,110 +64,96 @@ export function rooftopDuct(ctx: RenderCtx): void {
     }
 }
 function drawDuctBack(ctx: RenderCtx, x: number, y: number) {
-    const top = -150;
-    ctx.effectPath(
-        [x + 20, y - 33],
-        [
-            [x + 48, y - 33, x + 85, y - 33, x + 101, y - 33],
-            [x + 120, y - 33, x + 126, y - 48, x + 126, y - 66],
-            [x + 126, y - 160, x + 126, top + 60, x + 126, top],
-            [x + 146, top, x + 163, top, x + 180, top],
-            [x + 180, top + 100, x + 180, y - 112, x + 180, y - 62],
-            [x + 180, y - 10, x + 154, y + 32, x + 105, y + 32],
-            [x + 78, y + 32, x + 40, y + 32, x + 20, y + 32],
-            [x + 20, y + 16, x + 20, y - 16, x + 20, y - 33],
-        ],
-        ctx.gradientFill(x + 20, 0, x + 180, 0, {
-            stops: [
-                [0, '#adb8c7'],
-                [0.42, '#7c8ea6'],
-                [0.73, '#a3afc1'],
-                [1, '#7b8da5'],
-            ],
-        }),
-    );
-    drawDuctFront(ctx, x, y, top);
-    ctx.polygon(
-        [
-            [x + 4, y - 20],
-            [x + 20, y - 29],
-            [x + 20, y + 27],
-            [x + 4, y + 23],
-        ],
-        '#253d57',
-    );
-    for (let i = 0; i < 4; i++) {
-        const ly = y - 18 + i * 13;
-        ctx.polygon(
-            [
-                [x + 3, ly + 7],
-                [x + 21, ly - 2],
-                [x + 21, ly + 4],
-                [x + 3, ly + 12],
-            ],
-            '#8da0b7',
-        );
-        ctx.rod(x + 3, ly + 6, x + 21, ly - 3, {
-            w: 2,
-            c: '#d2dbe3',
-        });
-    }
+    pipeBody(ctx, [x + 20, y - 33, x + 122, y + 32], 'y');
+    pipeLip(ctx, x - 6, y - 46, 30, 92);
 }
-function drawDuctFront(ctx: RenderCtx, x: number, y: number, top: number) {
-    ctx.effectPath(
-        [x + 25, y - 31],
+function pipeBands(ctx: RenderCtx, from: number, to: number, axis: 'x' | 'y') {
+    const stops: Array<[number, string]> = [
+        [0, PIPE.dark],
+        [0.14, PIPE.dark],
+        [0.14, PIPE.base],
+        [0.2, PIPE.base],
+        [0.2, PIPE.dark],
+        [0.24, PIPE.dark],
+        [0.24, PIPE.base],
+        [0.52, PIPE.base],
+        [0.52, PIPE.light],
+        [0.7, PIPE.light],
+        [0.7, PIPE.base],
+        [0.76, PIPE.base],
+        [0.76, PIPE.light],
+        [0.8, PIPE.light],
+        [0.8, PIPE.base],
+        [1, PIPE.base],
+    ];
+    return axis === 'x'
+        ? ctx.gradientFill(from, 0, to, 0, { stops })
+        : ctx.gradientFill(0, from, 0, to, { stops });
+}
+function pipeBody(
+    ctx: RenderCtx,
+    [x0, y0, x1, y1]: [number, number, number, number],
+    axis: 'x' | 'y',
+) {
+    ctx.gradientPolygon(
         [
-            [x + 66, y - 31, x + 95, y - 31, x + 104, y - 31],
-            [x + 125, y - 31, x + 137, y - 48, x + 137, y - 68],
-            [x + 137, y - 172, x + 137, top + 50, x + 137, top],
-            [x + 133, top, x + 129, top, x + 126, top],
-            [x + 126, top + 90, x + 126, y - 115, x + 126, y - 68],
-            [x + 126, y - 48, x + 120, y - 39, x + 102, y - 39],
-            [x + 76, y - 39, x + 47, y - 39, x + 25, y - 39],
-            [x + 25, y - 36, x + 25, y - 34, x + 25, y - 31],
+            [x0, y0],
+            [x1, y0],
+            [x1, y1],
+            [x0, y1],
         ],
-        ctx.gradientFill(x, 0, x + 140, 0, {
-            stops: [
-                [0, '#d6dce2'],
-                [1, '#bdc8d5'],
-            ],
-        }),
+        axis === 'x'
+            ? pipeBands(ctx, x0, x1, 'x')
+            : pipeBands(ctx, y0, y1, 'y'),
     );
-    for (const sx of [x + 40, x + 108]) {
-        ctx.rect(sx, y - 41, 11, 80, '#afbdcc');
-        ctx.rod(sx + 2, y - 40, sx + 2, y + 38, {
-            w: 2,
-            c: '#d8dfe5',
-        });
-        for (const by of [y - 32, y + 29]) {
-            ctx.ellipse(sx + 7, by, 2, 2, {
-                c: '#546d87',
-            });
-        }
+    const edges: Array<[number, number, number, number]> =
+        axis === 'x'
+            ? [
+                  [x0, y0, x0, y1],
+                  [x1, y0, x1, y1],
+              ]
+            : [
+                  [x0, y0, x1, y0],
+                  [x0, y1, x1, y1],
+              ];
+    for (const [ax, ay, bx, by] of edges) {
+        ctx.rod(ax, ay, bx, by, { w: 3, c: PIPE.line });
     }
-    for (let sy = top + 50; sy < y - 90; sy += 144) {
-        ctx.rect(x + 120, sy, 65, 11, '#b1bdcd');
-        for (const bx of [x + 126, x + 178]) {
-            ctx.ellipse(bx, sy + 5, 2, 2, {
-                c: '#596f87',
-            });
-        }
-    }
-    ctx.polygon(
-        [
-            [x, y - 25],
-            [x + 24, y - 38],
-            [x + 24, y + 35],
-            [x, y + 29],
-        ],
-        '#ced5dd',
-    );
 }
 function hash(n: number) {
     const v = Math.sin(n * 127.1 + 311.7) * 43758.5453;
     return v - Math.floor(v);
 }
 const smooth = (v: number) => v * v * (3 - 2 * v);
+const PIPE = {
+    light: '#3ee052',
+    base: '#12b52a',
+    dark: '#078a1c',
+    line: '#0a4f12',
+    hole: '#052008',
+};
+function pipeLip(
+    ctx: RenderCtx,
+    x: number,
+    top: number,
+    width: number,
+    height: number,
+) {
+    ctx.gradientPolygon(
+        [
+            [x, top],
+            [x + width, top],
+            [x + width, top + height],
+            [x, top + height],
+        ],
+        pipeBands(ctx, top, top + height, 'y'),
+    );
+    ctx.rod(x, top, x + width, top, { w: 3, c: PIPE.line });
+    ctx.rod(x, top + height, x + width, top + height, { w: 3, c: PIPE.line });
+    ctx.rod(x + width, top, x + width, top + height, { w: 3, c: PIPE.line });
+    ctx.rod(x, top, x, top + height, { w: 3, c: PIPE.line });
+    ctx.ellipse(x, top + height / 2, 5, height / 2 - 5, { c: PIPE.hole });
+}
 function ductSteam(
     ctx: RenderCtx,
     x: number,

@@ -3,6 +3,7 @@ import { sprayPlume } from '../effects/spray';
 import { player } from '../player';
 import { skyCoursePlatform } from './course-art';
 import { skyBuilding, skyFlag } from './course-decor';
+import { floatingDoor } from './floating-door';
 import { skyKnockKeycaps } from './gear';
 import {
     skyHazardsArt,
@@ -54,6 +55,7 @@ function atmosphere(ctx: RenderCtx) {
             });
         }
     }
+    floatingDoor(ctx, top, height);
 }
 export function drawSky(ctx: RenderCtx): void {
     ctx.commands = [];

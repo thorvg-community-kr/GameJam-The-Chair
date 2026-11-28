@@ -74,7 +74,7 @@ const messages = {
     },
     'status.checkpoint': { en: 'Checkpoint saved.', ko: '체크포인트 저장.' },
     'status.headImpact': { en: 'Head impact.', ko: '머리 충돌.' },
-    'status.binFall': { en: 'Trash bin fall.', ko: '휴지통 추락.' },
+    'status.binFall': { en: 'Into the pot.', ko: '항아리 입수.' },
     'status.focusLost': { en: 'Focus depleted.', ko: '집중도 소진.' },
     'orbit.up': { en: 'Up', ko: '위로' },
     'orbit.down': { en: 'Down', ko: '아래로' },
@@ -98,15 +98,15 @@ const messages = {
     },
 
     'panel.headKicker': { en: 'Head impact', ko: '머리 충돌' },
-    'panel.binKicker': { en: 'Trash bin fall', ko: '휴지통 추락' },
+    'panel.binKicker': { en: 'Pot fall', ko: '항아리 추락' },
     'panel.focusKicker': { en: 'Focus depleted', ko: '집중도 소진' },
     'panel.headTitle': {
         en: 'Your head clocked out first.',
         ko: '머리가 먼저 퇴근했습니다.',
     },
     'panel.binTitle': {
-        en: 'Recycled along with your work.',
-        ko: '업무와 함께 분리배출.',
+        en: 'Getting over it is harder than it looks.',
+        ko: '항아리에서 나가는 건 생각보다 어렵다.',
     },
     'panel.focusTitle': { en: 'Wait, where am I?', ko: '앗, 여기가 어디지?' },
     'panel.liftKicker': { en: 'Forced clock-out', ko: '강제 퇴근' },
@@ -307,7 +307,7 @@ const messages = {
     },
 
     'stats.paper': { en: 'Paper', ko: '종이' },
-    'stats.bin': { en: 'Bin', ko: '휴지통' },
+    'stats.bin': { en: 'Pot', ko: '항아리' },
     'stats.light': { en: 'Light', ko: '빛' },
     'stats.door': { en: 'Door', ko: '회전문' },
 
@@ -522,6 +522,10 @@ const messages = {
     'chair.welcoming.1': {
         en: 'Sigh. Come on, follow us.',
         ko: '에휴. 됐어, 따라와.',
+    },
+    'chair.welcoming.2': {
+        en: 'Good. You are the middle piece.',
+        ko: '좋아. 네가 가운데다.',
     },
 
     'chair.orientation.1': {

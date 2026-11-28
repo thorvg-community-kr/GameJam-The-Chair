@@ -16,6 +16,7 @@ import {
     headImpact,
     personalBelongings,
     focusLoss,
+    potFall,
     focusTension,
     focusHitVignette,
     extinguisherSpray,
@@ -128,6 +129,11 @@ export const previewScenes: readonly PreviewRegistration[] = (
             id: 'head-impact',
             label: 'Chair · Head impact replay',
             create: () => headImpact(),
+        },
+        {
+            id: 'pot-fall',
+            label: 'Office · Falling into the pot',
+            create: () => potFall(),
         },
         {
             id: 'focus-loss',

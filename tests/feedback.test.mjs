@@ -36,8 +36,8 @@ test('bin and focus failures have distinct concise causes without restoration pa
     const state = createGame().getSnapshot();
     feedback.receive({ type: 'cue', id: 'bin-game-over' }, state);
     assert.deepEqual(feedback.snapshot().panel, {
-        k: '휴지통 추락',
-        title: '업무와 함께 분리배출.',
+        k: '항아리 추락',
+        title: '항아리에서 나가는 건 생각보다 어렵다.',
         desc: '',
         button: '다시',
     });

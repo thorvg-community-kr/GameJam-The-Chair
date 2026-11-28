@@ -160,7 +160,10 @@ export const CHAIR_CHAT = deepFreeze({
         { speaker: 2, text: 'chair.dismissed.3' },
     ],
     realizing: [{ speaker: 1, text: 'chair.realizing.1' }],
-    welcoming: [{ speaker: 2, text: 'chair.welcoming.1' }],
+    welcoming: [
+        { speaker: 2, text: 'chair.welcoming.1' },
+        { speaker: 0, text: 'chair.welcoming.2' },
+    ],
     trip: [
         { speaker: 2, text: 'chair.trip.1' },
         { speaker: 0, text: 'chair.trip.2' },
@@ -174,7 +177,7 @@ export const CHAIR_CHAT_INTERVAL = deepFreeze({
     wary: 4,
     dismissed: 1.9,
     realizing: 4,
-    welcoming: 4,
+    welcoming: 1.5,
     orientation: 2,
     trip: 1.5,
     rush: 1.6,
