@@ -136,14 +136,16 @@ function swerve(p: Point3, ahead: number): Point3 {
     const r = Math.hypot(x, y) || 1;
     return [p[0], 15 + y * (1 + out / r), x * (1 + out / r)];
 }
+const CCTV_REACH = 60;
+const BIRD_REACH = 90;
+const GLOW_MARGIN = 64;
 function floating(
     view: SkyProjection,
     point: RoutePoint,
     spot: Spot,
-    travel: number,
-    t: number,
+    { travel, t, shown }: { travel: number; t: number; shown: number },
 ): Lamp[] {
-    const { size } = spot;
+    const size = spot.size * shown;
     const placed = point(
         spot.x,
         spot.y + Math.sin(t * 0.9 + spot.seed) * 8,
@@ -152,6 +154,10 @@ function floating(
     const anchor = swerve(placed, placed[0]);
     const yaw =
         aim(-anchor[0], -anchor[2]) + Math.sin(t * 0.6 + spot.seed) * 0.05;
+    const reach = (spot.bird ? BIRD_REACH * 1.2 : CCTV_REACH) * size;
+    if (view.footprint(anchor, reach, GLOW_MARGIN) <= 0) {
+        return [];
+    }
     const state = cctvLamp(spot.z - travel, t);
     if (spot.bird) {
         const { eyes, glow } = robotBirdModel(
@@ -248,15 +254,7 @@ export function orbitWatchers(
     }
     const lamps = [...ORBIT_WATCH.reveal, ...ORBIT_WATCH.route]
         .filter((spot) => point(spot.x, spot.y, spot.z)[0] > 0)
-        .flatMap((spot) =>
-            floating(
-                view,
-                point,
-                { ...spot, size: spot.size * shown },
-                travel,
-                t,
-            ),
-        );
+        .flatMap((spot) => floating(view, point, spot, { travel, t, shown }));
     for (const at of satellites) {
         const ahead = satelliteLightPoint(at.x, at.y, at.z)[0];
         if (ahead > 0 && ahead < 6000) {
