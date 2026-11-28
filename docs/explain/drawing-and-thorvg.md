@@ -41,13 +41,13 @@ if (tvg && TVG) {
 
 `applyShape` 안에서는 `tracePath`가 점과 곡선을 엔진 경로로 옮기고 fill, stroke, trim, blend를 적용합니다. 이전 프레임에는 선이 있고 지금은 없다면 그 스타일도 지워야 합니다. `AppliedStyle`은 재사용한 객체에 과거 설정이 남는 일을 막는 데 사용합니다.
 
-`PaintPool`의 `top`은 일반 Shape, `texts`는 글자 슬롯, `layers`는 key별 Scene과 자식 Shape를 보관합니다. 매 프레임 새 엔진 객체를 모두 만드는 대신 필요한 만큼 늘리고 기존 객체를 갱신합니다. 남는 객체는 보이지 않게 처리합니다.
+`PaintPool`의 `top`은 layer나 글자 사이에 연속으로 놓인 일반 Shape 묶음을 하나의 Scene 버킷으로 보관하고, `texts`는 글자 슬롯, `layers`는 key별 Scene과 자식 Shape를 보관합니다. 매 프레임 새 엔진 객체를 모두 만드는 대신 필요한 만큼 늘리고 기존 객체를 갱신합니다. 남는 객체는 보이지 않게 처리합니다.
 
 `syncLayer`는 그룹의 자식과 효과를 맞춥니다. `applyLayerEffects`에서 scene의 Gaussian blur, motion blur, clip과 mask를 확인할 수 있습니다. retained geometry가 같으면 도형을 다시 적용하는 작업을 생략하고 Scene 변환을 사용합니다.
 
 `staleSlot`은 이전 clip이나 mask를 현재 설정으로 안전하게 바꿀 수 있는지 확인합니다. 엔진에서 분리할 수 없는 상태라면 scene을 교체합니다. 단순히 자원 재사용을 늘리는 것만으로 충분하지 않고 이전 프레임의 효과를 올바르게 제거해야 합니다.
 
-`signature`는 현재 항목 순서를 나타내는 문자열입니다. 순서가 같으면 기존 연결을 유지합니다. 변경되면 먼저 canvas를 비우고 새 순서로 추가합니다. 성공한 뒤에 signature를 저장하므로 실패한 재구성이 완료된 것으로 취급되지 않습니다.
+`signature`는 현재 항목 순서를 나타내는 문자열입니다. 일반 Shape는 버킷 단위로만 들어가므로 파티클처럼 버킷 안의 도형 수가 매 프레임 바뀌어도 signature는 그대로입니다. 버킷 안의 화면 밖 도형도 `canvasBox`로 제외합니다. 순서가 같으면 기존 연결을 유지합니다. 변경되면 먼저 canvas를 비우고 새 순서로 추가합니다. 성공한 뒤에 signature를 저장하므로 실패한 재구성이 완료된 것으로 취급되지 않습니다.
 
 ## thorvg.ts는 초기화와 폰트를 담당한다
 

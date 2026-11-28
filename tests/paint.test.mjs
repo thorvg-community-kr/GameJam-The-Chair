@@ -215,7 +215,10 @@ test('a failed rebuild is retried on the next frame instead of leaving the canva
         remove.call(this);
         throw new Error('RuntimeError: null function');
     };
-    plainFirst(3);
+    ctx.commands = [
+        square(200, { key: 'fresh', opacity: 0.5 }),
+        ...ctx.commands,
+    ];
     assert.throws(() => paint(ctx, TVG, canvas, pool));
     assert.equal(canvas.paints.length, 0);
     paint(ctx, TVG, canvas, pool);
@@ -223,6 +226,42 @@ test('a failed rebuild is retried on the next frame instead of leaving the canva
         canvas.paints.length > 0,
         'the next frame rebuilds the emptied canvas',
     );
+});
+test('top-level shapes that come and go between layers keep the canvas child list', () => {
+    const { TVG, canvas, log } = fakeThorvg();
+    const ctx = createRenderCtx({});
+    Object.assign(ctx, { W: 400, H: 300 });
+    const pool = createPaintPool();
+    const stats = createRenderStats();
+    const glow = { key: 'glow', opacity: 0.5 };
+    const draw = (before, after) => {
+        ctx.commands = [
+            ...Array.from({ length: before }, (_, i) => square(10 + i * 12)),
+            square(150, glow),
+            ...Array.from({ length: after }, (_, i) => square(200 + i * 12)),
+            square(-500),
+        ];
+        resetRenderStats(stats);
+        paint(ctx, TVG, canvas, pool, { stats, incremental: true });
+        return stats.reorder;
+    };
+    assert.equal(draw(2, 3), true);
+    const removes = log.filter((entry) => entry === 'remove').length;
+    for (const [before, after] of [
+        [5, 1],
+        [1, 8],
+        [3, 0],
+        [9, 4],
+    ]) {
+        assert.equal(draw(before, after), false);
+        assert.equal(stats.topShapes, before + after);
+    }
+    assert.equal(
+        log.filter((entry) => entry === 'remove').length,
+        removes,
+        'no frame empties the canvas',
+    );
+    assert.equal(stats.poolTop, 9 + 8);
 });
 test('profiling counts pooled ThorVG objects, effects and paint-order rebuilds without changing the picture', () => {
     const { TVG, canvas } = fakeThorvg();
@@ -248,8 +287,8 @@ test('profiling counts pooled ThorVG objects, effects and paint-order rebuilds w
         stats,
     });
     assert.equal(stats.commands, 5);
-    assert.equal(stats.topShapes, 3);
-    assert.equal(stats.poolTop, 3);
+    assert.equal(stats.topShapes, 2, 'the off-canvas square is culled');
+    assert.equal(stats.poolTop, 2);
     assert.equal(stats.layers, 1);
     assert.equal(stats.layerSlots, 1);
     assert.equal(stats.layerShapes, 2);
@@ -445,7 +484,7 @@ test('ThorVG Text keeps its place in the command order so later shapes paint ove
     const kinds = canvas.paints.map((paint) => paint.constructor.name);
     assert.deepEqual(
         kinds,
-        ['Shape', 'Text', 'Text', 'Shape'],
+        ['Scene', 'Text', 'Text', 'Scene'],
         'outline, fill, then the actor drawn after the sign',
     );
     const [back, front] = canvas.paints.slice(1, 3);
@@ -467,9 +506,9 @@ test('ThorVG Text keeps its place in the command order so later shapes paint ove
     paint(ctx, TVG, canvas, pool);
     assert.equal(front.calls.visible[0], false);
     assert.equal(
-        canvas.paints.filter((paint) => paint.constructor.name === 'Shape')
-            .length,
+        canvas.paints[0].children.length,
         2,
+        'both squares share one top-level bucket',
     );
 });
 test('a layer that changes nothing is painted as plain shapes, and one faded to nothing is skipped', () => {
