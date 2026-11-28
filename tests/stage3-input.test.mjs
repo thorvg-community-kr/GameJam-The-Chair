@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { installInputEnvironment, inputButton } from './support/input.mjs';
+import { installInputEnvironment } from './support/input.mjs';
 import { bundled } from './support/load.mjs';
 import { driveStageThree } from './support/stage3-route.mjs';
 const { createGame, bindInput } = await bundled({
@@ -14,10 +14,9 @@ const { createGame, bindInput } = await bundled({
     platform: 'node',
     format: 'esm',
 });
-test('Space holds spray in stage three, releases on keyup/blur, and touch controls release', async (t) => {
+test('Space holds spray in stage three, releases on keyup/blur', async (t) => {
     const { window, key } = installInputEnvironment(t);
-    const { settle, advance, game, spray, leanLeft, leanRight, unbind } =
-        verifyDetails();
+    const { settle, advance, game, unbind } = verifyDetails();
     try {
         settle();
         key('keydown', ' ', 'Space');
@@ -45,16 +44,6 @@ test('Space holds spray in stage three, releases on keyup/blur, and touch contro
             0,
         );
         settle();
-        spray.dispatchEvent(new Event('pointerdown', { cancelable: true }));
-        advance();
-        assert.equal(
-            game.drainEvents().filter((e) => e.id === 'spray').length,
-            3,
-        );
-        spray.dispatchEvent(new Event('lostpointercapture'));
-        advance();
-        assert.equal(game.getSnapshot().spray.burst, 0);
-        settle();
         key('keydown', 'ArrowUp');
         game.step(1 / 120);
         assert.ok(game.getSnapshot().player.vy < -300);
@@ -77,41 +66,19 @@ test('Space holds spray in stage three, releases on keyup/blur, and touch contro
             game.getSnapshot().player.vy < -300,
             'Up jumps in the office',
         );
-        for (const [button, input] of /** @type {const} */ ([
-            [leanLeft, 'q'],
-            [leanRight, 'e'],
-        ])) {
-            button.dispatchEvent(
-                new Event('pointerdown', { cancelable: true }),
-            );
-            assert.ok(
-                JSON.parse(game.serialize()).keys.includes(input),
-                `touch ${input} presses balance`,
-            );
-            button.dispatchEvent(new Event('pointerup'));
-            assert.ok(
-                !JSON.parse(game.serialize()).keys.includes(input),
-                `touch ${input} releases balance`,
-            );
-        }
         await Promise.resolve();
     } finally {
         unbind();
     }
 });
 function verifyDetails() {
-    const spray = inputButton();
-    const leanLeft = inputButton({ lean: 'left' });
-    const leanRight = inputButton({ lean: 'right' });
     const game = createGame();
     game.startStage(3);
     driveStageThree(game, (state) => state.hasExtinguisher);
     const root = {
         isConnected: true,
-        querySelector: (selector) =>
-            selector === '[data-spray]' ? spray : null,
-        querySelectorAll: (selector) =>
-            selector === '[data-lean]' ? [leanLeft, leanRight] : [],
+        querySelector: () => null,
+        querySelectorAll: () => [],
     };
     const unbind = bindInput(root, game);
     const settle = () => {
@@ -126,5 +93,5 @@ function verifyDetails() {
             game.step(1 / 120);
         }
     };
-    return { settle, advance, game, spray, leanLeft, leanRight, unbind };
+    return { settle, advance, game, unbind };
 }

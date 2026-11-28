@@ -23,7 +23,7 @@ const DUCK_LEVELS: Record<MusicDuck, number> = {
     death: 0.08,
 };
 const FADE_SECONDS = MUSIC_FADE;
-const UNLOCK_EVENTS = ['pointerdown', 'keydown', 'touchend'] as const;
+const UNLOCK_EVENTS = ['pointerdown', 'keydown'] as const;
 
 export type Music = {
     play(track: MusicTrack | null, duck?: MusicDuck): void;

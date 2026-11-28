@@ -76,8 +76,6 @@ const messages = {
     'status.headImpact': { en: 'Head impact.', ko: '머리 충돌.' },
     'status.binFall': { en: 'Into the pot.', ko: '항아리 입수.' },
     'status.focusLost': { en: 'Focus depleted.', ko: '집중도 소진.' },
-    'orbit.up': { en: 'Up', ko: '위로' },
-    'orbit.down': { en: 'Down', ko: '아래로' },
     'orbit.parked': {
         en: 'Checkpoint · End of this route',
         ko: '체크포인트 · 이번 구간 완료',
@@ -189,20 +187,8 @@ const messages = {
     'settings.sfx': { en: 'Sound effects', ko: '효과음' },
     'settings.language': { en: 'Language', ko: '언어' },
     'settings.close': { en: 'Done', ko: '확인' },
-    'menu.jump': { en: 'Jump', ko: '점프' },
-    'menu.sprayExtinguisher': { en: 'Spray extinguisher', ko: '소화기 분사' },
     'menu.stages': { en: 'Stages', ko: '스테이지' },
     'menu.pauseMenu': { en: 'Pause menu', ko: '일시정지 메뉴' },
-    'menu.touchControls': { en: 'Touch controls', ko: '터치 조작' },
-    'menu.rotate': {
-        en: 'Rotate your phone to landscape',
-        ko: '휴대폰을 가로로 돌려 주세요',
-    },
-    'menu.reverse': { en: 'Reverse', ko: '후진' },
-    'menu.forward': { en: 'Forward', ko: '전진' },
-    'menu.balanceControls': { en: 'Balance controls', ko: '균형 조절' },
-    'menu.leanLeft': { en: 'Lean left', ko: '왼쪽으로 균형 보정' },
-    'menu.leanRight': { en: 'Lean right', ko: '오른쪽으로 균형 보정' },
     'replay.title': { en: 'Replay', ko: '리플레이' },
     'replay.watch': { en: 'Watch last attempt', ko: '마지막 시도 보기' },
     'replay.open': { en: 'Open file', ko: '파일 열기' },
@@ -362,10 +348,6 @@ const messages = {
     'label.storage': { en: 'Storage', ko: '비품 창고' },
     'label.liftShaft': { en: 'Lift shaft', ko: '승강로' },
 
-    'interact.meeting': {
-        en: 'Enter or leave meeting room',
-        ko: '회의실 들어가기·나가기',
-    },
     'interact.enter': { en: '↓ Enter', ko: '↓ 들어가기' },
 
     'building.meetingFirst': { en: 'Clock-out review', ko: '퇴근 시각 협의회' },

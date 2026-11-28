@@ -21,7 +21,6 @@ import { bindInput } from './ui/input';
 import { bindMenuSounds } from './ui/menu-sounds';
 import { createMusic } from './ui/music';
 import { createOpening } from './ui/opening';
-import { bindOrientation } from './ui/orientation';
 import { createPerfOverlay } from './ui/perf-overlay';
 import { bindReplayMenu } from './ui/replay-menu';
 import { createReplayPlayer } from './ui/replay-player';
@@ -296,7 +295,6 @@ settings = createSettings(root, {
         unbind.sync();
     },
 });
-const unbindOrientation = bindOrientation(root, game);
 bindReplayMenu(root, () => locale, { recorder, errorLog, watch: watchReplay });
 const hud = createHud(root, () => locale);
 let renderer: ReturnType<typeof createRenderer> | null = null;
@@ -411,7 +409,6 @@ function readPresentationFrame() {
 }
 function teardown() {
     unbind();
-    unbindOrientation();
     opening.destroy();
     music.destroy();
     unbindMenuSounds();

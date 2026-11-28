@@ -103,16 +103,6 @@ function bindSkipInput(onPress: () => void): () => void {
         options,
     );
     window.addEventListener('click', onPress, options);
-    // Ending on touchend keeps iOS happy and swallows the ghost click that
-    // would otherwise land on the title underneath.
-    window.addEventListener(
-        'touchend',
-        (event) => {
-            event.preventDefault();
-            onPress();
-        },
-        { ...options, passive: false },
-    );
     return () => listeners.abort();
 }
 
@@ -146,7 +136,6 @@ export function showStartupSplash(
         }
         closed = true;
         unbind();
-        root.classList.remove('splashing');
         cancelAnimationFrame(frameId);
         player.destroy();
         screen.remove();
@@ -154,7 +143,6 @@ export function showStartupSplash(
         onFinish();
     };
     const unbind = bindSkipInput(finish);
-    root.classList.add('splashing');
     screen.focus();
     function tick(ms: number) {
         if (closed) {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { installInputEnvironment, inputButton } from './support/input.mjs';
+import { installInputEnvironment } from './support/input.mjs';
 import { bundled } from './support/load.mjs';
 import { driveStageFour } from './support/stage4-route.mjs';
 const { createGame, bindInput } = await bundled({
@@ -15,10 +15,8 @@ const { createGame, bindInput } = await bundled({
     format: 'esm',
 });
 
-test('stage 4 ending completes automatically and gameplay buttons do not change its depth', async (t) => {
+test('stage 4 ending completes automatically and gameplay keys do not change its depth', async (t) => {
     const { key } = installInputEnvironment(t);
-    const jumpButton = inputButton();
-    const backButton = inputButton();
     const game = createGame();
     game.startStage(4);
     const reached = {};
@@ -36,12 +34,7 @@ test('stage 4 ending completes automatically and gameplay buttons do not change 
     game.clearInput();
     const root = {
         isConnected: true,
-        querySelector: (s) =>
-            s === '[data-jump]'
-                ? jumpButton
-                : s === '[data-interact]'
-                  ? backButton
-                  : null,
+        querySelector: () => null,
         querySelectorAll: () => [],
     };
     const unbind = bindInput(root, game);
@@ -61,12 +54,6 @@ test('stage 4 ending completes automatically and gameplay buttons do not change 
         key('keydown', 'ArrowDown');
         assert.equal(depthAfter(), 0, 'Down cannot move the automatic camera');
         key('keyup', 'ArrowDown');
-        jumpButton.dispatchEvent(
-            new Event('pointerdown', { cancelable: true }),
-        );
-        assert.equal(depthAfter(), 0, 'touch cannot move the automatic camera');
-        jumpButton.dispatchEvent(new Event('pointerup'));
-        assert.equal(depthAfter(), 0, 'releasing the button stops');
         for (let i = 0; i < 600 && game.getSnapshot().stage === 4; i++) {
             game.step(1 / 120);
         }
