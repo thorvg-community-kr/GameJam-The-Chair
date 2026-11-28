@@ -1,5 +1,5 @@
 import { startMark } from '../types';
-import { STAGE_FOUR } from './data';
+import { SKY_ROBOT_ODDS, STAGE_FOUR } from './data';
 
 import type { StageDefinition } from '../types';
 
@@ -18,4 +18,4 @@ export const sky: StageDefinition = {
     finishAtGoal: false,
 };
 
-export const skyConfig = { stageFour: STAGE_FOUR };
+export const skyConfig = { stageFour: STAGE_FOUR, robotOdds: SKY_ROBOT_ODDS };
