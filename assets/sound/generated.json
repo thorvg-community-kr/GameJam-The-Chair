@@ -377,76 +377,39 @@
     ]
   },
   {
-    "id": "portrait-slip",
-    "seconds": 0.3,
-    "peak": 0.26,
+    "id": "portrait-fall",
+    "seconds": 0.45,
+    "peak": 0.12,
     "loop": false,
     "layers": [
       {
-        "kind": "tone",
-        "from": 2400,
-        "to": 1900,
-        "seconds": 0.16,
-        "gain": 0.5,
-        "decay": 5,
-        "release": 0.04
-      },
-      {
-        "kind": "tone",
-        "from": 3600,
-        "to": 3300,
-        "seconds": 0.08,
-        "gain": 0.2,
-        "decay": 6,
-        "release": 0.03
-      },
-      {
         "kind": "noise",
-        "cutoff": 3000,
+        "cutoff": 2200,
         "highpass": true,
-        "seconds": 0.22,
-        "gain": 0.25,
-        "at": 0.04,
-        "attack": 0.03,
-        "decay": 3,
-        "release": 0.06
-      }
-    ]
-  },
-  {
-    "id": "portrait-catch",
-    "seconds": 0.75,
-    "peak": 0.3,
-    "loop": false,
-    "layers": [
-      {
-        "kind": "tone",
-        "from": 320,
-        "to": 130,
-        "seconds": 0.09,
-        "gain": 0.9,
-        "harmonic": true,
-        "release": 0.05
+        "seconds": 0.3,
+        "gain": 0.6,
+        "pulse": 13,
+        "attack": 0.04,
+        "release": 0.08
       },
       {
         "kind": "noise",
-        "cutoff": 1400,
-        "seconds": 0.07,
-        "gain": 0.5,
-        "release": 0.04,
-        "decay": 4
+        "cutoff": 900,
+        "seconds": 0.28,
+        "gain": 0.3,
+        "pulse": 9,
+        "attack": 0.05,
+        "release": 0.1
       },
       {
-        "kind": "tone",
-        "from": 430,
-        "to": 300,
-        "seconds": 0.55,
-        "gain": 0.35,
-        "harmonic": true,
-        "pulse": 9,
-        "at": 0.12,
-        "attack": 0.04,
-        "release": 0.2
+        "kind": "noise",
+        "cutoff": 3200,
+        "highpass": true,
+        "seconds": 0.1,
+        "gain": 0.5,
+        "at": 0.26,
+        "release": 0.07,
+        "decay": 4
       }
     ]
   }

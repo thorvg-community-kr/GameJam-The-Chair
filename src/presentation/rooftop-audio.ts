@@ -67,7 +67,6 @@ function duct({ prev, next, audio }: AudioScene): void {
 }
 
 const PORTRAIT_SLIP = 0.12;
-const PORTRAIT_CATCH = 0.36;
 
 function portraitAge(state: GameSnapshot): number | null {
     if (state.checkpoint > 0) {
@@ -84,12 +83,8 @@ function portrait({ prev, next, audio }: AudioScene): void {
     if (before === null || after === null) {
         return;
     }
-    const crossed = (at: number) => before < at && after >= at;
-    if (crossed(PORTRAIT_SLIP)) {
-        addSound(audio, 'portraitSlip', 0.8);
-    }
-    if (crossed(PORTRAIT_CATCH)) {
-        addSound(audio, 'portraitCatch', 0.9);
+    if (before < PORTRAIT_SLIP && after >= PORTRAIT_SLIP) {
+        addSound(audio, 'portraitFall', 0.5);
     }
 }
 

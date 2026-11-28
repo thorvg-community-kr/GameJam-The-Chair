@@ -32,7 +32,7 @@ The linked public libraries identify these effects as CC0: [SFXMint license](htt
 | Extinguisher | Edited lever click and synthesized gas loop |
 | Chair and convoy motion | Crossfaded chair recording; horn at express transition |
 | Vent and duct warning, blast | Synthesized motor loop and edited wind |
-| Employee-of-the-month portrait slip and catch | Synthesized nail ping, knock and swing creak |
+| Employee-of-the-month portrait drop | Quiet synthesized paper flutter |
 | Rooftop takeoff | Synthesized windup, kick and edited wind |
 | Sky desks, signs, floating gear | Synthesized wood creak and metal rattle |
 | Approaching bird and bird collision | Edited squawk and existing impact recording |

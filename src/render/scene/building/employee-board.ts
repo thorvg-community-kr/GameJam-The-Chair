@@ -64,7 +64,7 @@ function playerPortrait(ctx: RenderCtx) {
     ctx.oy = oy;
     ctx.rotation = rotation;
 }
-// Keep the slip (0.12) and catch (0.36) timings in sync with rooftop-audio.ts.
+// Keep the slip timing (0.12) in sync with rooftop-audio.ts.
 function portraitSlip(ctx: RenderCtx, age: number) {
     const jolt = Math.sin(age * 100) * Math.max(0, 1 - age / 0.12);
     const fall = ctx.clamp((age - 0.12) / 0.24, 0, 1);

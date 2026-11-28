@@ -17,8 +17,7 @@ import liftArriveUrl from '../../assets/sound/lift-arrive.wav?url';
 import liftLoopUrl from '../../assets/sound/lift-loop.wav?url';
 import metalRattleUrl from '../../assets/sound/metal-rattle.wav?url';
 import paperUrl from '../../assets/sound/paper.wav?url';
-import portraitCatchUrl from '../../assets/sound/portrait-catch.wav?url';
-import portraitSlipUrl from '../../assets/sound/portrait-slip.wav?url';
+import portraitFallUrl from '../../assets/sound/portrait-fall.wav?url';
 import satelliteAlertUrl from '../../assets/sound/satellite-alert.wav?url';
 import scanLoopUrl from '../../assets/sound/scan-loop.wav?url';
 import shutterUrl from '../../assets/sound/shutter.wav?url';
@@ -69,8 +68,7 @@ export const SAMPLES = new Map<AudioName, { url: string; seconds: number }>([
     ['uiTap', { url: uiTapUrl, seconds: 0.06 }],
     ['uiConfirm', { url: uiConfirmUrl, seconds: 0.18 }],
     ['ventBlow', { url: windUrl, seconds: 1.25 }],
-    ['portraitSlip', { url: portraitSlipUrl, seconds: 0.3 }],
-    ['portraitCatch', { url: portraitCatchUrl, seconds: 0.75 }],
+    ['portraitFall', { url: portraitFallUrl, seconds: 0.45 }],
     ['crash', { url: binRattleUrl, seconds: 0.65 }],
     ['gasLoop', { url: gasLoopUrl, seconds: 0.92 }],
     ['ventMotor', { url: ventLoopUrl, seconds: 0.92 }],

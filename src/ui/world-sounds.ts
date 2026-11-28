@@ -46,9 +46,5 @@ export const WORLD_SOUNDS: Record<SceneSfxName, Layer[]> = {
     ],
     ventBlow: [noise('lowpass', 2300, 0.8, { peak: 0.15, attack: 0.04 })],
     sprayLever: [tone(900, 300, 0.08, 'triangle', { peak: 0.12 })],
-    portraitSlip: [tone(2400, 1900, 0.16, 'sine', { peak: 0.1 })],
-    portraitCatch: [
-        tone(320, 130, 0.09, 'triangle', { peak: 0.16 }),
-        tone(430, 300, 0.55, 'triangle', { at: 0.12, wobble: 9, peak: 0.08 }),
-    ],
+    portraitFall: [noise('highpass', 2200, 0.35, { peak: 0.05, attack: 0.04 })],
 };
