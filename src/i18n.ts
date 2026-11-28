@@ -301,7 +301,6 @@ const messages = {
         en: 'Set end to current position (O)',
         ko: '현재 위치를 끝점으로 (O)',
     },
-    'tool.playRange': { en: 'Play selected range', ko: '선택 구간 재생' },
     'tool.more': { en: 'More', ko: '더보기' },
     'tool.myMarkers': { en: 'My markers', ko: '내 마커' },
     'tool.invalidStart': {

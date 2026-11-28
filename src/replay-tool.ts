@@ -70,7 +70,6 @@ let sources: ReplaySource[] = [];
 let selected: ReplaySource | null = null;
 let edit: ReplayEdit = { markers: [], range: null };
 let editKey = '';
-let rangePreviewEnd: number | null = null;
 
 const renderer = (() => {
     try {
@@ -134,7 +133,6 @@ function load(text: string, origin: string) {
 }
 
 function open(source: ReplaySource) {
-    rangePreviewEnd = null;
     $('#edit-status').textContent = '';
     selected = source;
     const timeline = player.open(source.file);
@@ -227,7 +225,6 @@ function applyEdit(timeline: Timeline, save = true) {
         '#download-clip',
         '#copy-clip',
         '#range-loop',
-        '#range-play',
     ]) {
         $<HTMLButtonElement>(id).disabled = !range;
     }
@@ -244,7 +241,6 @@ function syncLoop() {
 function editNow(change: (tick: number, timeline: Timeline) => void) {
     const timeline = player.timeline;
     if (timeline) {
-        rangePreviewEnd = null;
         $('#edit-status').textContent = '';
         change(player.tick, timeline);
         applyEdit(timeline);
@@ -514,13 +510,6 @@ $('#copy-clip').addEventListener('click', () => {
             .catch(() => showCopyResult(false));
     }
 });
-$('#range-play').addEventListener('click', () => {
-    if (edit.range) {
-        rangePreviewEnd = edit.range.end;
-        player.seek(edit.range.start);
-        player.setPlaying(true);
-    }
-});
 for (const button of document.querySelectorAll<HTMLButtonElement>(
     '.tool-edit-bar button',
 )) {
@@ -573,15 +562,6 @@ function frame(ms: number) {
     const dt = last === null ? 0 : (ms - last) / 1000;
     last = ms;
     player.advance(dt);
-    if (rangePreviewEnd !== null) {
-        if (!player.playing || player.loop) {
-            rangePreviewEnd = null;
-        } else if (player.tick >= rangePreviewEnd) {
-            player.seek(rangePreviewEnd);
-            player.setPlaying(false);
-            rangePreviewEnd = null;
-        }
-    }
     const view = player.view();
     if (view && renderer) {
         renderer.draw(view, player.effects());
