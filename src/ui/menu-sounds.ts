@@ -10,11 +10,7 @@ export function bindMenuSounds(root: HTMLElement, sfx: Sfx): () => void {
                 return;
             }
             const button = event.target.closest('button, summary');
-            if (
-                !button ||
-                button.closest('.drive-controls') ||
-                button.hasAttribute('disabled')
-            ) {
+            if (!button || button.hasAttribute('disabled')) {
                 return;
             }
             const confirm = button.matches(

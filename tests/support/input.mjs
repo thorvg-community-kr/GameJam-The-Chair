@@ -46,10 +46,3 @@ export function installInputEnvironment(t) {
         },
     };
 }
-
-export function inputButton(dataset = {}) {
-    return Object.assign(new EventTarget(), {
-        dataset,
-        setPointerCapture() {},
-    });
-}

@@ -89,44 +89,6 @@ class ControlBinding {
     private options!: {
         signal: AbortSignal;
     };
-    private hold: (el: HTMLElement | null, input: Input) => void = (
-        el: HTMLElement | null,
-        input: Input,
-    ) => {
-        el?.addEventListener(
-            'pointerdown',
-            (e) => {
-                e.preventDefault();
-                this.game.press(input);
-                el.setPointerCapture(e.pointerId);
-            },
-            this.options,
-        );
-        for (const event of [
-            'pointerup',
-            'pointercancel',
-            'lostpointercapture',
-        ]) {
-            el?.addEventListener(
-                event,
-                () => this.game.release(input),
-                this.options,
-            );
-        }
-    };
-    private tap: (selector: string, action: () => void) => void = (
-        selector: string,
-        action: () => void,
-    ) => {
-        this.root.querySelector<HTMLElement>(selector)?.addEventListener(
-            'pointerdown',
-            (e) => {
-                e.preventDefault();
-                action();
-            },
-            this.options,
-        );
-    };
     constructor(
         root: HTMLElement,
         game: Game,
@@ -201,34 +163,6 @@ class ControlBinding {
             this.options,
         );
         window.addEventListener('blur', this.game.clearInput, this.options);
-        this.root
-            .querySelectorAll<HTMLElement>('[data-key]')
-            .forEach((button) => {
-                const key = button.dataset.key;
-                if (
-                    key === 'left' ||
-                    key === 'right' ||
-                    key === 'forward' ||
-                    key === 'back' ||
-                    key === 'brake'
-                ) {
-                    this.hold(button, key);
-                }
-            });
-        this.root
-            .querySelectorAll<HTMLElement>('[data-lean]')
-            .forEach((button) => {
-                const side = button.dataset.lean;
-                if (side === 'left' || side === 'right') {
-                    this.hold(button, side === 'left' ? 'q' : 'e');
-                }
-            });
-        this.hold(
-            this.root.querySelector<HTMLElement>('[data-spray]'),
-            'spray',
-        );
-        this.tap('[data-jump]', this.game.jump);
-        this.tap('[data-interact]', this.game.interact);
     }
     private applyKeyboardAction(e: KeyboardEvent, action: Action) {
         e.preventDefault();

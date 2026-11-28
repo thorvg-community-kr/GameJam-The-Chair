@@ -76,8 +76,7 @@ class HudRuntime {
         effects: EffectsState,
         cutscene = false,
     ) => {
-        const active = this.updateHud(state, cutscene, feedback, effects);
-        this.q('.drive-controls')?.toggleAttribute('inert', !active);
+        this.updateHud(state, cutscene, feedback, effects);
     };
     private updateHud(
         state: GameSnapshot,
@@ -93,7 +92,6 @@ class HudRuntime {
         const paused = mode === 'pause';
         this.updateFocusIntro(state);
         this.hidden('[data-play-hud]', mode === 'intro' || ending || cutscene);
-        this.hidden('.drive-controls', ending || cutscene);
         this.hidden('[data-pause]', !active && !paused);
         this.hidden('[data-pause-menu]', !paused);
         this.hidden(
@@ -139,14 +137,6 @@ class HudRuntime {
             String(focus),
         );
         this.text('[data-status]', feedback.status);
-        this.hidden('[data-interact]', !policy.controls.meeting);
-        this.hidden('[data-orbit-controls]', !policy.controls.flight);
-        this.hidden('[data-jump]', !policy.hud.jump);
-        this.hidden('.balance-controls', !policy.hud.balance);
-        this.hidden(
-            '[data-spray]',
-            !state.hasExtinguisher || !policy.hud.manualSpray,
-        );
         this.hidden('[data-stage-menu]', state.completedStage === 0);
     }
     private drawOverlay(

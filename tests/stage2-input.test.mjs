@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { installInputEnvironment, inputButton } from './support/input.mjs';
+import { installInputEnvironment } from './support/input.mjs';
 import { bundled } from './support/load.mjs';
 
 const { createGame, bindInput } = await bundled({
@@ -15,15 +15,13 @@ const { createGame, bindInput } = await bundled({
     format: 'esm',
 });
 
-test('stage2 uses Down for meeting entry and exit, keeps Up for jumping, and supports touch', async (t) => {
+test('stage2 uses Down for meeting entry and exit, and keeps Up for jumping', async (t) => {
     const { key: dispatchKey } = installInputEnvironment(t);
-    const downButton = inputButton();
     const game = createGame();
     game.startStage(2);
     const root = {
         isConnected: true,
-        querySelector: (selector) =>
-            selector === '[data-interact]' ? downButton : null,
+        querySelector: () => null,
         querySelectorAll: () => [],
     };
     const unbind = bindInput(root, game);
@@ -80,13 +78,9 @@ test('stage2 uses Down for meeting entry and exit, keeps Up for jumping, and sup
             game.step(1 / 120);
         }
         assert.ok(game.getSnapshot().canEnterMeeting);
-        downButton.dispatchEvent(
-            new Event('pointerdown', { cancelable: true }),
-        );
+        key('ArrowDown');
         assert.equal(game.getSnapshot().corridor.room.kind, 'entering');
-        downButton.dispatchEvent(
-            new Event('pointerdown', { cancelable: true }),
-        );
+        key('ArrowDown');
         assert.equal(game.getSnapshot().corridor.room.kind, 'corridor');
         await Promise.resolve();
     } finally {

@@ -4,12 +4,7 @@ import type { StageId } from '../game/types';
 type StagePresentation = {
     scene: 'office' | 'building' | 'rooftop' | 'sky' | 'orbit';
     controls: { flight: boolean; meeting: boolean; spray: boolean };
-    hud: {
-        jump: boolean;
-        balance: boolean;
-        manualSpray: boolean;
-        focusAlert: boolean;
-    };
+    hud: { focusAlert: boolean };
     camera: { width: number; followVertical: boolean; followWhenWon: boolean };
 };
 
@@ -17,56 +12,31 @@ export const STAGE_PRESENTATION = {
     1: {
         scene: 'office',
         controls: { flight: false, meeting: false, spray: false },
-        hud: {
-            jump: true,
-            balance: true,
-            manualSpray: false,
-            focusAlert: true,
-        },
+        hud: { focusAlert: true },
         camera: { width: 1, followVertical: false, followWhenWon: false },
     },
     2: {
         scene: 'building',
         controls: { flight: false, meeting: true, spray: false },
-        hud: {
-            jump: true,
-            balance: true,
-            manualSpray: false,
-            focusAlert: false,
-        },
+        hud: { focusAlert: false },
         camera: { width: 1, followVertical: false, followWhenWon: false },
     },
     3: {
         scene: 'rooftop',
         controls: { flight: false, meeting: false, spray: true },
-        hud: {
-            jump: true,
-            balance: true,
-            manualSpray: true,
-            focusAlert: false,
-        },
+        hud: { focusAlert: false },
         camera: { width: 1, followVertical: true, followWhenWon: false },
     },
     4: {
         scene: 'sky',
         controls: { flight: false, meeting: false, spray: true },
-        hud: {
-            jump: true,
-            balance: true,
-            manualSpray: true,
-            focusAlert: false,
-        },
+        hud: { focusAlert: false },
         camera: { width: 1.12, followVertical: true, followWhenWon: true },
     },
     5: {
         scene: 'orbit',
         controls: { flight: true, meeting: false, spray: true },
-        hud: {
-            jump: false,
-            balance: false,
-            manualSpray: false,
-            focusAlert: false,
-        },
+        hud: { focusAlert: false },
         camera: { width: 1, followVertical: true, followWhenWon: false },
     },
 } satisfies Record<StageId, StagePresentation>;

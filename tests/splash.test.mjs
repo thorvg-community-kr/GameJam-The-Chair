@@ -164,14 +164,12 @@ async function openSplash(locale = 'en') {
 }
 
 test('the splash goes straight to the title when the logo ends', async () => {
-    const { scene, classes, finished, runUntil } = await openSplash();
-    assert.ok(classes.has('splashing'), 'touch controls are hidden');
+    const { scene, finished, runUntil } = await openSplash();
     runUntil(SPLASH_DURATION - 0.5);
     assert.deepEqual(finished, []);
     runUntil(SPLASH_DURATION + 0.5);
     assert.deepEqual(finished, [true]);
     assert.equal(scene.children.length, 0);
-    assert.equal(classes.has('splashing'), false);
     assert.equal(fakeWindow.listeners.length, 0, 'window listeners removed');
     fakeWindow.fire('click');
     assert.deepEqual(finished, [true], 'finishes once');
@@ -192,14 +190,6 @@ test('a key pressed while focus is elsewhere still skips', async () => {
         key: 'a',
         target: { tagName: 'BODY' },
     });
-    assert.equal(event.prevented, true);
-    assert.deepEqual(finished, [true]);
-});
-
-test('a tap skips and swallows the ghost click', async () => {
-    const { finished, runUntil } = await openSplash();
-    runUntil(1);
-    const event = fakeWindow.fire('touchend');
     assert.equal(event.prevented, true);
     assert.deepEqual(finished, [true]);
 });
