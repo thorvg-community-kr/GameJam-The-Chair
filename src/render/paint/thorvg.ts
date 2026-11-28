@@ -38,9 +38,12 @@ type LayerSlot = {
 type TextSlot = { back: Text; front: Text; font: string; content: string };
 type LottieSlot = { asset: string; animation: Animation | null };
 type AppliedStyle = { stroked: boolean; trimmed: boolean; blended: boolean };
+// A run of top-level shapes between layers or texts lives in its own Scene so
+// that its size can change without rebuilding the canvas child list.
+type TopBucket = { scene: Scene; shapes: Shape[]; used: number };
 const PX_TO_PT = 72 / 96;
 export type PaintPool = {
-    top: Shape[];
+    top: TopBucket[];
     texts: TextSlot[];
     layers: Map<string, LayerSlot>;
     styled: Map<Shape, AppliedStyle>;
@@ -755,26 +758,14 @@ export function paintThorvg(
 ): void {
     pool.changes = incremental ? (pool.changes ?? new PaintChanges()) : null;
     const syncStart = stats ? performance.now() : 0;
-    let topCount = 0;
-    let textCount = 0;
-    let signature = '';
-    for (const item of items) {
-        if ('cmd' in item) {
-            topCount++;
-        } else if ('text' in item) {
-            signature += `${topCount}:text${textCount++};`;
-        } else {
-            signature += `${topCount}:${item.key};`;
-        }
+    const layout = paintOrder(items);
+    let signature = layout.signature;
+    while (pool.top.length < layout.bucketCount) {
+        pool.top.push({ scene: new tvg.Scene(), shapes: [], used: 0 });
     }
-    while (pool.top.length < topCount) {
-        pool.top.push(new tvg.Shape());
-        signature += '+';
-    }
-    while (pool.texts.length < textCount) {
+    while (pool.texts.length < layout.textCount) {
         const make = () => new tvg.Text().align(0.5, 0.5);
         pool.texts.push({ back: make(), front: make(), font: '', content: '' });
-        signature += '+';
     }
 
     const preparedPool = synchronizePaintOrder(signature, pool, items, canvas, {
@@ -782,14 +773,14 @@ export function paintThorvg(
         tvg,
         stats,
     });
-    const { reorder, order, topIndex, textIndex } = preparedPool;
+    const { reorder, order, bucketIndex, textIndex } = preparedPool;
     signature = preparedPool.signature;
     if (reorder) {
         for (const paint of order) {
             canvas.add(paint);
         }
-        for (let i = topIndex; i < pool.top.length; i++) {
-            canvas.add(pool.top[i]);
+        for (let i = bucketIndex; i < pool.top.length; i++) {
+            canvas.add(pool.top[i].scene);
         }
         for (let i = textIndex; i < pool.texts.length; i++) {
             canvas.add(pool.texts[i].back).add(pool.texts[i].front);
@@ -799,8 +790,7 @@ export function paintThorvg(
         pool.signature = signature;
     }
     if (stats) {
-        stats.topShapes = topIndex;
-        stats.poolTop = pool.top.length;
+        countTopShapes(pool, stats);
         stats.layerSlots = pool.layers.size;
         stats.reorder = reorder;
         const renderStart = performance.now();
@@ -846,15 +836,24 @@ function synchronizePaintOrder(
         pool.signature = '';
         canvas.remove();
     }
-    let topIndex = 0;
+    let bucketIndex = 0;
     let textIndex = 0;
+    let bucket: TopBucket | null = null;
     const order: Array<Shape | Scene | Text> = [];
     for (const item of items) {
         if ('cmd' in item) {
-            const s = pool.top[topIndex++];
-            applyShape(ctx, tvg, pool, s, item.cmd);
-            order.push(s);
+            if (!bucket) {
+                bucket = pool.top[bucketIndex++];
+                bucket.used = 0;
+                setVisible(pool, bucket.scene, true);
+                order.push(bucket.scene);
+            }
+            syncTopShape(ctx, tvg, pool, bucket, item.cmd);
             continue;
+        }
+        if (bucket) {
+            hideUnused(pool, bucket);
+            bucket = null;
         }
         if ('text' in item) {
             const slot = pool.texts[textIndex++];
@@ -867,13 +866,69 @@ function synchronizePaintOrder(
         }
         order.push(syncLayer(ctx, tvg, pool, item, stats));
     }
-    for (let i = topIndex; i < pool.top.length; i++) {
-        setVisible(pool, pool.top[i], false);
+    if (bucket) {
+        hideUnused(pool, bucket);
+    }
+    hideSpare(pool, bucketIndex, textIndex);
+    return { reorder, order, bucketIndex, textIndex, signature };
+}
+function paintOrder(items: Item[]) {
+    let bucketCount = 0;
+    let textCount = 0;
+    let signature = '';
+    let inRun = false;
+    for (const item of items) {
+        if ('cmd' in item) {
+            if (!inRun) {
+                signature += `#${bucketCount++};`;
+                inRun = true;
+            }
+            continue;
+        }
+        inRun = false;
+        signature += 'text' in item ? `text${textCount++};` : `${item.key};`;
+    }
+    return { bucketCount, textCount, signature };
+}
+function syncTopShape(
+    ctx: RenderCtx,
+    tvg: ThorVGNamespace,
+    pool: PaintPool,
+    bucket: TopBucket,
+    cmd: PathCommand,
+) {
+    if (!canvasBox(cmd, ctx.W, ctx.H)) {
+        return;
+    }
+    let s = bucket.shapes.at(bucket.used);
+    if (!s) {
+        s = new tvg.Shape();
+        bucket.shapes.push(s);
+        bucket.scene.add(s);
+    }
+    bucket.used++;
+    applyShape(ctx, tvg, pool, s, cmd);
+}
+function countTopShapes(pool: PaintPool, stats: RenderStats) {
+    stats.topShapes = stats.poolTop = 0;
+    for (const bucket of pool.top) {
+        stats.topShapes += bucket.used;
+        stats.poolTop += bucket.shapes.length;
+    }
+}
+function hideSpare(pool: PaintPool, bucketIndex: number, textIndex: number) {
+    for (let i = bucketIndex; i < pool.top.length; i++) {
+        pool.top[i].used = 0;
+        setVisible(pool, pool.top[i].scene, false);
     }
     for (let i = textIndex; i < pool.texts.length; i++) {
         pool.changes?.changed(pool.texts[i], 'text', null);
         pool.texts[i].back.visible(false);
         pool.texts[i].front.visible(false);
     }
-    return { reorder, order, topIndex, textIndex, signature };
+}
+function hideUnused(pool: PaintPool, bucket: TopBucket) {
+    for (let i = bucket.used; i < bucket.shapes.length; i++) {
+        setVisible(pool, bucket.shapes[i], false);
+    }
 }
