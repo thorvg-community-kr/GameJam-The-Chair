@@ -21,6 +21,8 @@ export type EpilogueShot = {
 export type EpilogueStage = {
     shot: EpilogueShot;
     figures: EndingPose[];
+    /** Index into `figures` of an over-the-shoulder foreground figure. */
+    front?: number;
     punch: number;
     star?: { at: Point3; k: number };
     puff?: { at: Point3; k: number };
@@ -69,18 +71,6 @@ const squash = (p: Point3, c: Point3, s: number): Point3 => [
     c[1] + (p[1] - c[1]) * (1 + s),
     c[2] + (p[2] - c[2]) * (1 - s / 2),
 ];
-const darken =
-    (factor: number) =>
-    (color: string): string =>
-        '#' +
-        [1, 3, 5]
-            .map((i) =>
-                Math.round(parseInt(color.slice(i, i + 2), 16) * factor)
-                    .toString(16)
-                    .padStart(2, '0'),
-            )
-            .join('');
-
 function tap(u: number): EpilogueStage {
     const hit = 0.4;
     const backrest =
@@ -304,15 +294,8 @@ function bewildered(beat: EpilogueBeat): EpilogueStage {
 function stare(beat: EpilogueBeat): EpilogueStage {
     const d = sinceFling(beat);
     const onChair = beat.cut === 'stare-chair';
-    const chair: EndingPose = {
-        ...chairAt(d, beat.t),
-        tint: onChair ? { chair: darken(0.28) } : undefined,
-    };
-    const rider: EndingPose = {
-        parts: 'rider',
-        rider: riderAt(d, beat.t),
-        tint: onChair ? undefined : { rider: darken(0.32) },
-    };
+    const chair = chairAt(d, beat.t);
+    const rider: EndingPose = { parts: 'rider', rider: riderAt(d, beat.t) };
     return {
         shot: onChair
             ? {
@@ -332,6 +315,7 @@ function stare(beat: EpilogueBeat): EpilogueStage {
                   offsetX: -0.04,
               },
         figures: [chair, rider],
+        front: onChair ? 0 : 1,
         punch: 0,
     };
 }

@@ -12,7 +12,7 @@ export type EpilogueCut =
     | 'stare-rider';
 export type EpilogueBeat = {
     cut: EpilogueCut;
-    /** Seconds since this cut started. */
+    /** Seconds since this cut started; negative while the first cut fades up. */
     u: number;
     /** Seconds since the epilogue started, frozen at the hold. */
     t: number;
@@ -27,7 +27,7 @@ const STARES: Array<[EpilogueCut, number]> = [
 ];
 export function epilogueBeat(ending: number): EpilogueBeat | null {
     const E = ORBIT_ENDING;
-    if (ending < E.tap) {
+    if (ending < E.reveal) {
         return null;
     }
     const time = Math.min(ending, E.hold);
@@ -42,7 +42,8 @@ export function epilogueBeat(ending: number): EpilogueBeat | null {
         ['bewildered', E.bewildered],
     ];
     if (time < E.stare) {
-        const [cut, from] = cuts.filter(([, at]) => time >= at).at(-1)!;
+        const [cut, from] =
+            cuts.filter(([, at]) => time >= at).at(-1) ?? cuts[0];
         return { cut, u: time - from, t, shot: 0 };
     }
     let from = E.stare;

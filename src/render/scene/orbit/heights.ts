@@ -129,19 +129,34 @@ const alpha = (value: number) =>
         .toString(16)
         .padStart(2, '0');
 
-export function orbitShadow(ctx: RenderCtx, h: Heights, sunrise: Vector): void {
-    const shadow = h.shadow;
-    if (shadow <= 0) {
+/**
+ * Darkens the sky in the Earth's shadow and lights the sunrise on the limb.
+ * `dawn` lifts the shadow while the glow swells and then gives way to day.
+ */
+export function orbitShadow(
+    ctx: RenderCtx,
+    h: Heights,
+    sunrise: Vector | undefined,
+    dawn = 0,
+): void {
+    const shadow = h.shadow * (1 - dawn);
+    const sun = Math.min(
+        1,
+        h.shadow * (1 - dawn + 1.3 * Math.sin(Math.PI * dawn)),
+    );
+    if (shadow > 0) {
+        ctx.commands.push({
+            kind: 'path',
+            points: screen(ctx),
+            fill: '#050914' + alpha(0.55 * shadow),
+            layer: { key: 'orbit-earth-shadow' },
+        });
+    }
+    if (sun <= 0 || !sunrise) {
         return;
     }
-    ctx.commands.push({
-        kind: 'path',
-        points: screen(ctx),
-        fill: '#050914' + alpha(0.55 * shadow),
-        layer: { key: 'orbit-earth-shadow' },
-    });
-    const rim: Vector = [sunrise[0] - ctx.W * 0.12, sunrise[1]];
-    const glow = ctx.W * 0.22 * shadow;
+    const rim: Vector = sunrise;
+    const glow = ctx.W * 0.22 * sun * (1 + 0.5 * dawn);
     ctx.commands.push({
         kind: 'path',
         points: [
@@ -155,7 +170,7 @@ export function orbitShadow(ctx: RenderCtx, h: Heights, sunrise: Vector): void {
             to: [rim[0] + glow, rim[1]],
             radius: glow,
             stops: [
-                [0, ctx.rgba('#ffe2a0', 0.85 * shadow)],
+                [0, ctx.rgba('#ffe2a0', 0.85 * sun)],
                 [1, ctx.rgba('#ffb86b', 0)],
             ],
         },

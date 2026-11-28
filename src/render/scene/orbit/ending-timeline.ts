@@ -13,11 +13,15 @@ export const ORBIT_ENDING = {
     wide: 17,
     spinFrom: 17,
     spin: 31,
+    /** The sun comes up over the limb while the camera circles. */
+    dawnFrom: 19,
+    dawn: 29,
     lightsOut: 33,
     dark: 37,
     end: 39,
     titleOut: 38.6,
-    reveal: 38.9,
+    /** THE END has gone; the epilogue fades up from black until the tap. */
+    reveal: 39.1,
     tap: 40,
     look: 41,
     shake: 42.2,
