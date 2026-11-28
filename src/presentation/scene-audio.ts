@@ -1,5 +1,6 @@
 import { addSound } from './audio-scene';
 import { buildingAudio } from './building-audio';
+import { handoffAudio } from './handoff-audio';
 import { orbitAudio } from './orbit-audio';
 import { rooftopAudio } from './rooftop-audio';
 import { silentFrame } from './sfx';
@@ -64,6 +65,7 @@ export function sceneAudio(
     events: readonly GameEvent[] = [],
 ): SceneAudio {
     const audio: SceneAudio = { shots: [], loops: [] };
+    handoffAudio(prev, next, audio);
     if (!prev) {
         entranceSound(next, audio, 0.08);
         return audio;

@@ -36,6 +36,14 @@ export const WORLD_SOUNDS: Record<SceneSfxName, Layer[]> = {
         noise('highpass', 1800, 0.08, { at: 0.09, peak: 0.12 }),
     ],
     uiTap: [tone(1100, 700, 0.045, 'sine', { peak: 0.1 })],
+    attendance: [
+        tone(1800, 1800, 0.06, 'sine', { at: 0.02, peak: 0.1 }),
+        tone(2400, 2400, 0.09, 'sine', { at: 0.1, peak: 0.1 }),
+    ],
+    networkLost: [
+        tone(880, 880, 0.13, 'sine', { peak: 0.1 }),
+        tone(440, 430, 0.42, 'sine', { at: 0.15, peak: 0.1 }),
+    ],
     uiConfirm: [
         tone(740, 740, 0.08, 'sine', { peak: 0.1 }),
         tone(1110, 1110, 0.1, 'sine', { at: 0.07, peak: 0.1 }),

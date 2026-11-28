@@ -412,5 +412,69 @@
         "decay": 4
       }
     ]
+  },
+  {
+    "id": "attendance-beep",
+    "seconds": 0.26,
+    "peak": 0.3,
+    "loop": false,
+    "layers": [
+      {
+        "kind": "noise",
+        "cutoff": 3200,
+        "seconds": 0.012,
+        "gain": 0.35,
+        "highpass": true,
+        "attack": 0.001,
+        "release": 0.008
+      },
+      {
+        "kind": "tone",
+        "from": 1800,
+        "to": 1800,
+        "seconds": 0.06,
+        "gain": 0.5,
+        "at": 0.02,
+        "attack": 0.003,
+        "release": 0.015
+      },
+      {
+        "kind": "tone",
+        "from": 2400,
+        "to": 2400,
+        "seconds": 0.09,
+        "gain": 0.5,
+        "at": 0.1,
+        "attack": 0.003,
+        "release": 0.04
+      }
+    ]
+  },
+  {
+    "id": "net-lost",
+    "seconds": 0.6,
+    "peak": 0.25,
+    "loop": false,
+    "layers": [
+      {
+        "kind": "tone",
+        "from": 880,
+        "to": 880,
+        "seconds": 0.13,
+        "gain": 0.5,
+        "attack": 0.006,
+        "release": 0.03
+      },
+      {
+        "kind": "tone",
+        "from": 440,
+        "to": 430,
+        "seconds": 0.42,
+        "gain": 0.5,
+        "at": 0.15,
+        "attack": 0.006,
+        "release": 0.3
+      }
+    ]
   }
 ]

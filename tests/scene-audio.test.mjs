@@ -9,6 +9,7 @@ const { createGameAudio } = await load('src/ui/game-audio.ts');
 const { STAGE_THREE } = await load('src/game/stages/rooftop/data.ts');
 const { STAGE_FIVE } = await load('src/game/stages/orbit/data.ts');
 const { previewScenes } = await load('src/preview-scenes.ts');
+const { ORBIT_ENDING } = await load('src/render/scene/orbit/ending.ts');
 const frame = (stage) => {
     const game = createGame();
     game.startStage(stage);
@@ -252,4 +253,68 @@ test('the shutter fires when a satellite damage zone opens, even if the chair do
     assert.equal(shutters(at(beam.from - 10, 10), at(beam.from - 5, 10.01)), 0);
     assert.equal(shutters(at(beam.from - 1, 10), at(beam.from + 4, 10.01)), 1);
     assert.equal(shutters(at(beam.from + 4, 10), at(beam.from + 9, 10.01)), 0);
+});
+
+const playScene = (id) => {
+    const scene = previewScenes.find((item) => item.id === id).create();
+    const played = [];
+    const loops = [];
+    let stops = 0;
+    const player = createGameAudio({
+        play(name) {
+            played.push({ name, at: frameAt.time, state: frameAt.state });
+        },
+        syncLoops(next) {
+            loops.push({ next, state: frameAt.state });
+        },
+        stop() {
+            stops++;
+        },
+    });
+    const frameAt = { time: 0, state: null };
+    for (let t = 0; t <= scene.duration + 1e-9; t += 1 / 60) {
+        const { state, events } = scene.sample(t);
+        Object.assign(frameAt, { time: t, state });
+        player.update(state, events);
+    }
+    return { played, loops, stops };
+};
+
+test('the stage four to five turn stays silent until the attendance beep', () => {
+    const { played, loops } = playScene('sky-to-orbit');
+    const beforeFive = played.filter((shot) => shot.state.stage === 4);
+    assert.deepEqual(beforeFive, [], 'nothing sounds during the camera turn');
+    assert.ok(
+        loops
+            .filter((item) => item.state.stage === 4)
+            .every((item) => item.next.length === 0),
+        'no spray or wind loop survives into the turn',
+    );
+    const beeps = played.filter((shot) => shot.name === 'attendance');
+    assert.equal(beeps.length, 1, 'one attendance beep');
+    assert.equal(beeps[0].state.stage, 5);
+    assert.ok(beeps[0].state.orbit.age < 0.1, 'as the bubble pops');
+});
+
+test('the attendance beep plays once when stage five starts directly', () => {
+    const start = frame(5);
+    assert.ok(names(sceneAudio(null, start)).includes('attendance'));
+    const later = {
+        ...start,
+        time: start.time + 1,
+        orbit: { ...start.orbit, age: 1 },
+    };
+    assert.ok(!names(sceneAudio(start, later)).includes('attendance'));
+});
+
+test('the network drop sounds once at the disconnect and never again', () => {
+    const { played } = playScene('orbit-ending');
+    const drops = played.filter((shot) => shot.name === 'networkLost');
+    assert.equal(drops.length, 1);
+    assert.ok(Math.abs(drops[0].at - ORBIT_ENDING.disconnect) < 0.05);
+    assert.deepEqual(
+        played.filter((shot) => shot.name !== 'networkLost'),
+        [],
+        'the rest of the ending stays quiet',
+    );
 });

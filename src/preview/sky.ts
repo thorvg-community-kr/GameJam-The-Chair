@@ -2,7 +2,6 @@ import { recordedScene, capture, stepGame } from './recording';
 import { parseState, createGame } from '../game/game';
 import { STAGE_FOUR } from '../game/stages/sky/data';
 import { createEffects } from '../render/effects';
-import { ATTENDANCE } from '../render/scene/shared/attendance-bubble';
 import {
     revealGlideStart,
     SKY_DEPARTURE,
@@ -375,7 +374,6 @@ export function skyEnding(): PreviewScene {
                 at: settle + SKY_TURN.duration,
                 label: 'Rear view · gliding past the cameras',
             },
-            { at: duration - ATTENDANCE.lead, label: 'Attendance confirmed' },
             { at: duration, label: 'Stage 5 hand-off' },
         ],
         sample(time) {
@@ -410,7 +408,7 @@ export function skyToOrbit(): PreviewScene {
     const effects = createEffects();
     const frames = [capture(game, effects)];
     const markers = [
-        { at: 0, label: 'Leaving the ledge' },
+        { at: 0, label: 'Leaving the ledge · audio silent' },
         {
             at: revealGlideStart(STAGE_FOUR.reveal.settle),
             label: 'Glide starts',
@@ -420,9 +418,9 @@ export function skyToOrbit(): PreviewScene {
         const state = game.getSnapshot();
         if (
             state.stage === 5 &&
-            !markers.some((marker) => marker.label === 'Stage 5')
+            !markers.some((marker) => marker.label.startsWith('Stage 5'))
         ) {
-            markers.push({ at: i / 60, label: 'Stage 5' });
+            markers.push({ at: i / 60, label: 'Stage 5 · attendance beep' });
         }
         const age = state.stage === 5 && state.orbit ? state.orbit.age : -1;
         game.setInput(

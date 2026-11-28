@@ -11,11 +11,19 @@ const STAGE_TRACKS = {
     5: 'stage5',
 } as const satisfies Record<GameSnapshot['stage'], MusicTrack>;
 
+// The stage four to five camera turn plays in silence; stage five restarts the music.
+function silentHandoff(state: Pick<GameSnapshot, 'stage' | 'sky'>) {
+    return (
+        state.stage === 4 &&
+        (state.sky.phase === 'reveal' || state.sky.phase === 'depth')
+    );
+}
+
 export function musicTrack(
-    state: Pick<GameSnapshot, 'mode' | 'stage' | 'orbit'>,
+    state: Pick<GameSnapshot, 'mode' | 'stage' | 'orbit' | 'sky'>,
     prologue: boolean,
 ): MusicTrack | null {
-    if (prologue) {
+    if (prologue || silentHandoff(state)) {
         return null;
     }
     if (state.mode === 'intro') {
