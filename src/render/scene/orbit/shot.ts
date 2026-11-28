@@ -61,6 +61,8 @@ export type OrbitShot = {
     ending: OrbitEndingState;
 };
 const SHOULDER = 0.38;
+// Same nebula as the epilogue, softer while the run is still on.
+const SPACE_NEBULA = 0.6;
 const READ = { zoom: 0.7, offsetX: 0.3, centerY: 0.24 };
 const smooth = (value: number) => {
     const t = Math.max(0, Math.min(1, value));
@@ -158,7 +160,12 @@ function backdrop(
               })
             : ctx.H;
     orbitHighSky(ctx, heights, 0, spin, skyBottom);
-    endingNebula(ctx, shot.ending.wide, spin, skyBottom);
+    endingNebula(
+        ctx,
+        Math.max(shot.ending.wide, SPACE_NEBULA * heights.space),
+        spin,
+        skyBottom,
+    );
     const horizon = orbitEarth(ctx, shot.travel, earth, 0, {
         strength: heights.air,
         night: heights.shadow * (1 - shot.ending.wide),

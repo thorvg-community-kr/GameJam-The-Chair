@@ -1,30 +1,16 @@
+import { ORBIT_ENDING } from './ending-timeline';
+import { epilogueBeat } from './epilogue-beats';
 import { panoramaX } from './heights';
 import { translate } from '../../../i18n';
 import { LABEL_FONT, SPEECH_FONT } from '../../fonts';
 import { laptopScreenPoint } from '../sky/ending-art';
 
+import type { EpilogueBeat } from './epilogue-beats';
 import type { OrbitState } from '../../../game/stages/orbit/data';
 import type { RenderCtx } from '../../context';
 import type { Vector } from '../../types';
 import type { SkyProjection } from '../shared/projection';
-export const ORBIT_ENDING = {
-    calm: 5,
-    release: 1.2,
-    focusFrom: 1.5,
-    focus: 5,
-    signal: 5,
-    signalStep: 1.4,
-    disconnect: 9.6,
-    handsStop: 10.2,
-    idle: 13.4,
-    wideFrom: 13.4,
-    wide: 17,
-    spinFrom: 17,
-    spin: 31,
-    lightsOut: 33,
-    dark: 37,
-    end: 39,
-};
+export { ORBIT_ENDING };
 const smooth = (value: number) => {
     const t = Math.max(0, Math.min(1, value));
     return t * t * (3 - 2 * t);
@@ -48,6 +34,7 @@ export type OrbitEndingState = {
     loose: number;
     signalLost: number;
     still: number;
+    epilogue: EpilogueBeat | null;
 };
 export function orbitEnding(orbit: Readonly<OrbitState>): OrbitEndingState {
     const t = orbit.phase === 'parked' ? Math.max(0, orbit.settled - 1) : 0;
@@ -68,11 +55,15 @@ export function orbitEnding(orbit: Readonly<OrbitState>): OrbitEndingState {
         read: smooth((t - E.disconnect + 0.3) / 1.2) * (1 - wide),
         rest: smooth((t - E.disconnect - 0.2) / 0.6),
         lightsOut: smooth((t - E.spin) / (E.lightsOut - E.spin)),
-        dark: smooth((t - E.lightsOut) / (E.dark - E.lightsOut)),
-        title: smooth((t - E.dark) / 1.2),
+        dark:
+            smooth((t - E.lightsOut) / (E.dark - E.lightsOut)) *
+            (1 - smooth((t - E.reveal) / (E.tap - E.reveal))),
+        title:
+            smooth((t - E.dark) / 0.5) * (1 - smooth((t - E.titleOut) / 0.4)),
         loose: orbit.phase === 'parked' && t >= E.release ? t - E.release : -1,
         signalLost: Math.max(0, Math.min(3, (t - E.signal) / E.signalStep)),
         still: Math.max(0, t - E.handsStop),
+        epilogue: orbit.phase === 'parked' ? epilogueBeat(t) : null,
     };
 }
 const alpha = (value: number) =>

@@ -203,3 +203,53 @@ export function orbitSatelliteLightLitScene(): PreviewScene {
         frames,
     );
 }
+
+const EPILOGUE_FROM = 36;
+export function orbitEpilogueScene(): PreviewScene {
+    const game = createGame();
+    game.startStage(5);
+    const parked = parseState(game.serialize());
+    Object.assign(parked.orbit, {
+        phase: 'parked',
+        z: STAGE_FIVE.checkpoint.z,
+        speed: 0,
+        settled: 1 + EPILOGUE_FROM,
+        age: 76 + EPILOGUE_FROM,
+    });
+    parked.checkpoint = 1;
+    parked.time = 76 + EPILOGUE_FROM;
+    game.restore(JSON.stringify(parked));
+    const effects = createEffects();
+    const frames = [capture(game, effects)];
+    const E = ORBIT_ENDING;
+    const at = (t: number) => t - EPILOGUE_FROM;
+    const markers = [
+        { at: 0, label: 'Black, just before THE END' },
+        { at: at(E.dark), label: '0 · THE END, then the stars return' },
+        { at: at(E.tap), label: '1 · Tap: side on, the backrest nudges him' },
+        { at: at(E.look), label: '2 · Look back over the shoulder' },
+        { at: at(E.shake), label: '3 · Shake: head snaps forward' },
+        { at: at(E.strain), label: '4a · Strain: under the seat' },
+        { at: at(E.drop), label: '4b · Drop: tips and flings him' },
+        { at: at(E.drift), label: '4c · Drift: wide two-shot, boing' },
+        {
+            at: at(E.bewildered),
+            label: '5 · Bewildered: looks back at the chair',
+        },
+        { at: at(E.stare), label: '6a · Stare: over the backrest' },
+        { at: at(E.stare + 0.8), label: '6b · Stare: over his head' },
+        { at: at(E.stare + 1.6), label: '6a · again (short)' },
+        { at: at(E.stare + 2), label: '6b · again, hold' },
+    ];
+    for (let i = 0; i < (E.hold - EPILOGUE_FROM + 1.5) * 60; i++) {
+        stepGame(game, effects);
+        frames.push(capture(game, effects));
+    }
+    return recordedScene(
+        'orbit-ending-epilogue',
+        'Orbit · Epilogue: the chair taps, shakes him off, and they stare',
+        0,
+        markers,
+        frames,
+    );
+}
