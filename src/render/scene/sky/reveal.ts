@@ -18,6 +18,8 @@ const smooth = (value: number) => {
     return t * t * (3 - 2 * t);
 };
 
+// Watchers grow in over this many seconds once the chair turn starts.
+const WATCHER_GROW = 0.4;
 const FLYING = orbitEnding(createOrbitState());
 
 export function drawSkyReveal(ctx: RenderCtx): void {
@@ -38,6 +40,7 @@ export function drawSkyReveal(ctx: RenderCtx): void {
         departure,
         basin: smooth(elapsed / (settle + turn)),
         entry: 0,
+        watchers: smooth((elapsed - settle) / WATCHER_GROW),
         ending: FLYING,
     });
 }

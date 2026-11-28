@@ -57,6 +57,8 @@ export type OrbitShot = {
     entry: number;
     aims?: readonly Aim[];
     hitStop?: number;
+    /** 0 hides the CCTVs and robot birds; values in between grow them in. */
+    watchers?: number;
     ending: OrbitEndingState;
 };
 const SHOULDER = 0.38;
@@ -602,6 +604,7 @@ class OrbitDrawing {
                     this.travel,
                     this.shot.speed,
                 ),
+                shown: this.shot.watchers ?? 1,
             },
         );
         this.split = {
@@ -609,7 +612,12 @@ class OrbitDrawing {
             part: 'far' as const,
         };
         this.ctx.commands.push(...this.view.commands(this.split));
-        orbitWatchGlow(this.ctx, this.view, this.lamps);
+        orbitWatchGlow(
+            this.ctx,
+            this.view,
+            this.lamps,
+            this.shot.watchers ?? 1,
+        );
         this.plane = (x: number, y: number) =>
             this.view.project(this.satelliteLightPoint(x, y, this.travel));
         this.lightShown = 1 - smooth(this.ending.centre * 4);

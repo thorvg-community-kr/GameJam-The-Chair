@@ -143,6 +143,7 @@ function floating(
     travel: number,
     t: number,
 ): Lamp[] {
+    const { size } = spot;
     const placed = point(
         spot.x,
         spot.y + Math.sin(t * 0.9 + spot.seed) * 8,
@@ -156,16 +157,16 @@ function floating(
         const { eyes, glow } = robotBirdModel(
             view,
             spot.bird,
-            placer(anchor, yaw, spot.size * 1.2),
+            placer(anchor, yaw, size * 1.2),
             t * 9 + spot.seed,
         );
-        return eyes.map((at) => ({ at, state, glow: glow * spot.size * 1.2 }));
+        return eyes.map((at) => ({ at, state, glow: glow * size * 1.2 }));
     }
-    const lamp = cctvModel(view, spot.kind, placer(anchor, yaw, spot.size));
+    const lamp = cctvModel(view, spot.kind, placer(anchor, yaw, size));
     const rec = recording(t, spot.seed);
     view.oval(
         lamp,
-        [4.5 * spot.size, 4.5 * spot.size, 4.5 * spot.size],
+        [4.5 * size, 4.5 * size, 4.5 * size],
         lampColor(state, rec),
     );
     return [{ at: lamp, state, rec }];
@@ -231,8 +232,10 @@ export function orbitWatchers(
     {
         satelliteLightPoint = point,
         satellites = [],
+        shown = 1,
     }: {
         satelliteLightPoint?: RoutePoint;
+        shown?: number;
         satellites?: ReadonlyArray<{
             x: number;
             y: number;
@@ -240,9 +243,20 @@ export function orbitWatchers(
         }>;
     } = {},
 ): Lamp[] {
+    if (shown <= 0) {
+        return [];
+    }
     const lamps = [...ORBIT_WATCH.reveal, ...ORBIT_WATCH.route]
         .filter((spot) => point(spot.x, spot.y, spot.z)[0] > 0)
-        .flatMap((spot) => floating(view, point, spot, travel, t));
+        .flatMap((spot) =>
+            floating(
+                view,
+                point,
+                { ...spot, size: spot.size * shown },
+                travel,
+                t,
+            ),
+        );
     for (const at of satellites) {
         const ahead = satelliteLightPoint(at.x, at.y, at.z)[0];
         if (ahead > 0 && ahead < 6000) {
