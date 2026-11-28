@@ -38,7 +38,7 @@ player: clonePlain(source.p)
 
 `polygon`은 점들을 `screenPoint`로 변환하고 `kind: 'path'` 명령을 만듭니다. `push`는 현재 layer가 있으면 명령에 연결하고 `commands` 배열에 추가합니다. 이 단계에서는 ThorVG Shape를 만들지 않습니다.
 
-`withTransform`과 `withLayer`는 일부 요소에만 변환과 효과를 적용할 때 사용합니다. 공유 문맥의 값을 바꾸고 복구하지 않으면 뒤에 그리는 다른 요소까지 영향을 받습니다. `retainedGroup`의 도형 생성 함수는 변하는 게임 상태에 의존하지 않아야 캐시된 도형을 재사용할 수 있습니다.
+`withTransform`과 `withLayer`는 일부 요소에만 변환과 효과를 적용할 때 사용합니다. 공유 문맥의 값을 바꾸고 복구하지 않으면 뒤에 그리는 다른 요소까지 영향을 받습니다. `retainedGroup`의 도형 생성 함수는 변하는 게임 상태에 의존하지 않아야 캐시된 도형을 재사용할 수 있습니다. 색이나 투명도처럼 도형을 바꾸는 값은 `geometry` 키에 넣고, 위치와 크기는 `place`로 넘기면 ThorVG Scene transform만 바뀝니다. 빵 구름(`shared/cloud-art.ts`)이 이 방식으로 시드별 Scene을 재사용합니다.
 
 ## office/world.ts는 그리기 순서를 정한다
 

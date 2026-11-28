@@ -143,7 +143,14 @@ export type RenderCtx = {
     endLayer(): void;
     gradientPolygon(points: Vector[], fill: Gradient, opts?: PathOptions): void;
     // Geometry is cached per key; draw must not depend on changing state.
-    retainedGroup(key: string, bounds: Bounds, draw: () => void): void;
+    // `geometry` overrides the cache key while `key` keeps the Scene slot
+    // stable; `place` draws the cached local geometry at a world position.
+    retainedGroup(
+        key: string,
+        bounds: Bounds,
+        draw: () => void,
+        options?: RetainedOptions,
+    ): void;
     visible(bounds: Bounds, margin?: number): boolean;
     ripple(
         x: number,
@@ -219,6 +226,12 @@ export type TextOptions = {
     opacity?: number;
     rotation?: number;
 };
+export type RetainedOptions = {
+    geometry?: string;
+    place?: { x: number; y: number; scale: number };
+};
+// Bounds memory for geometry keys that vary with tone or alpha.
+const RETAINED_LIMIT = 256;
 export type PathOptions = { blend?: Blend; trim?: [number, number] };
 export type StrokeInput = {
     width: number;
@@ -523,12 +536,35 @@ class DrawingMethods {
             bounds.top < bottom
         );
     };
-    private retainedGroup: RenderCtx['retainedGroup'] = (key, bounds, draw) => {
-        if (!this.getCtx().visible(bounds)) {
+    private retainedGroup: RenderCtx['retainedGroup'] = (
+        key,
+        bounds,
+        draw,
+        options = {},
+    ) => {
+        const ctx = this.getCtx();
+        const screenBounds = {
+            left: (bounds.left - ctx.cam) * ctx.scale,
+            top: (bounds.top + ctx.vertical) * ctx.scale,
+            right: (bounds.right - ctx.cam) * ctx.scale,
+            bottom: (bounds.bottom + ctx.vertical) * ctx.scale,
+        };
+        // Culled in screen space: scenes that draw in screen units reset the
+        // camera without updating VW.
+        if (
+            screenBounds.right <= 0 ||
+            screenBounds.left >= ctx.W ||
+            screenBounds.bottom <= 0 ||
+            screenBounds.top >= ctx.H
+        ) {
             return;
         }
-        let geometry = this.retained.get(key);
-        if (!geometry) {
+        const id = options.geometry ?? key;
+        let geometry = this.retained.get(id);
+        if (geometry) {
+            this.retained.delete(id);
+            this.retained.set(id, geometry);
+        } else {
             const saved = {
                 commands: this.getCtx().commands,
                 cam: this.getCtx().cam,
@@ -553,32 +589,29 @@ class DrawingMethods {
             try {
                 draw();
                 geometry = this.getCtx().commands;
-                this.retained.set(key, geometry);
+                if (this.retained.size >= RETAINED_LIMIT) {
+                    this.retained.delete(this.retained.keys().next().value!);
+                }
+                this.retained.set(id, geometry);
             } finally {
                 Object.assign(this.getCtx(), saved);
             }
         }
+        const { x = 0, y = 0, scale = 1 } = options.place ?? {};
         const transform = {
-            e11: this.getCtx().scale,
+            e11: this.getCtx().scale * scale,
             e12: 0,
-            e13: -this.getCtx().cam * this.getCtx().scale,
+            e13: (x - this.getCtx().cam) * this.getCtx().scale,
             e21: 0,
-            e22: this.getCtx().scale,
-            e23: this.getCtx().vertical * this.getCtx().scale,
+            e22: this.getCtx().scale * scale,
+            e23: (y + this.getCtx().vertical) * this.getCtx().scale,
             e31: 0 as const,
             e32: 0 as const,
             e33: 1 as const,
         };
-        const screenBounds = {
-            left: (bounds.left - this.getCtx().cam) * this.getCtx().scale,
-            top: (bounds.top + this.getCtx().vertical) * this.getCtx().scale,
-            right: (bounds.right - this.getCtx().cam) * this.getCtx().scale,
-            bottom:
-                (bounds.bottom + this.getCtx().vertical) * this.getCtx().scale,
-        };
         const layer: LayerSpec = {
             key: `retained:${key}`,
-            retained: { geometry: key, transform, bounds: screenBounds },
+            retained: { geometry: id, transform, bounds: screenBounds },
         };
         this.getCtx().commands.push(
             ...geometry.map((command) => ({ ...command, layer })),
