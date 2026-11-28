@@ -39,29 +39,35 @@
                 <span class="replay-seek"><input type="range" data-replay-seek aria-label="Position" data-i18n-aria="replay.seek"><span class="replay-markers" data-replay-markers aria-hidden="true"></span></span>
                 <span class="replay-time" data-replay-time></span>
                 <select data-replay-speed aria-label="Speed" data-i18n-aria="replay.speed"></select>
-                <button data-replay-loop aria-label="Loop" data-i18n-aria="replay.loop" aria-pressed="false">⟲</button>
                 <button data-replay-exit hidden aria-label="Exit replay">✕</button>
                 <small class="replay-note" data-replay-note></small>
               </div>
             </div>
           </div>
-          <section class="tool-panel tool-edit">
-            <h2 data-i18n="tool.edit">Edit</h2>
-            <button type="button" id="add-marker" data-i18n="tool.addMarker" disabled>+ Marker (M)</button>
-            <ol class="tool-user-markers" id="user-markers"></ol>
-            <div class="tool-edit-row">
-              <button type="button" id="range-start" data-i18n="tool.rangeStart" disabled>[ Start (I)</button>
-              <button type="button" id="range-end" data-i18n="tool.rangeEnd" disabled>End (O) ]</button>
+          <section class="tool-edit" aria-label="Edit" data-i18n-aria="tool.edit">
+            <div class="tool-edit-bar" role="group" aria-label="Edit controls" data-i18n-aria="tool.edit">
+              <button type="button" id="range-start" data-i18n-aria="tool.setStart" aria-keyshortcuts="I" disabled><span data-i18n="tool.startPoint">Start</span><output id="start-time">—</output></button>
+              <button type="button" id="range-end" data-i18n-aria="tool.setEnd" aria-keyshortcuts="O" disabled><span data-i18n="tool.endPoint">End</span><output id="end-time">—</output></button>
+              <span class="tool-range" id="range-info"></span>
+              <div class="tool-edit-group">
+                <button type="button" id="range-play" data-i18n-aria="tool.playRange" disabled>▶</button>
+                <button type="button" id="range-loop" data-i18n-aria="tool.rangeLoop" aria-keyshortcuts="L" aria-pressed="false" disabled>⟲</button>
+              </div>
+              <details class="tool-edit-more">
+                <summary data-i18n="tool.more">More</summary>
+                <div class="tool-edit-actions">
+                  <button type="button" id="download-clip" data-i18n="tool.downloadClip" disabled>JSON ↓</button>
+                  <button type="button" id="copy-clip" data-i18n="tool.copyClip" disabled>Copy JSON</button>
+                  <button type="button" id="add-marker" data-i18n="tool.addMarker" aria-keyshortcuts="M" disabled>+ Marker</button>
+                  <button type="button" id="range-clear" data-i18n="tool.rangeClear" disabled>Reset</button>
+                </div>
+              </details>
             </div>
-            <p class="tool-range" id="range-info"></p>
-            <div class="tool-edit-row">
-              <button type="button" id="range-loop" data-i18n="tool.rangeLoop" aria-pressed="false" disabled>⟲ Loop range (L)</button>
-              <button type="button" id="range-clear" data-i18n="tool.rangeClear" disabled>Clear range</button>
-            </div>
-            <div class="tool-edit-row">
-              <button type="button" id="download-clip" data-i18n="tool.downloadClip" disabled>Download range</button>
-              <button type="button" id="copy-clip" data-i18n="tool.copyClip" disabled>Copy range JSON</button>
-            </div>
+            <p id="edit-status" class="tool-edit-status" role="status"></p>
+            <details id="marker-list" class="tool-marker-list" hidden>
+              <summary data-i18n="tool.myMarkers">My markers</summary>
+              <ol class="tool-user-markers" id="user-markers"></ol>
+            </details>
           </section>
           <section class="tool-panel">
             <h2 data-i18n="tool.commands">Commands</h2>

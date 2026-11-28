@@ -54,6 +54,14 @@ for (const element of document.querySelectorAll<HTMLElement>(
     }
 }
 
+const compactEditBar = window.matchMedia('(max-width: 1200px)');
+const editMore = $<HTMLDetailsElement>('.tool-edit-more');
+const syncEditMenu = () => {
+    editMore.open = !compactEditBar.matches;
+};
+compactEditBar.addEventListener('change', syncEditMenu);
+syncEditMenu();
+
 const root = $('#chair-office-one');
 const status = $('#status');
 const sourcesSelect = $<HTMLSelectElement>('#sources');
@@ -62,6 +70,7 @@ let sources: ReplaySource[] = [];
 let selected: ReplaySource | null = null;
 let edit: ReplayEdit = { markers: [], range: null };
 let editKey = '';
+let rangePreviewEnd: number | null = null;
 
 const renderer = (() => {
     try {
@@ -125,6 +134,8 @@ function load(text: string, origin: string) {
 }
 
 function open(source: ReplaySource) {
+    rangePreviewEnd = null;
+    $('#edit-status').textContent = '';
     selected = source;
     const timeline = player.open(source.file);
     $('#empty').hidden = true;
@@ -203,13 +214,21 @@ function applyEdit(timeline: Timeline, save = true) {
     player.setRange(edit.range);
     renderUserMarkers();
     const range = edit.range;
+    $('#start-time').textContent = seconds(range?.start ?? timeline.startTick);
+    $('#end-time').textContent = seconds(range?.end ?? timeline.endTick);
     $('#range-info').textContent = range
-        ? `${seconds(range.start)} → ${seconds(range.end)} (${((range.end - range.start) * FIXED_STEP).toFixed(2)}s)`
+        ? `${((range.end - range.start) * FIXED_STEP).toFixed(2)}s`
         : t('tool.rangeNone');
     for (const id of ['#add-marker', '#range-start', '#range-end']) {
         $<HTMLButtonElement>(id).disabled = false;
     }
-    for (const id of ['#range-clear', '#download-clip', '#copy-clip', '#range-loop']) {
+    for (const id of [
+        '#range-clear',
+        '#download-clip',
+        '#copy-clip',
+        '#range-loop',
+        '#range-play',
+    ]) {
         $<HTMLButtonElement>(id).disabled = !range;
     }
     syncLoop();
@@ -225,6 +244,8 @@ function syncLoop() {
 function editNow(change: (tick: number, timeline: Timeline) => void) {
     const timeline = player.timeline;
     if (timeline) {
+        rangePreviewEnd = null;
+        $('#edit-status').textContent = '';
         change(player.tick, timeline);
         applyEdit(timeline);
     }
@@ -233,6 +254,7 @@ function editNow(change: (tick: number, timeline: Timeline) => void) {
 let markerHere = -1;
 function renderUserMarkers() {
     markerHere = -1;
+    $('#marker-list').hidden = edit.markers.length === 0;
     $('#user-markers').replaceChildren(
         ...edit.markers.map((marker) => {
             const item = document.createElement('li');
@@ -288,17 +310,21 @@ function highlightMarker(tick: number) {
 function toggleMarker() {
     editNow((tick) => {
         const existing = edit.markers.find((marker) => marker.tick === tick);
-        edit.markers = existing
-            ? edit.markers.filter((marker) => marker !== existing)
-            : [...edit.markers, { tick, label: '' }];
+        if (existing) {
+            $('#edit-status').textContent = t('tool.markerExists');
+        } else {
+            edit.markers = [...edit.markers, { tick, label: '' }];
+        }
+        $<HTMLDetailsElement>('#marker-list').open = true;
     });
 }
 
 function setRangeStart() {
     editNow((tick, timeline) => {
-        let end = edit.range?.end ?? timeline.endTick;
+        const end = edit.range?.end ?? timeline.endTick;
         if (end <= tick) {
-            end = timeline.endTick;
+            $('#edit-status').textContent = t('tool.invalidStart');
+            return;
         }
         edit.range = tick < end ? { start: tick, end } : edit.range;
     });
@@ -306,9 +332,10 @@ function setRangeStart() {
 
 function setRangeEnd() {
     editNow((tick, timeline) => {
-        let start = edit.range?.start ?? timeline.startTick;
+        const start = edit.range?.start ?? timeline.startTick;
         if (start >= tick) {
-            start = timeline.startTick;
+            $('#edit-status').textContent = t('tool.invalidEnd');
+            return;
         }
         edit.range = start < tick ? { start, end: tick } : edit.range;
     });
@@ -317,9 +344,6 @@ function setRangeEnd() {
 function toggleRangeLoop() {
     if (edit.range) {
         player.setLoop(!player.loop);
-        if (player.loop) {
-            player.setPlaying(true);
-        }
         syncLoop();
     }
 }
@@ -458,6 +482,7 @@ $('#range-loop').addEventListener('click', toggleRangeLoop);
 $('#range-clear').addEventListener('click', () =>
     editNow(() => {
         edit.range = null;
+        player.setLoop(false);
     }),
 );
 $('#download-clip').addEventListener('click', () => {
@@ -469,20 +494,41 @@ $('#download-clip').addEventListener('click', () => {
         );
     }
 });
+let copyFeedbackTimer: ReturnType<typeof setTimeout> | undefined;
+function showCopyResult(copied: boolean) {
+    const message = t(copied ? 'replay.copied' : 'replay.copyFailed');
+    $('#edit-status').textContent = message;
+    $('#copy-clip').textContent = message;
+    clearTimeout(copyFeedbackTimer);
+    copyFeedbackTimer = setTimeout(() => {
+        $('#copy-clip').textContent = t('tool.copyClip');
+    }, 2000);
+}
 $('#copy-clip').addEventListener('click', () => {
     const timeline = player.timeline;
     if (selected && timeline && edit.range) {
-        copyText(JSON.stringify(clipReplay(timeline, edit.range, edit), null, 2))
-            .then((copied) => {
-                status.textContent = t(
-                    copied ? 'replay.copied' : 'replay.copyFailed',
-                );
-            })
-            .catch(() => {
-                status.textContent = t('replay.copyFailed');
-            });
+        copyText(
+            JSON.stringify(clipReplay(timeline, edit.range, edit), null, 2),
+        )
+            .then(showCopyResult)
+            .catch(() => showCopyResult(false));
     }
 });
+$('#range-play').addEventListener('click', () => {
+    if (edit.range) {
+        rangePreviewEnd = edit.range.end;
+        player.seek(edit.range.start);
+        player.setPlaying(true);
+    }
+});
+for (const button of document.querySelectorAll<HTMLButtonElement>(
+    '.tool-edit-bar button',
+)) {
+    button.title =
+        button.getAttribute('aria-label') ?? button.textContent.trim();
+}
+$('#download-clip').setAttribute('aria-label', t('tool.downloadClipLabel'));
+$('#download-clip').title = t('tool.downloadClipLabel');
 window.addEventListener('keydown', (event) => {
     const target = event.target;
     if (
@@ -527,6 +573,15 @@ function frame(ms: number) {
     const dt = last === null ? 0 : (ms - last) / 1000;
     last = ms;
     player.advance(dt);
+    if (rangePreviewEnd !== null) {
+        if (!player.playing || player.loop) {
+            rangePreviewEnd = null;
+        } else if (player.tick >= rangePreviewEnd) {
+            player.seek(rangePreviewEnd);
+            player.setPlaying(false);
+            rangePreviewEnd = null;
+        }
+    }
     const view = player.view();
     if (view && renderer) {
         renderer.draw(view, player.effects());
