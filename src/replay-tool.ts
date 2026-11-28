@@ -54,14 +54,6 @@ for (const element of document.querySelectorAll<HTMLElement>(
     }
 }
 
-const compactEditBar = window.matchMedia('(max-width: 1200px)');
-const editMore = $<HTMLDetailsElement>('.tool-edit-more');
-const syncEditMenu = () => {
-    editMore.open = !compactEditBar.matches;
-};
-compactEditBar.addEventListener('change', syncEditMenu);
-syncEditMenu();
-
 const root = $('#chair-office-one');
 const status = $('#status');
 const sourcesSelect = $<HTMLSelectElement>('#sources');

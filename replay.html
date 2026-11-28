@@ -49,18 +49,13 @@
               <button type="button" id="range-start" data-i18n-aria="tool.setStart" aria-keyshortcuts="I" disabled><span data-i18n="tool.startPoint">Start</span><output id="start-time">—</output></button>
               <button type="button" id="range-end" data-i18n-aria="tool.setEnd" aria-keyshortcuts="O" disabled><span data-i18n="tool.endPoint">End</span><output id="end-time">—</output></button>
               <span class="tool-range" id="range-info"></span>
-              <div class="tool-edit-group">
-                <button type="button" id="range-loop" data-i18n-aria="tool.rangeLoop" aria-keyshortcuts="L" aria-pressed="false" disabled>⟲</button>
+              <button type="button" id="range-loop" data-i18n-aria="tool.rangeLoop" aria-keyshortcuts="L" aria-pressed="false" disabled>⟲</button>
+              <div class="tool-edit-actions">
+                <button type="button" id="download-clip" data-i18n="tool.downloadClip" disabled>JSON ↓</button>
+                <button type="button" id="copy-clip" data-i18n="tool.copyClip" disabled>Copy JSON</button>
+                <button type="button" id="add-marker" data-i18n="tool.addMarker" aria-keyshortcuts="M" disabled>+ Marker</button>
+                <button type="button" id="range-clear" data-i18n="tool.rangeClear" disabled>Reset</button>
               </div>
-              <details class="tool-edit-more">
-                <summary data-i18n="tool.more">More</summary>
-                <div class="tool-edit-actions">
-                  <button type="button" id="download-clip" data-i18n="tool.downloadClip" disabled>JSON ↓</button>
-                  <button type="button" id="copy-clip" data-i18n="tool.copyClip" disabled>Copy JSON</button>
-                  <button type="button" id="add-marker" data-i18n="tool.addMarker" aria-keyshortcuts="M" disabled>+ Marker</button>
-                  <button type="button" id="range-clear" data-i18n="tool.rangeClear" disabled>Reset</button>
-                </div>
-              </details>
             </div>
             <p id="edit-status" class="tool-edit-status" role="status"></p>
             <details id="marker-list" class="tool-marker-list" hidden>
