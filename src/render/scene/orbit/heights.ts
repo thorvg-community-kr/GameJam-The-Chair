@@ -157,14 +157,15 @@ export function orbitShadow(
     }
     const rim: Vector = sunrise;
     const glow = ctx.W * 0.22 * sun * (1 + 0.5 * dawn);
+    // Plain alpha over the dark limb matches screen without an offscreen pass,
+    // and a polygon around the disc skips the transparent square corners.
+    const reach = glow / Math.cos(Math.PI / SUN_SIDES);
     ctx.commands.push({
         kind: 'path',
-        points: [
-            [rim[0] - glow, rim[1] - glow],
-            [rim[0] + glow, rim[1] - glow],
-            [rim[0] + glow, rim[1] + glow],
-            [rim[0] - glow, rim[1] + glow],
-        ],
+        points: SUN_POLYGON.map(([c, s]): Vector => [
+            rim[0] + c * reach,
+            rim[1] + s * reach,
+        ]),
         fill: {
             from: rim,
             to: [rim[0] + glow, rim[1]],
@@ -174,6 +175,12 @@ export function orbitShadow(
                 [1, ctx.rgba('#ffb86b', 0)],
             ],
         },
-        layer: { key: 'orbit-sunrise', blend: 'screen' },
+        layer: { key: 'orbit-sunrise' },
     });
 }
+
+const SUN_SIDES = 12;
+const SUN_POLYGON = Array.from({ length: SUN_SIDES }, (_, i): Vector => {
+    const a = ((i + 0.5) * 2 * Math.PI) / SUN_SIDES;
+    return [Math.cos(a), Math.sin(a)];
+});

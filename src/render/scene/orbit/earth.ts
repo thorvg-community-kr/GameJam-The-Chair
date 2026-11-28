@@ -589,7 +589,9 @@ function earthFrame(
     const mayShow = (cap: Cap) =>
         capReach(cap, up) >= limb &&
         R * capReach(cap, lookAhead) - eyeAhead >= NEAR;
-    return { project, outline, visible, mayShow, limb, rim };
+    /** 0 on the horizon, 1 straight below the eye. */
+    const rise = (n: V3) => (dot(n, up) - limb) / (1 - limb);
+    return { project, outline, visible, mayShow, rise, limb, rim };
 }
 function earthView(z: number, yaw: number, camera: EarthCamera, spin = 0) {
     const h = earthAltitude(z);
@@ -654,7 +656,7 @@ export function orbitEarth(
     const view = earthView(travel, yaw, camera, spin);
     const { horizon, middle } = view;
     const far = Math.max(ctx.W, ctx.H) * 4;
-    const { surface, ground, clip, coasts } = orbitEarthDetails(
+    const { surface, ground, coasts } = orbitEarthDetails(
         horizon,
         far,
         ctx,
@@ -684,29 +686,31 @@ export function orbitEarth(
                 layer: surface,
             });
         }
-        orbitEarthDetails4(strength, night, clip, view, ctx);
+        orbitEarthLights(strength * night, view, ctx);
     }
     return orbitEarthDetails2(horizon, ctx, middle, strength);
 }
-function orbitEarthDetails4(
-    strength: number,
-    night: number,
-    clip: PathCommand,
-    view: EarthView,
-    ctx: RenderCtx,
-) {
-    const glow = {
-        key: 'orbit-earth-lights',
-        blend: 'screen' as const,
-        opacity: strength * night,
-        clip,
-    };
+// City lights are drawn with plain alpha instead of a screen-blended, clipped,
+// translucent Scene: on the dark night side the result is nearly identical and
+// it skips three offscreen compositing passes. Lights fade out towards the
+// horizon so their glow never spills past the limb without the ground clip.
+const LIGHT_FADE = 0.12;
+function orbitEarthLights(glow: number, view: EarthView, ctx: RenderCtx) {
+    if (glow < 0.03) {
+        return;
+    }
+    const layer = { key: 'orbit-earth-lights' };
     for (const { at, size } of CITY_POINTS) {
         if (!view.visible(at)) {
             continue;
         }
+        const fade = Math.min(1, view.rise(at) / LIGHT_FADE);
+        const k = glow * fade;
+        if (k < 0.03) {
+            continue;
+        }
         const [x, y] = view.project(at);
-        const r = (size * ctx.W) / 420;
+        const r = ((size * ctx.W) / 420) * (0.4 + 0.6 * fade);
         ctx.commands.push({
             kind: 'path',
             points: [
@@ -715,14 +719,14 @@ function orbitEarthDetails4(
                 [x + r * 4, y + r * 4],
                 [x - r * 4, y + r * 4],
             ],
-            layer: glow,
+            layer,
             fill: {
                 from: [x, y],
                 to: [x + r * 4, y],
                 radius: r * 4,
                 stops: [
-                    [0, ctx.rgba('#ffc96a', 1)],
-                    [0.35, ctx.rgba('#ffb84d', 0.45)],
+                    [0, ctx.rgba('#ffc96a', k)],
+                    [0.35, ctx.rgba('#ffb84d', 0.45 * k)],
                     [1, ctx.rgba('#ffb84d', 0)],
                 ],
             },
@@ -735,8 +739,8 @@ function orbitEarthDetails4(
                 [x + r * 2.2, y],
                 [x, y + r],
             ],
-            fill: '#fff6dc',
-            layer: glow,
+            fill: '#fff6dc' + alpha(k),
+            layer,
         });
     }
 }
@@ -774,11 +778,13 @@ function orbitEarthDetails2(
     middle: Vector,
     strength: number,
 ) {
+    // Air and limb sit on black space, where screen equals plain alpha, so they
+    // skip the full-canvas offscreen pass a screen-blended Scene would cost.
     const above = horizon.map(([x, y]): Vector => [x, y - ctx.H * 0.07]);
     ctx.commands.push({
         kind: 'path',
         points: [...horizon, ...above.reverse()],
-        layer: { key: 'orbit-earth-air', blend: 'screen' },
+        layer: { key: 'orbit-earth-air' },
         fill: {
             from: middle,
             to: [middle[0], middle[1] - ctx.H * 0.07],
@@ -788,7 +794,7 @@ function orbitEarthDetails2(
             ],
         },
     });
-    const limb = { key: 'orbit-earth-limb', blend: 'screen' as const };
+    const limb = { key: 'orbit-earth-limb' };
     for (const [width, color, opacity] of [
         [ctx.W * 0.012, '#4f8fe0', 0.45],
         [ctx.W * 0.004, '#d8f0ff', 0.85],

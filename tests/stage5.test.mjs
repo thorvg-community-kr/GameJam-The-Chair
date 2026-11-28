@@ -1240,7 +1240,7 @@ test('in the ending Seoul glows on the night side ahead', () => {
     const night = endingFrame(0.5);
     const lights = night
         .layer('orbit-earth-lights')
-        .filter((command) => command.fill === '#fff6dc');
+        .filter((command) => command.fill?.startsWith?.('#fff6dc'));
     assert.ok(lights.length > 5, 'city lights are on');
     assert.ok(
         lights.some(({ points }) =>
