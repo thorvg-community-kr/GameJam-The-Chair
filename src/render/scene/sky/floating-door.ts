@@ -3,6 +3,12 @@ import type { RenderCtx } from '../../context';
 const DOOR = { w: 70, h: 124, period: 11 };
 const smooth = (v: number) => v * v * (3 - 2 * v);
 
+const SPOTS: ReadonlyArray<{ x: number; y: number; phase: number }> = [
+    { x: 2560, y: -2010, phase: 0 },
+    { x: 4040, y: -2500, phase: 4 },
+    { x: 4570, y: -2365, phase: 7.5 },
+];
+
 function doorOpening(t: number): number {
     const u = t % DOOR.period;
     if (u < 6) {
@@ -20,25 +26,23 @@ function doorOpening(t: number): number {
     return 0;
 }
 
-export function floatingDoor(
-    ctx: RenderCtx,
-    top: number,
-    height: number,
-): void {
-    const span = ctx.VW + 500;
-    const travel = (ctx.cam * 0.22 + ctx.t * 16) % span;
-    const x = ctx.cam + ctx.VW + 250 - travel;
-    const y = top + height * 0.17 + Math.sin(ctx.t * 0.7) * 18;
-    const open = doorOpening(ctx.t);
-    ctx.withTransform(
-        {
-            ox: x,
-            oy: y,
-            rotation: Math.sin(ctx.t * 0.42) * 0.22 * (1 - open * 0.7),
-            localScale: 0.95,
-        },
-        () => drawDoor(ctx, open),
-    );
+export function floatingDoors(ctx: RenderCtx): void {
+    for (const spot of SPOTS) {
+        if (spot.x < ctx.cam - 120 || spot.x > ctx.cam + ctx.VW + 120) {
+            continue;
+        }
+        const t = ctx.t + spot.phase;
+        const open = doorOpening(t);
+        ctx.withTransform(
+            {
+                ox: spot.x,
+                oy: spot.y + Math.sin(t * 0.7) * 8,
+                rotation: Math.sin(t * 0.42) * 0.08 * (1 - open),
+                localScale: 0.95,
+            },
+            () => drawDoor(ctx, open),
+        );
+    }
 }
 
 const WOOD = {
