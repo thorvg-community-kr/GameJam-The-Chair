@@ -358,6 +358,12 @@ function countLayerShapes(
     if (spec.blur) {
         effects.push(`blur${spec.blur}`);
     }
+    if (spec.tint) {
+        effects.push('tint');
+    }
+    if (spec.dropShadow) {
+        effects.push('shadow');
+    }
     return effects;
 }
 function applyLayerEffects(
@@ -377,6 +383,25 @@ function applyLayerEffects(
         scene.motionBlur(
             spec.motionBlur.distance * effectScale,
             spec.motionBlur.angle,
+            quality,
+        );
+    }
+    if (spec.tint) {
+        const [br, bg, bb] = ctx.rgba(spec.tint.black);
+        const [wr, wg, wb] = ctx.rgba(spec.tint.white);
+        scene.tint(br, bg, bb, wr, wg, wb, spec.tint.intensity);
+    }
+    if (spec.dropShadow) {
+        const { color, opacity, angle, distance, sigma } = spec.dropShadow;
+        const [r, g, b, a] = ctx.rgba(color, opacity);
+        scene.dropShadow(
+            r,
+            g,
+            b,
+            a,
+            angle,
+            distance * effectScale,
+            Math.max(0.1, sigma * effectScale),
             quality,
         );
     }
