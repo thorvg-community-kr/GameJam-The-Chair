@@ -140,6 +140,8 @@ export function createSkyProjection(
 ): {
     project: (p: Point3) => Vector;
     depth: (p: Point3) => number;
+    /** Pixel radius of a bounding sphere; 0 when it is fully off-screen. */
+    footprint: (center: Point3, radius: number, margin?: number) => number;
     polygon: (
         points: Point3[],
         color: string,
@@ -207,6 +209,8 @@ export function placedProjection(
         ...view,
         project: (p) => view.project(place(p)),
         depth: (p) => view.depth(place(p)),
+        footprint: (center, radius, margin) =>
+            view.footprint(place(center), radius, margin),
         polygon: (points, color, options) =>
             view.polygon(
                 points.map(place),
@@ -433,6 +437,29 @@ class SkyProjectionRuntime {
                 x * Math.sin(roll) +
                 y * Math.cos(roll),
         ];
+    };
+    /** Projected pixel radius of a bounding sphere, or 0 when it is fully off-screen. */
+    private footprint = (
+        center: Point3,
+        radius: number,
+        margin = 0,
+    ): number => {
+        const d = this.depth(center);
+        if (d + radius <= 30) {
+            return 0;
+        }
+        if (d - radius <= 30) {
+            return Infinity;
+        }
+        const r = (radius * this.focal) / d;
+        const [x, y] = this.project(center);
+        const pad = r + margin;
+        return x + pad < 0 ||
+            x - pad > this.width ||
+            y + pad < 0 ||
+            y - pad > this.height
+            ? 0
+            : r;
     };
     private pixels = (a: Point3, b: Point3): number => {
         const near = Math.max(30, Math.min(this.depth(a), this.depth(b)));
@@ -839,6 +866,7 @@ class SkyProjectionRuntime {
         return {
             project: this.project,
             depth: this.depth,
+            footprint: this.footprint,
             polygon: this.polygon,
             profile: this.profile,
             box: this.box,

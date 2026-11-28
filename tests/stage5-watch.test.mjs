@@ -78,7 +78,7 @@ test('stage five glows red only at the cameras the chair has reached', () => {
         'no camera is near the start',
     );
     const first = Math.min(...ORBIT_WATCH.route.map((spot) => spot.z));
-    assert.ok(glows(first - 100).some((count) => count > 0));
+    assert.ok(glows(first - 175).some((count) => count > 0));
 });
 test('every camera ahead keeps blinking its red REC lamp, out of step with the others', () => {
     const rec = beats.map(
@@ -126,13 +126,33 @@ test('turning the camera changes projections without spawning or moving watchers
         );
         return { lamps, commands: view.commands() };
     };
-    const side = render(0);
-    const middle = render(0.5);
-    const rear = render(1);
-    assert.ok(side.lamps.length >= ORBIT_WATCH.reveal.length);
-    assert.deepEqual(side.lamps, middle.lamps);
-    assert.deepEqual(middle.lamps, rear.lamps);
-    assert.notDeepEqual(side.commands, rear.commands);
+    const views = [render(0), render(0.5), render(1)];
+    const where = new Map();
+    for (const { lamps } of views) {
+        for (const lamp of lamps) {
+            const key = JSON.stringify(lamp.at);
+            assert.deepEqual(where.get(key) ?? lamp, lamp, 'lamp stays put');
+            where.set(key, lamp);
+        }
+    }
+    assert.ok(where.size >= ORBIT_WATCH.reveal.length);
+    const birds = ORBIT_WATCH.reveal.filter((spot) => spot.bird).length;
+    assert.ok(
+        where.size <=
+            ORBIT_WATCH.reveal.length + birds + ORBIT_WATCH.route.length,
+    );
+    assert.notDeepEqual(views[0].commands, views[2].commands);
+});
+test('watchers outside the frame are culled before they build any geometry', () => {
+    const view = createSkyProjection(1000, 510, 0);
+    const lamps = orbitWatchers(
+        view,
+        (x, y, z) => [z + ORBIT_WATCH.glide, 15 + y, x + 1e5],
+        -ORBIT_WATCH.glide,
+        0,
+    );
+    assert.equal(lamps.length, 0);
+    assert.equal(view.commands().length, 0);
 });
 test('the cameras get time to sink in before the glide, which arrives at stage five already at cruise speed', () => {
     const { settle, turn, hold } = STAGE_FOUR.reveal;
