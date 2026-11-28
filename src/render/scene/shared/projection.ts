@@ -50,6 +50,8 @@ export function createSkyProjection(
     ) => void;
     oval: (center: Point3, radii: Point3, color: string) => void;
     rod: (a: Point3, b: Point3, r: number, color: string) => void;
+    /** Draws with sort depth pulled toward the camera by `bias`. */
+    biased: (bias: number, draw: () => void) => void;
     commands: (split?: {
         depth: number;
         part: 'far' | 'near';
@@ -75,6 +77,7 @@ export function placedProjection(
             }),
         oval: (center, radii, color) => view.oval(place(center), radii, color),
         rod: (a, b, r, color) => view.rod(place(a), place(b), r, color),
+        biased: view.biased,
     };
 }
 class SkyProjectionRuntime {
@@ -148,7 +151,8 @@ class SkyProjectionRuntime {
             color,
             depth:
                 points.reduce((sum, p) => sum + this.depth(p), 0) /
-                points.length,
+                    points.length -
+                this.bias,
         });
     };
     private shade: (color: string, factor: number) => string = (
@@ -279,7 +283,7 @@ class SkyProjectionRuntime {
         ];
         const k = 0.5522847498;
         this.curves.push({
-            depth: this.depth(center),
+            depth: this.depth(center) - this.bias,
             command: {
                 kind: 'path',
                 points: [point(1, 0)],
@@ -323,6 +327,16 @@ class SkyProjectionRuntime {
                 [add(a, u), add(a, v), add(b, v), add(b, u)],
                 this.shade(color, 0.96),
             );
+        }
+    };
+    private bias = 0;
+    private biased = (bias: number, draw: () => void): void => {
+        const previous = this.bias;
+        this.bias = bias;
+        try {
+            draw();
+        } finally {
+            this.bias = previous;
         }
     };
     private commands: (split?: {
@@ -425,6 +439,7 @@ class SkyProjectionRuntime {
         ) => void;
         oval: (center: Point3, radii: Point3, color: string) => void;
         rod: (a: Point3, b: Point3, r: number, color: string) => void;
+        biased: (bias: number, draw: () => void) => void;
         commands: (split?: {
             depth: number;
             part: 'far' | 'near';
@@ -437,6 +452,7 @@ class SkyProjectionRuntime {
             profile: this.profile,
             oval: this.oval,
             rod: this.rod,
+            biased: this.biased,
             commands: this.commands,
         };
     }

@@ -24,6 +24,7 @@ import {
 import {
     orbitRoute,
     orbitEndingScene,
+    orbitEpilogueScene,
     orbitSatelliteLightScene,
     orbitSatelliteLightLitScene,
 } from './preview/orbit';
@@ -456,6 +457,11 @@ export const previewScenes: readonly PreviewRegistration[] = (
             id: 'orbit-ending-aside',
             label: 'Orbit · Ending after parking off to one side',
             create: () => orbitEndingScene(true),
+        },
+        {
+            id: 'orbit-ending-epilogue',
+            label: 'Orbit · Epilogue: the chair taps, shakes him off, and they stare',
+            create: () => orbitEpilogueScene(),
         },
         {
             id: 'building-meeting',

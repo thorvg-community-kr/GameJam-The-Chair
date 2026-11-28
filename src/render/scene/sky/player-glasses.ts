@@ -5,9 +5,14 @@ const TOP = -87.6;
 const BOTTOM = -79;
 const INNER = 1.6;
 const OUTER = 10.6;
-export function endingGlasses(view: SkyProjection, bob: number): void {
+type Eyes = { look: number; blink: number };
+export function endingGlasses(
+    view: SkyProjection,
+    bob: number,
+    eyes: Eyes = { look: 0, blink: 0 },
+): void {
     for (const side of [-1, 1]) {
-        lens(view, bob, side);
+        lens(view, bob, side, eyes);
     }
     view.rod(
         point([FRONT, -84.6, -INNER], bob),
@@ -44,7 +49,7 @@ function facing(
         color,
     );
 }
-function lens(view: SkyProjection, bob: number, side: number) {
+function lens(view: SkyProjection, bob: number, side: number, eyes: Eyes) {
     const inner = side * INNER;
     const outer = side * OUTER;
     facing(view, bob, FRONT, TOP, {
@@ -59,12 +64,21 @@ function lens(view: SkyProjection, bob: number, side: number) {
         z1: side * (OUTER - 1.6),
         color: '#bfe6ef',
     });
+    const glance = eyes.look * 3;
     facing(view, bob, FRONT + 0.15, -84.6, {
         bottom: -81.8,
-        z0: side * 5.2,
-        z1: side * 6.8,
+        z0: side * 5.2 + glance,
+        z1: side * 6.8 + glance,
         color: '#446d82',
     });
+    if (eyes.blink > 0) {
+        facing(view, bob, FRONT + 0.25, TOP, {
+            bottom: TOP + (BOTTOM - TOP) * Math.min(1, eyes.blink),
+            z0: inner,
+            z1: outer,
+            color: '#e4cba6',
+        });
+    }
     for (const z of [inner, outer]) {
         view.rod(
             point([FRONT, TOP, z], bob),

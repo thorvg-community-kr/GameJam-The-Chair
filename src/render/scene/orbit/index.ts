@@ -1,4 +1,5 @@
 import { endingFade, orbitEnding } from './ending';
+import { drawEpilogue } from './epilogue';
 import { drawOrbitShot } from './shot';
 import { STAGE_FIVE } from '../../../game/stages/orbit/data';
 import { REVEAL_DURATION } from '../sky/camera';
@@ -15,6 +16,10 @@ export function drawOrbit(ctx: RenderCtx): void {
         return;
     }
     const ending = orbitEnding(orbit);
+    if (ending.epilogue) {
+        drawEpilogue(ctx, ending, orbit.z);
+        return;
+    }
     if (Math.round(ending.dark * 255) >= 255) {
         endingFade(ctx, ending);
         return;
