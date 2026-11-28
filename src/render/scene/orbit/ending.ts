@@ -80,7 +80,8 @@ export function endingNebula(
     if (strength <= 0) {
         return;
     }
-    const layer = { key: 'orbit-nebula', blend: 'screen' as const };
+    // Colours bake in the screen blend: the nebula only ever covers dark space.
+    const layer = { key: 'orbit-nebula' };
     const clouds: Array<[number, number, number, string, number]> = [
         [0.68, 0.2, 0.34, '#5b3fb0', 0.55],
         [0.8, 0.14, 0.22, '#c25a86', 0.5],
