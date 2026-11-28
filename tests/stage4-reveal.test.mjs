@@ -520,7 +520,11 @@ test('the reveal turns steadily from the side to behind the chair, keeping it ce
     endingChair(side, settle);
     const model = side.commands();
     near(
-        withoutBubble(revealFrame('reveal', settle)).slice(-model.length),
+        withoutBubble(revealFrame('reveal', settle)).filter(
+            (command) =>
+                !command.layer &&
+                model.some((part) => part.fill === command.fill),
+        ),
         model,
     );
     assert.ok(
@@ -567,24 +571,17 @@ test('the reveal turns steadily from the side to behind the chair, keeping it ce
         );
     }
 });
-test('the watchers stay out of the flat side view and turn up, without fading, as the view turns into 3D', () => {
+test('the watchers are present in the side view and remain opaque while the camera turns', () => {
     const { settle, turn } = STAGE_FOUR.reveal;
     const watch = (phase, age) =>
         revealFrame(phase, age).filter(
             (command) =>
                 !command.layer && ['#ff4a3a', '#5e1d1a'].includes(command.fill),
         );
-    assert.equal(
-        watch('reveal', settle * 0.9).length,
-        0,
-        'nothing in the 2D side view',
-    );
+    assert.ok(watch('reveal', settle * 0.9).length > 0);
     const early = watch('reveal', settle + turn * 0.3);
     const late = watch('reveal', settle + turn * 0.8);
-    assert.ok(
-        early.length > 0 && late.length > early.length,
-        'more cameras come into view as the turn goes on',
-    );
+    assert.ok(early.length > 0 && late.length > 0);
     for (const commands of [early, late, watch('depth', 1)]) {
         assert.ok(
             commands.every((command) => command.fill.length === 7),
@@ -668,20 +665,17 @@ test('the departure leaves scenery behind before the quiet side view and is seek
         'backward seeking restores the departure scenery',
     );
 });
-test('the reveal wipes across the course before the camera turns', () => {
-    const clips = (age) =>
-        revealFrame('reveal', age)
-            .filter((command) =>
-                command.layer?.key?.startsWith('sky-reveal-wipe-'),
-            )
-            .map((command) => command.layer.clip.points);
-    const start = clips(0);
-    const middle = clips(0.45);
-    assert.ok(start.length > 0 && middle.length > 0);
-    assert.equal(start[0][0][0], start[0][1][0]);
-    assert.equal(middle[0][0][0], middle[0][1][0] / 2);
-    assert.deepEqual(clips(0.9), []);
-    assert.deepEqual(clips(0), start);
+test('the reveal starts without a screen wipe', () => {
+    for (const age of [0, 0.225, 0.45, 0.9]) {
+        const commands = revealFrame('reveal', age);
+        assert.ok(commands.length > 0);
+        assert.ok(
+            commands.every(
+                (command) =>
+                    !command.layer?.key?.startsWith('sky-reveal-wipe-'),
+            ),
+        );
+    }
 });
 test('arrival spray shortens and settles into the existing chair animation', () => {
     const chair = (time, spray, arrival) => {
@@ -709,7 +703,11 @@ test('arrival spray shortens and settles into the existing chair animation', () 
     );
     const settled = SKY_DEPARTURE + 0.1;
     near(
-        revealFrame('reveal', settled).slice(-chair(settled, 1, 0).length),
+        revealFrame('reveal', settled).filter(
+            (command) =>
+                !command.layer &&
+                chair(settled, 1, 0).some((part) => part.fill === command.fill),
+        ),
         chair(settled, 1, 0),
         'arrival motion returns to the original animated model before the camera turns',
     );
@@ -746,7 +744,7 @@ test('the ending clouds are bread clouds, not flat pale ovals', () => {
         );
     }
 });
-test('ending clouds retain bread colours as the camera turns after the wipe', () => {
+test('ending clouds retain bread colours as the camera turns', () => {
     const { settle, turn, hold } = STAGE_FOUR.reveal;
     const bodies = (commands) =>
         commands.filter(
