@@ -567,7 +567,7 @@ export function orbitEarth(
         ctx.commands.push({
             kind: 'path',
             points: ground,
-            fill: '#06101f' + alpha(0.86 * night * strength),
+            fill: '#06101f' + alpha(0.74 * night * strength),
             layer: surface,
         });
         for (const land of LAND_DENSE) {
