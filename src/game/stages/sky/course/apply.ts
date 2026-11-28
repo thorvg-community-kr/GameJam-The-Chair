@@ -67,6 +67,8 @@ export function applySky(s: CoreState, out: GameEvent[], dt: number): void {
     }
     if (r.fell) {
         s.deaths++;
+        s.focus.value = 100;
+        s.focus.recoveryClock = 0;
     }
     if (r.won) {
         s.completedStage = 4;

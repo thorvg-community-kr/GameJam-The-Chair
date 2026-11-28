@@ -325,11 +325,20 @@ const GEAR = deepFreeze([
     },
 ] as const);
 
+// Percent odds per bird spawn; the rest are ordinary birds.
+export const SKY_ROBOT_ODDS = deepFreeze({ liquid: 15, black: 15 });
+
 export function skyBirdRobot(focusId: number): SkyRobot | null {
     let n = Math.imul(focusId + 0x51ed, 0x2c1b3c6d);
     n = Math.imul(n ^ (n >>> 15), 0x297a2d39);
-    const pick = ((n ^ (n >>> 15)) >>> 0) % 8;
-    return pick === 0 ? 'liquid' : pick === 1 ? 'black' : null;
+    const pick = ((n ^ (n >>> 15)) >>> 0) % 100;
+    if (pick < SKY_ROBOT_ODDS.liquid) {
+        return 'liquid';
+    }
+    if (pick < SKY_ROBOT_ODDS.liquid + SKY_ROBOT_ODDS.black) {
+        return 'black';
+    }
+    return null;
 }
 
 export function skyHazards(time: number): SkyHazard[] {
