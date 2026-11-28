@@ -27,6 +27,7 @@ export type RenderStats = {
     blurArea: number;
     masks: number;
     clips: number;
+    groups: number;
     layerList: LayerInfo[];
 };
 
@@ -46,7 +47,7 @@ export function applyLayerOverrides(
     const out: DrawCommand[] = [];
     for (const cmd of commands) {
         const key = cmd.layer?.key;
-        if (key === undefined) {
+        if (key === undefined || cmd.kind === 'group') {
             out.push(cmd);
         } else if (overrides.hidden.has(key)) {
             continue;
@@ -93,6 +94,7 @@ export function createRenderStats(): RenderStats {
         blurArea: 0,
         masks: 0,
         clips: 0,
+        groups: 0,
         layerList: [],
     };
 }
@@ -112,7 +114,7 @@ export function resetRenderStats(stats: RenderStats): void {
         stats.blurAmount =
         stats.blurArea =
             0;
-    stats.masks = stats.clips = 0;
+    stats.masks = stats.clips = stats.groups = 0;
     stats.layerList = [];
     stats.gpuMs = [];
 }

@@ -4,13 +4,14 @@ import { canvasBox } from './commands';
 import { lottieSource } from '../lottie';
 
 import type { RenderStats } from '../perf';
-import type { Item } from './commands';
+import type { GroupItem, Item } from './commands';
 import type { RenderCtx } from '../context';
 import type { FontName } from '../fonts';
 import type {
     Blend,
     PathCommand,
     Gradient,
+    GroupSpec,
     LayerSpec,
     LottieSpec,
     TextSpec,
@@ -41,11 +42,23 @@ type AppliedStyle = { stroked: boolean; trimmed: boolean; blended: boolean };
 // A run of top-level shapes between layers or texts lives in its own Scene so
 // that its size can change without rebuilding the canvas child list.
 type TopBucket = { scene: Scene; shapes: Shape[]; used: number };
+// A group is one Scene holding its own buckets, texts and layers, so a single
+// clip or mask covers all of them.
+type GroupSlot = {
+    scene: Scene;
+    clip: Shape | null;
+    mask: Shape | null;
+    maskInvert: boolean;
+    top: TopBucket[];
+    texts: TextSlot[];
+    signature: string;
+};
 const PX_TO_PT = 72 / 96;
 export type PaintPool = {
     top: TopBucket[];
     texts: TextSlot[];
     layers: Map<string, LayerSlot>;
+    groups: Map<string, GroupSlot>;
     styled: Map<Shape, AppliedStyle>;
     signature: string;
     changes: PaintChanges | null;
@@ -55,12 +68,15 @@ export function createPaintPool(): PaintPool {
         top: [],
         texts: [],
         layers: new Map(),
+        groups: new Map(),
         styled: new Map(),
         signature: '',
         changes: null,
     };
 }
-function staleSlot(slot: LayerSlot, spec: LayerSpec) {
+type Masked = Pick<LayerSlot, 'scene' | 'clip' | 'mask' | 'maskInvert'>;
+type MaskSpec = Pick<GroupSpec, 'clip' | 'mask' | 'maskInvert'>;
+function staleSlot(slot: Masked, spec: MaskSpec) {
     if (slot.clip && !spec.clip) {
         return true;
     }
@@ -472,6 +488,16 @@ function applyLayerEffects(
             Math.round(Math.max(0, Math.min(1, spec.opacity ?? 1)) * 255),
         );
     }
+    applyClipAndMask(ctx, tvg, slot, spec, changes);
+}
+function applyClipAndMask(
+    ctx: Pick<RenderCtx, 'rgba'>,
+    tvg: ThorVGNamespace,
+    slot: Masked,
+    spec: MaskSpec,
+    changes: PaintChanges | null,
+) {
+    const { scene } = slot;
     if (spec.clip && needsUpdate(changes, scene, 'clip', spec.clip)) {
         if (!slot.clip) {
             slot.clip = new tvg.Shape();
@@ -514,9 +540,9 @@ function syncLayer(
             layer: LayerSpec;
         }
     >,
-    stats?: RenderStats,
+    { stats, key }: { stats: RenderStats | undefined; key: string },
 ) {
-    let slot = pool.layers.get(item.key);
+    let slot = pool.layers.get(key);
     if (!slot) {
         slot = {
             scene: new tvg.Scene(),
@@ -528,7 +554,7 @@ function syncLayer(
             texts: [],
             lotties: [],
         };
-        pool.layers.set(item.key, slot);
+        pool.layers.set(key, slot);
     }
     const { scene, shapes } = slot;
     const preparedFields1 = prepareLayerShapes(item, stats, ctx, slot, {
@@ -741,6 +767,139 @@ function prepareLayerShapes(
     }
     return { anchor, extent, spec, i };
 }
+type Holder = { top: TopBucket[]; texts: TextSlot[]; signature: string };
+type PaintEnv = {
+    ctx: RenderCtx;
+    tvg: ThorVGNamespace;
+    pool: PaintPool;
+    stats: RenderStats | undefined;
+    // Each holder's layout signature for this frame.
+    next: Map<Holder, string>;
+};
+// Child scenes still belong to the dropped group's Scene; rebuild them too.
+function dropGroup(pool: PaintPool, key: string) {
+    pool.groups.delete(key);
+    for (const map of [pool.layers, pool.groups]) {
+        for (const name of [...map.keys()]) {
+            if (name.startsWith(`${key}/`)) {
+                map.delete(name);
+            }
+        }
+    }
+    pool.signature = '';
+}
+// ThorVG cannot detach clips or masks; replace the scene to avoid GL
+// smearing.
+function dropStale(
+    pool: PaintPool,
+    holder: Holder,
+    items: Item[],
+    prefix: string,
+): void {
+    for (const item of items) {
+        if ('group' in item) {
+            const key = prefix + item.key;
+            const slot = pool.groups.get(key);
+            if (slot && staleSlot(slot, item.group)) {
+                dropGroup(pool, key);
+            } else if (slot) {
+                dropStale(pool, slot, item.items, `${key}/`);
+            }
+        } else if ('layer' in item) {
+            const slot = pool.layers.get(prefix + item.key);
+            if (slot && staleSlot(slot, item.layer)) {
+                pool.layers.delete(prefix + item.key);
+                holder.signature = '';
+                pool.signature = '';
+            }
+        }
+    }
+}
+function groupSlot(env: PaintEnv, key: string): GroupSlot {
+    let slot = env.pool.groups.get(key);
+    if (!slot) {
+        slot = {
+            scene: new env.tvg.Scene(),
+            clip: null,
+            mask: null,
+            maskInvert: false,
+            top: [],
+            texts: [],
+            signature: '',
+        };
+        env.pool.groups.set(key, slot);
+    }
+    return slot;
+}
+// A group's signature nests inside its parent's, so any change inside a
+// group also rebuilds the canvas order and the group is detached while its
+// children change.
+function paintOrder(
+    env: PaintEnv,
+    holder: Holder,
+    items: Item[],
+    prefix: string,
+): string {
+    let bucketCount = 0;
+    let textCount = 0;
+    let signature = '';
+    let inRun = false;
+    for (const item of items) {
+        if ('cmd' in item) {
+            if (!inRun) {
+                signature += `#${bucketCount++};`;
+                inRun = true;
+            }
+            continue;
+        }
+        inRun = false;
+        if ('text' in item) {
+            signature += `text${textCount++};`;
+        } else if ('group' in item) {
+            const key = prefix + item.key;
+            const inner = paintOrder(
+                env,
+                groupSlot(env, key),
+                item.items,
+                `${key}/`,
+            );
+            signature += `${item.key}{${inner}};`;
+        } else {
+            signature += `${item.key};`;
+        }
+    }
+    while (holder.top.length < bucketCount) {
+        holder.top.push({ scene: new env.tvg.Scene(), shapes: [], used: 0 });
+    }
+    while (holder.texts.length < textCount) {
+        const make = () => new env.tvg.Text().align(0.5, 0.5);
+        holder.texts.push({
+            back: make(),
+            front: make(),
+            font: '',
+            content: '',
+        });
+    }
+    signature += `${holder.top.length}/${holder.texts.length}`;
+    env.next.set(holder, signature);
+    return signature;
+}
+type Synced = {
+    order: Array<Shape | Scene | Text>;
+    bucketIndex: number;
+    textIndex: number;
+};
+function attach(target: Canvas | Scene, holder: Holder, synced: Synced) {
+    for (const paint of synced.order) {
+        target.add(paint);
+    }
+    for (let i = synced.bucketIndex; i < holder.top.length; i++) {
+        target.add(holder.top[i].scene);
+    }
+    for (let i = synced.textIndex; i < holder.texts.length; i++) {
+        target.add(holder.texts[i].back).add(holder.texts[i].front);
+    }
+}
 export function paintThorvg(
     ctx: RenderCtx,
     tvg: ThorVGNamespace,
@@ -758,33 +917,22 @@ export function paintThorvg(
 ): void {
     pool.changes = incremental ? (pool.changes ?? new PaintChanges()) : null;
     const syncStart = stats ? performance.now() : 0;
-    const layout = paintOrder(items);
-    let signature = layout.signature;
-    while (pool.top.length < layout.bucketCount) {
-        pool.top.push({ scene: new tvg.Scene(), shapes: [], used: 0 });
-    }
-    while (pool.texts.length < layout.textCount) {
-        const make = () => new tvg.Text().align(0.5, 0.5);
-        pool.texts.push({ back: make(), front: make(), font: '', content: '' });
-    }
-
-    const preparedPool = synchronizePaintOrder(signature, pool, items, canvas, {
-        ctx,
-        tvg,
-        stats,
-    });
-    const { reorder, order, bucketIndex, textIndex } = preparedPool;
-    signature = preparedPool.signature;
+    const env: PaintEnv = { ctx, tvg, pool, stats, next: new Map() };
+    dropStale(pool, pool, items, '');
+    const signature = paintOrder(env, pool, items, '');
+    // Empty the canvas before adding children: ThorVG 1.1.3 crashes if such a
+    // scene is then removed.
+    const reorder = signature !== pool.signature;
     if (reorder) {
-        for (const paint of order) {
-            canvas.add(paint);
-        }
-        for (let i = bucketIndex; i < pool.top.length; i++) {
-            canvas.add(pool.top[i].scene);
-        }
-        for (let i = textIndex; i < pool.texts.length; i++) {
-            canvas.add(pool.texts[i].back).add(pool.texts[i].front);
-        }
+        pool.signature = '';
+        canvas.remove();
+    }
+    if (stats) {
+        stats.topShapes = stats.poolTop = 0;
+    }
+    const synced = syncItems(env, pool, items, '');
+    if (reorder) {
+        attach(canvas, pool, synced);
         // Commit the signature only after success so a failed rebuild is
         // retried.
         pool.signature = signature;
@@ -801,41 +949,13 @@ export function paintThorvg(
     }
     canvas.update().render();
 }
-function synchronizePaintOrder(
-    signature: string,
-    pool: PaintPool,
+function syncItems(
+    env: PaintEnv,
+    holder: Holder,
     items: Item[],
-    canvas: Canvas,
-    {
-        ctx,
-        tvg,
-        stats,
-    }: {
-        ctx: RenderCtx;
-        tvg: ThorVGNamespace;
-        stats: RenderStats | undefined;
-    },
-) {
-    signature += `${pool.top.length}/${pool.texts.length}`;
-    // ThorVG cannot detach clips or masks; replace the scene to avoid GL
-    // smearing.
-    for (const item of items) {
-        if (!('layer' in item)) {
-            continue;
-        }
-        const slot = pool.layers.get(item.key);
-        if (slot && staleSlot(slot, item.layer)) {
-            pool.layers.delete(item.key);
-            pool.signature = '';
-        }
-    }
-    // Empty the canvas before adding children: ThorVG 1.1.3 crashes if such a
-    // scene is then removed.
-    const reorder = signature !== pool.signature;
-    if (reorder) {
-        pool.signature = '';
-        canvas.remove();
-    }
+    prefix: string,
+): Synced {
+    const { ctx, tvg, pool, stats } = env;
     let bucketIndex = 0;
     let textIndex = 0;
     let bucket: TopBucket | null = null;
@@ -843,7 +963,7 @@ function synchronizePaintOrder(
     for (const item of items) {
         if ('cmd' in item) {
             if (!bucket) {
-                bucket = pool.top[bucketIndex++];
+                bucket = holder.top[bucketIndex++];
                 bucket.used = 0;
                 setVisible(pool, bucket.scene, true);
                 order.push(bucket.scene);
@@ -856,7 +976,7 @@ function synchronizePaintOrder(
             bucket = null;
         }
         if ('text' in item) {
-            const slot = pool.texts[textIndex++];
+            const slot = holder.texts[textIndex++];
             applyText(ctx, slot, item.text, pool.changes);
             order.push(slot.back, slot.front);
             if (stats) {
@@ -864,31 +984,63 @@ function synchronizePaintOrder(
             }
             continue;
         }
-        order.push(syncLayer(ctx, tvg, pool, item, stats));
+        const key = prefix + item.key;
+        order.push(
+            'group' in item
+                ? syncGroup(env, item, key)
+                : syncLayer(ctx, tvg, pool, item, { stats, key }),
+        );
     }
     if (bucket) {
         hideUnused(pool, bucket);
     }
-    hideSpare(pool, bucketIndex, textIndex);
-    return { reorder, order, bucketIndex, textIndex, signature };
+    hideSpare(pool, holder, bucketIndex, textIndex);
+    return { order, bucketIndex, textIndex };
 }
-function paintOrder(items: Item[]) {
-    let bucketCount = 0;
-    let textCount = 0;
-    let signature = '';
-    let inRun = false;
-    for (const item of items) {
-        if ('cmd' in item) {
-            if (!inRun) {
-                signature += `#${bucketCount++};`;
-                inRun = true;
-            }
-            continue;
-        }
-        inRun = false;
-        signature += 'text' in item ? `text${textCount++};` : `${item.key};`;
+function syncGroup(env: PaintEnv, item: GroupItem, key: string): Scene {
+    const { ctx, tvg, pool, stats } = env;
+    const slot = groupSlot(env, key);
+    const signature = env.next.get(slot) ?? '';
+    const reorder = signature !== slot.signature;
+    if (reorder) {
+        slot.signature = '';
+        slot.scene.remove();
     }
-    return { bucketCount, textCount, signature };
+    const synced = syncItems(env, slot, item.items, `${key}/`);
+    if (reorder) {
+        attach(slot.scene, slot, synced);
+        slot.signature = signature;
+    }
+    applyClipAndMask(ctx, tvg, slot, item.group, pool.changes);
+    if (stats) {
+        recordGroupStats(ctx, stats, item.group, synced);
+        countTopShapes(slot, stats);
+    }
+    setVisible(pool, slot.scene, true);
+    return slot.scene;
+}
+function recordGroupStats(
+    ctx: RenderCtx,
+    stats: RenderStats,
+    group: GroupSpec,
+    synced: Synced,
+) {
+    stats.groups++;
+    const effects = ['group'];
+    if (group.clip) {
+        stats.clips++;
+        effects.push('clip');
+    }
+    if (group.mask) {
+        stats.masks++;
+        effects.push(group.maskInvert ? 'invmask' : 'mask');
+    }
+    stats.layerList.push({
+        key: group.key,
+        shapes: synced.order.length,
+        area: ctx.W * ctx.H,
+        effects,
+    });
 }
 function syncTopShape(
     ctx: RenderCtx,
@@ -909,22 +1061,27 @@ function syncTopShape(
     bucket.used++;
     applyShape(ctx, tvg, pool, s, cmd);
 }
-function countTopShapes(pool: PaintPool, stats: RenderStats) {
-    stats.topShapes = stats.poolTop = 0;
-    for (const bucket of pool.top) {
+// Adds a holder's buckets; groups count their own as they are synced.
+function countTopShapes(holder: Holder, stats: RenderStats) {
+    for (const bucket of holder.top) {
         stats.topShapes += bucket.used;
         stats.poolTop += bucket.shapes.length;
     }
 }
-function hideSpare(pool: PaintPool, bucketIndex: number, textIndex: number) {
-    for (let i = bucketIndex; i < pool.top.length; i++) {
-        pool.top[i].used = 0;
-        setVisible(pool, pool.top[i].scene, false);
+function hideSpare(
+    pool: PaintPool,
+    holder: Holder,
+    bucketIndex: number,
+    textIndex: number,
+) {
+    for (let i = bucketIndex; i < holder.top.length; i++) {
+        holder.top[i].used = 0;
+        setVisible(pool, holder.top[i].scene, false);
     }
-    for (let i = textIndex; i < pool.texts.length; i++) {
-        pool.changes?.changed(pool.texts[i], 'text', null);
-        pool.texts[i].back.visible(false);
-        pool.texts[i].front.visible(false);
+    for (let i = textIndex; i < holder.texts.length; i++) {
+        pool.changes?.changed(holder.texts[i], 'text', null);
+        holder.texts[i].back.visible(false);
+        holder.texts[i].front.visible(false);
     }
 }
 function hideUnused(pool: PaintPool, bucket: TopBucket) {

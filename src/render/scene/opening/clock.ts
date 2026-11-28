@@ -15,7 +15,13 @@ import { underOfficeTint, windowView } from '../office/window-view';
 
 import type { OpeningFrame } from './timeline';
 import type { RenderCtx } from '../../context';
-import type { DrawCommand, Vector } from '../../types';
+import type {
+    Bounds,
+    Color,
+    DrawCommand,
+    Transform,
+    Vector,
+} from '../../types';
 import type { Roof } from '../office/skyline';
 import type { WindowView } from '../office/window-view';
 export function clockLayout(
@@ -363,10 +369,8 @@ function drawClockScene(
         frame: OpeningFrame;
     },
 ) {
-    layer('shadow', { blur: Math.max(2, radius * 0.06), opacity: 0.45 });
     const [sx, sy] = at(0.06, 0.1);
-    push(ctx, circle(sx, sy, radius * 1.04).command('#120f18'));
-    ctx.endLayer();
+    push(ctx, softShadow(ctx, sx, sy, radius));
     layer('face');
     const [ox, oy] = at(0, 0);
     const { hour, minute } = drawClockForeground(ctx, ox, oy, radius, {
@@ -523,26 +527,23 @@ function drawClockRim(
             }),
         ),
     );
-    for (let i = 0; i < 60; i++) {
-        const major = i % 5 === 0;
-        const quarter = i % 15 === 0;
-        const w = quarter ? 0.035 : major ? 0.022 : 0.008;
-        const l0 = quarter ? 0.64 : major ? 0.7 : 0.76;
-        polygon(
-            ctx,
-            shape(
-                [
-                    [-w, -0.8],
-                    [w, -0.8],
-                    [w, -l0],
-                    [-w, -l0],
-                ],
-                (i / 60) * ctx.TAU,
-            ),
-            quarter ? '#2b2f3a' : major ? '#4a4f5c' : '#9a978d',
-        );
-    }
     ctx.endLayer();
+    const [o, ex, ey] = shape([
+        [0, 0],
+        [1, 0],
+        [0, 1],
+    ]);
+    pushTicks(ctx, {
+        e11: ex[0] - o[0],
+        e12: ey[0] - o[0],
+        e13: o[0],
+        e21: ex[1] - o[1],
+        e22: ey[1] - o[1],
+        e23: o[1],
+        e31: 0,
+        e32: 0,
+        e33: 1,
+    });
 }
 function drawClockWindow(
     frame: OpeningFrame,
@@ -566,21 +567,12 @@ function drawClockWindow(
             const s = Math.sin(angle);
             return at(x * c - y * s, x * s + y * c);
         });
-    const hole =
-        frame.iris !== null && frame.iris > 0
-            ? circle(
-                  cx,
-                  cy,
-                  frame.iris * (Math.hypot(ctx.W, ctx.H) / 2 + radius) + 1,
-              ).command('#ffffff')
-            : undefined;
     const layer = (
         key: string,
         extra: Partial<NonNullable<RenderCtx['layer']>> = {},
     ) =>
         ctx.beginLayer({
             key: `opening-clock-${key}`,
-            ...(hole ? { mask: hole, maskInvert: true } : {}),
             ...extra,
         });
     layer('wall');
@@ -600,4 +592,140 @@ function drawClockWindow(
     const wy = cy - radius * 0.95;
     const ww = radius * 1.15;
     return { dusk, wx, wy, ww, layer, at, squash, shape };
+}
+
+// 1 - Phi(k) for a Gaussian edge, sampled every sigma from -3 to +3.
+const EDGE = [0.99865, 0.97725, 0.84134, 0.5, 0.15866, 0.02275, 0.00135];
+/** A blurred disc as an analytic radial gradient instead of a blur pass. */
+function softShadow(
+    ctx: RenderCtx,
+    x: number,
+    y: number,
+    radius: number,
+): DrawCommand {
+    const r = radius * 1.04;
+    const sigma = Math.max(2, radius * 0.06);
+    const outer = r + sigma * 3;
+    const stops: Array<[number, Color]> = [[0, ctx.rgba('#120f18', 0.45)]];
+    EDGE.forEach((cover, i) => {
+        const at = (r + (i - 3) * sigma) / outer;
+        stops.push([at, ctx.rgba('#120f18', 0.45 * cover)]);
+    });
+    stops.push([1, ctx.rgba('#120f18', 0)]);
+    return circle(x, y, outer).command({
+        from: [x, y],
+        to: [x + outer, y],
+        radius: outer,
+        stops,
+    });
+}
+const TICKS: DrawCommand[] = Array.from({ length: 60 }, (_, i) => {
+    const major = i % 5 === 0;
+    const quarter = i % 15 === 0;
+    const w = quarter ? 0.035 : major ? 0.022 : 0.008;
+    const l0 = quarter ? 0.64 : major ? 0.7 : 0.76;
+    const a = (i / 60) * Math.PI * 2;
+    const c = Math.cos(a);
+    const s = Math.sin(a);
+    const points: Vector[] = [
+        [-w, -0.8],
+        [w, -0.8],
+        [w, -l0],
+        [-w, -l0],
+    ].map(([x, y]) => [x * c - y * s, x * s + y * c]);
+    return {
+        kind: 'path',
+        points,
+        fill: quarter ? '#2b2f3a' : major ? '#4a4f5c' : '#9a978d',
+    };
+});
+/**
+ * The 60 dial ticks stay as retained ThorVG shapes in unit space; each frame
+ * only the Scene transform follows the clock's wobble and squash.
+ */
+function pushTicks(ctx: RenderCtx, transform: Transform): void {
+    const corner = (x: number, y: number): Vector => [
+        transform.e11 * x + transform.e12 * y + transform.e13,
+        transform.e21 * x + transform.e22 * y + transform.e23,
+    ];
+    const box = [
+        corner(-0.8, -0.8),
+        corner(0.8, -0.8),
+        corner(0.8, 0.8),
+        corner(-0.8, 0.8),
+    ];
+    const layer = {
+        key: 'opening-clock-ticks',
+        retained: {
+            geometry: 'opening-clock-ticks',
+            transform,
+            bounds: {
+                left: Math.min(...box.map((p) => p[0])),
+                top: Math.min(...box.map((p) => p[1])),
+                right: Math.max(...box.map((p) => p[0])),
+                bottom: Math.max(...box.map((p) => p[1])),
+            },
+        },
+    };
+    for (const tick of TICKS) {
+        ctx.commands.push({ ...tick, layer });
+    }
+}
+export type IrisHole = { x: number; y: number; r: number };
+/** The office circle that opens in the clock wall, or null when closed. */
+export function irisHole(ctx: RenderCtx, frame: OpeningFrame): IrisHole | null {
+    if (frame.iris === null || frame.iris <= 0) {
+        return null;
+    }
+    const { cx, cy, R } = clockLayout(ctx, frame);
+    return {
+        x: cx,
+        y: cy,
+        r: frame.iris * (Math.hypot(ctx.W, ctx.H) / 2 + R) + 1,
+    };
+}
+function commandBounds(cmd: DrawCommand): Bounds | null {
+    if (cmd.layer?.retained) {
+        return cmd.layer.retained.bounds;
+    }
+    if (cmd.kind !== 'path') {
+        return null;
+    }
+    // Bezier control points bound the curve, so this box is conservative.
+    const xs = cmd.points.map((p) => p[0]);
+    const ys = cmd.points.map((p) => p[1]);
+    for (const c of cmd.curves ?? []) {
+        xs.push(c[0], c[2], c[4]);
+        ys.push(c[1], c[3], c[5]);
+    }
+    // Blur spreads about three sigma past the shape.
+    const pad = (cmd.stroke?.width ?? 0) / 2 + (cmd.layer?.blur ?? 0) * 3 + 1;
+    return {
+        left: Math.min(...xs) - pad,
+        top: Math.min(...ys) - pad,
+        right: Math.max(...xs) + pad,
+        bottom: Math.max(...ys) + pad,
+    };
+}
+/**
+ * The office covers the iris, so clock commands whose box lies inside it
+ * (all four corners within the radius) are never seen.
+ */
+export function cullInsideIris(
+    commands: DrawCommand[],
+    hole: IrisHole,
+): DrawCommand[] {
+    const r2 = hole.r * hole.r;
+    const inside = (x: number, y: number) =>
+        (x - hole.x) ** 2 + (y - hole.y) ** 2 <= r2;
+    return commands.filter((cmd) => {
+        const b = commandBounds(cmd);
+        return !(
+            b &&
+            inside(b.left, b.top) &&
+            inside(b.right, b.top) &&
+            inside(b.right, b.bottom) &&
+            inside(b.left, b.bottom)
+        );
+    });
 }

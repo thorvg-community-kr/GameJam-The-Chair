@@ -273,15 +273,50 @@ test('the cutscene state only poses the chair; the core snapshot is untouched', 
     assert.equal(posed.time, B.rage + 0.3);
 });
 
-test('clock frames use ThorVG masks, trims, clips and blur', () => {
+test('clock frames use one ThorVG mask, trims, clips and blur', () => {
     const iris = render(B.irisOpen + 0.4);
-    const masked = iris.commands.filter(
-        (c) => c.layer?.mask && c.layer.maskInvert,
-    );
-    assert.ok(masked.length > 20, 'the clock cover is cut by an inverted mask');
     assert.ok(
-        iris.commands.some((c) => !c.layer),
-        'the office shows under the cover',
+        !iris.commands.some((c) => c.layer?.mask),
+        'clock layers carry no mask of their own',
+    );
+    const open = iris.commands.findIndex((c) => c.kind === 'group' && c.group);
+    const close = iris.commands.findIndex(
+        (c) => c.kind === 'group' && !c.group,
+    );
+    assert.ok(open > 0 && close > open, 'the clock is drawn before the office');
+    const { group } = iris.commands[open];
+    assert.ok(group.mask && !group.maskInvert && !group.clip);
+    assert.ok(
+        iris.commands
+            .slice(0, open)
+            .some((c) => c.layer?.key === 'opening-clock-ticks'),
+        'the dial ticks are retained geometry',
+    );
+    assert.ok(
+        iris.commands.slice(open + 1, close).some((c) => !c.layer),
+        'the office shows inside the iris',
+    );
+    assert.ok(
+        !iris.commands.some((c) => c.layer?.key === 'opening-clock-shadow'),
+        'the clock shadow is a radial gradient, not a blurred layer',
+    );
+
+    const wide = render(B.riderOvertime - 0.1);
+    const covered = new Set(
+        wide.commands
+            .filter((c) => c.layer?.key?.startsWith('opening-clock-'))
+            .map((c) => c.layer.key),
+    );
+    assert.ok(
+        !covered.has('opening-clock-ticks') &&
+            !covered.has('opening-clock-glass'),
+        'clock parts inside the iris are not drawn',
+    );
+
+    const closed = render(B.sixPm + 0.5);
+    assert.ok(
+        !closed.commands.some((c) => c.kind === 'group'),
+        'a closed iris needs no office group',
     );
 
     const spin = render((B.spinToNine + B.ninePm) / 2);

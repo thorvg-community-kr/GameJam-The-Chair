@@ -60,6 +60,11 @@ function fakeThorvg() {
             }
             return this;
         }
+        remove() {
+            log.push('scene-remove');
+            this.children = [];
+            return this;
+        }
     }
     for (const name of [
         'resetEffects',
@@ -699,4 +704,115 @@ test('incremental moving paths retain their fill until the fill itself changes',
     draw();
     assert.equal(fills, 2);
     assert.equal(log.filter((x) => x === 'shape-reset').length, 0);
+});
+
+const groupOpen = (group) => ({ kind: 'group', points: [], group });
+const groupClose = { kind: 'group', points: [], group: null };
+test('a group wraps its commands, layers and text in one masked ThorVG Scene', () => {
+    const { TVG, canvas } = fakeThorvg();
+    const ctx = createRenderCtx({});
+    Object.assign(ctx, { W: 400, H: 300 });
+    const pool = createPaintPool();
+    const stats = createRenderStats();
+    const glow = { key: 'glow', blur: 2 };
+    const mask = square(0);
+    ctx.commands = [
+        square(10),
+        groupOpen({ key: 'iris', mask }),
+        square(20),
+        square(30, glow),
+        groupClose,
+        square(40),
+    ];
+    paint(ctx, TVG, canvas, pool, { stats });
+    assert.equal(canvas.paints.length, 3, 'shape, group scene, shape');
+    const group = canvas.paints[1];
+    assert.ok(group instanceof TVG.Scene);
+    assert.equal(group.maskShape !== undefined, true);
+    assert.equal(group.maskMethod, TVG.MaskMethod.Alpha);
+    assert.equal(group.children.length, 2, 'a plain shape and the glow layer');
+    assert.ok(group.children[1] instanceof TVG.Scene);
+    assert.equal(stats.groups, 1);
+    assert.equal(stats.masks, 1);
+    assert.equal(stats.topShapes, 3);
+
+    paint(ctx, TVG, canvas, pool);
+    resetRenderStats(stats);
+    paint(ctx, TVG, canvas, pool, { stats });
+    assert.equal(stats.reorder, false, 'an unchanged group keeps its order');
+    assert.equal(canvas.paints[1], group);
+});
+test('layers moving in and out of a group never share a Scene with the group copy', () => {
+    const { TVG, canvas } = fakeThorvg();
+    const ctx = createRenderCtx({});
+    Object.assign(ctx, { W: 400, H: 300 });
+    const pool = createPaintPool();
+    const glow = { key: 'glow', blur: 2 };
+    const outside = () => {
+        ctx.commands = [square(10), square(30, glow)];
+    };
+    const inside = () => {
+        ctx.commands = [
+            square(10),
+            groupOpen({ key: 'iris', mask: square(0) }),
+            square(30, glow),
+            square(50),
+            groupClose,
+        ];
+    };
+    outside();
+    paint(ctx, TVG, canvas, pool, { incremental: true });
+    const top = canvas.paints[1];
+    inside();
+    assert.doesNotThrow(() =>
+        paint(ctx, TVG, canvas, pool, { incremental: true }),
+    );
+    const group = canvas.paints[1];
+    assert.notEqual(group.children[0], top);
+    outside();
+    assert.doesNotThrow(() =>
+        paint(ctx, TVG, canvas, pool, { incremental: true }),
+    );
+    assert.equal(canvas.paints[1], top);
+    inside();
+    paint(ctx, TVG, canvas, pool, { incremental: true });
+    assert.equal(canvas.paints[1], group);
+    assert.equal(group.children.length, 2);
+});
+test('a group whose mask disappears gets a fresh Scene', () => {
+    const { TVG, canvas } = fakeThorvg();
+    const ctx = createRenderCtx({});
+    Object.assign(ctx, { W: 400, H: 300 });
+    const pool = createPaintPool();
+    ctx.commands = [
+        groupOpen({ key: 'iris', mask: square(0) }),
+        square(20),
+        groupClose,
+    ];
+    paint(ctx, TVG, canvas, pool);
+    const masked = canvas.paints[0];
+    ctx.commands = [groupOpen({ key: 'iris' }), square(20), groupClose];
+    paint(ctx, TVG, canvas, pool);
+    assert.notEqual(canvas.paints[0], masked);
+});
+test('a layer inside a group that drops its mask is replaced inside the group Scene', () => {
+    const { TVG, canvas } = fakeThorvg();
+    const ctx = createRenderCtx({});
+    Object.assign(ctx, { W: 400, H: 300 });
+    const pool = createPaintPool();
+    const draw = (layer) => {
+        ctx.commands = [
+            groupOpen({ key: 'iris', mask: square(0) }),
+            square(20, layer),
+            groupClose,
+        ];
+        paint(ctx, TVG, canvas, pool);
+    };
+    draw({ key: 'glow', mask: square(0) });
+    const group = canvas.paints[0];
+    const masked = group.children[0];
+    draw({ key: 'glow', blur: 2 });
+    assert.equal(canvas.paints[0], group);
+    assert.equal(group.children.length, 1);
+    assert.notEqual(group.children[0], masked);
 });
