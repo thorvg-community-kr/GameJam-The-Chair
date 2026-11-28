@@ -12,7 +12,7 @@ import type { GameEvent } from '../game/types';
 
 function playerLoops(state: GameSnapshot, audio: SceneAudio) {
     if (state.spray.burst > 0) {
-        audio.loops.unshift({ id: 'gas', name: 'gasLoop', gain: 0.8, rate: 1 });
+        audio.loops.unshift({ id: 'gas', name: 'gasLoop', gain: 0.3, rate: 1 });
     }
     const speed = Math.abs(state.player.vx);
     if (state.stage < 4 && state.ground && speed > 18) {

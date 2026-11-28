@@ -77,7 +77,7 @@ class GameAudioPlayer implements GameAudio {
                 this.sfx.stop(true);
             }
             if (beganSpray(before, next)) {
-                this.sfx.play('sprayLever', undefined, { gain: 0.55 });
+                this.sfx.play('sprayLever', undefined, { gain: 0.3 });
             }
         }
         const audio = sceneAudio(before, next, events);
