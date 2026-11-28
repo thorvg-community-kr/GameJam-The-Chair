@@ -53,9 +53,21 @@ function stageAudio(scene: AudioScene) {
     }
 }
 
-function entranceSound(next: GameSnapshot, audio: SceneAudio, maxAge = Infinity) {
-    if (next.stage !== 3 || next.mode !== 'play' || next.rooftopEntrance.kind !== 'opening') {return;}
-    if (next.rooftopEntrance.age < maxAge) {addSound(audio, 'doorOpen', 0.7);}
+function entranceSound(
+    next: GameSnapshot,
+    audio: SceneAudio,
+    maxAge = Infinity,
+) {
+    if (
+        next.stage !== 3 ||
+        next.mode !== 'play' ||
+        next.rooftopEntrance.kind !== 'opening'
+    ) {
+        return;
+    }
+    if (next.rooftopEntrance.age < maxAge) {
+        addSound(audio, 'doorOpen', 0.7);
+    }
 }
 
 export function sceneAudio(
@@ -68,7 +80,12 @@ export function sceneAudio(
         entranceSound(next, audio, 0.08);
         return audio;
     }
-    if (next.time < prev.time || events.some((event) => event.type === 'reset')) {return audio;}
+    if (
+        next.time < prev.time ||
+        events.some((event) => event.type === 'reset')
+    ) {
+        return audio;
+    }
     if (prev.stage !== next.stage) {
         entranceSound(next, audio);
         return audio;
