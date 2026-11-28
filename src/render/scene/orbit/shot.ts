@@ -588,21 +588,6 @@ class OrbitDrawing {
         }
         endingFade(this.ctx, this.ending);
     }
-    private watcherPoint(x: number, y: number, z: number): Point3 {
-        const at = this.point(x, y, z);
-        if (this.since >= 0) {
-            return at;
-        }
-        const [sx, sy] = this.view.project(at);
-        const [hx, hy] = this.chair.project([4, 70, 0]);
-        const margin = this.ctx.W * 0.24;
-        const weight = smooth((margin * 2 - Math.abs(sx - hx)) / margin);
-        const pixelRise = sy - this.view.project([at[0], at[1] + 1, at[2]])[1];
-        const lift =
-            (weight * Math.max(0, sy - hy + this.ctx.H * 0.24)) /
-            Math.max(0.01, pixelRise);
-        return [at[0], at[1] + lift, at[2]];
-    }
     private drawAtmosphere() {
         if (this.turn >= ORBIT_WATCH.glintsFrom) {
             orbitCloudGlints(this.ctx, this.clouds);
@@ -614,7 +599,7 @@ class OrbitDrawing {
             this.turn > 0
                 ? orbitWatchers(
                       this.view,
-                      (x, y, z) => this.watcherPoint(x, y, z),
+                      this.point,
                       this.travel,
                       this.ctx.t,
                       {
