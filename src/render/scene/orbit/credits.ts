@@ -53,29 +53,42 @@ const line =
         height: type.height,
     });
 
+/** Empty name slots draw nothing; the label and licence still show. */
 const entryBlock =
     (entry: CreditEntry, locale: Locale): Block =>
-    (top) => ({
-        rows: [
-            text(
-                top + LABEL.height / 2,
-                translate(entry.label, locale),
-                LABEL_FONT,
-                LABEL.size,
-                '#9aa6bf',
-            ),
-            ...entry.names.map((name, i) =>
+    (top) => {
+        const names = entry.names.filter((name) => name.trim());
+        const lines = entry.licence ? [...names, entry.licence] : names;
+        return {
+            rows: [
                 text(
-                    top + LABEL.height + NAME.height * (i + 0.5),
-                    name,
+                    top + LABEL.height / 2,
+                    translate(entry.label, locale),
                     LABEL_FONT,
-                    NAME.size,
-                    '#f4ead5',
+                    LABEL.size,
+                    '#9aa6bf',
                 ),
-            ),
-        ],
-        height: LABEL.height + NAME.height * entry.names.length,
-    });
+                ...lines.map((value, i) =>
+                    i < names.length
+                        ? text(
+                              top + LABEL.height + NAME.height * (i + 0.5),
+                              value,
+                              LABEL_FONT,
+                              NAME.size,
+                              '#f4ead5',
+                          )
+                        : text(
+                              top + LABEL.height + NAME.height * (i + 0.5),
+                              value,
+                              LABEL_FONT,
+                              LABEL.size,
+                              '#c9b98f',
+                          ),
+                ),
+            ],
+            height: LABEL.height + NAME.height * lines.length,
+        };
+    };
 
 const logoBlock: Block = (top) => ({
     rows: [{ kind: 'logo', y: top + LOGO.height / 2, height: LOGO.height }],

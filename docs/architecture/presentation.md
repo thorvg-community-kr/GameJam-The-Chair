@@ -34,7 +34,7 @@ DOM은 집중력, 메뉴, 터치 컨트롤, 종료 panel처럼 조작과 접근�
 
 5스테이지 엔딩 크레딧(`scene/orbit/credits.ts`)은 같은 Lottie를 게임 canvas 안에서 다시 씁니다. `DrawCommand`의 `lottie` 명령은 ThorVG `Animation.picture`를 layer Scene에 넣고 엔딩 시간으로 `seek()`합니다. `LayerSpec.holdsText`를 켠 layer는 text와 Lottie도 자기 Scene 안에 넣으므로, 크레딧 열의 그라디언트 alpha mask가 글자와 로고에 함께 적용됩니다. 이 layer 안에서는 path가 text·Lottie보다 아래에 그려집니다. Lottie JSON은 `render/thorvg.ts`가 글꼴과 함께 불러오며, 불러오기 전이나 Canvas2D fallback에서는 로고 대신 `Powered by ThorVG` 글자를 씁니다.
 
-크레딧 내용은 `scene/orbit/credits-data.ts`의 데이터만 고치면 됩니다. 비어 있는 구역은 줄도 간격도 남기지 않고, 크레딧이 끝나는 시점은 내용 높이와 고정 스크롤 속도로 계산됩니다. 크레딧이 끝나고 1초 뒤 `main.ts`가 `closeCredits` 명령을 보내고, 건너뛰기 버튼과 크레딧 중 `Esc`도 같은 명령을 보냅니다. 명령은 기록되므로 리플레이도 같은 시점에 타이틀로 돌아갑니다.
+크레딧 내용은 `scene/orbit/credits-data.ts`의 데이터만 고치면 됩니다. 라벨과 라이선스 줄은 항상 보이고, 비어 있는 이름 칸은 아무것도 그리지 않으며 자리도 차지하지 않습니다. 크레딧이 끝나는 시점은 내용 높이와 고정 스크롤 속도로 계산되므로 이름을 채우면 자동으로 길어집니다. 새 라벨을 넣으면 글꼴 subset을 다시 만듭니다. 크레딧이 끝나고 1초 뒤 `main.ts`가 `closeCredits` 명령을 보내고, 건너뛰기 버튼과 크레딧 중 `Esc`도 같은 명령을 보냅니다. 명령은 기록되므로 리플레이도 같은 시점에 타이틀로 돌아갑니다.
 
 Canvas2D fallback은 기본 path, fill, stroke, gradient, blend를 그립니다. alpha mask, motion blur, trim path는 재현하지 않으며 group 효과도 ThorVG와 완전히 같지 않습니다. fallback은 게임 진행을 유지하기 위한 경로이지 시각적 동등성 검사가 아닙니다.
 

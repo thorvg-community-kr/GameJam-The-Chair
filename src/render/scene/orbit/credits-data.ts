@@ -1,9 +1,16 @@
 import type { Message } from '../../../i18n';
 
-/** A translated role or source label and the names under it, as written. */
-export type CreditEntry = { label: Message; names: readonly string[] };
+/**
+ * A translated role or source label, the names under it as written, and an
+ * optional licence line shown below the names.
+ */
+export type CreditEntry = {
+    label: Message;
+    names: readonly string[];
+    licence?: string;
+};
 
-/** The end credits, top to bottom. Empty sections are left out of the roll. */
+/** The end credits, top to bottom. */
 export type Credits = {
     /** Title lines, such as the game's name. */
     title: readonly string[];
@@ -18,13 +25,23 @@ export type Credits = {
 };
 
 /**
- * Fill these in to add credits; the roll lengthens and the credits end later
- * on their own. Labels and thanks are i18n messages; names stay as written.
+ * Fill in the `names` to complete the credits; the roll lengthens and the
+ * credits end later on their own. Labels and thanks are i18n messages;
+ * names stay as written.
  */
 export const CREDITS: Credits = {
-    title: [],
-    roles: [],
-    assets: [],
+    title: ['THE CHAIR'],
+    roles: [
+        { label: 'credits.role.design', names: [] },
+        { label: 'credits.role.code', names: [] },
+        { label: 'credits.role.art', names: [] },
+        { label: 'credits.role.sound', names: [] },
+    ],
+    assets: [
+        { label: 'credits.music', names: [] },
+        { label: 'credits.sfx', names: [], licence: 'CC0' },
+        { label: 'credits.fonts', names: [], licence: 'SIL OFL 1.1' },
+    ],
     engine: true,
-    thanks: [],
+    thanks: ['credits.thanks'],
 };

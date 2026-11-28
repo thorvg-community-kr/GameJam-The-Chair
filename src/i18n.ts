@@ -335,6 +335,17 @@ const messages = {
         ko: '의자를 타고 탈출하는 게임.',
     },
 
+    'credits.role.design': { en: 'Game design', ko: '게임 기획' },
+    'credits.role.code': { en: 'Programming', ko: '프로그래밍' },
+    'credits.role.art': { en: 'Art & animation', ko: '아트와 애니메이션' },
+    'credits.role.sound': { en: 'Sound design', ko: '사운드 디자인' },
+    'credits.music': { en: 'Music', ko: '음악' },
+    'credits.sfx': { en: 'Sound effects', ko: '효과음' },
+    'credits.fonts': { en: 'Fonts', ko: '글꼴' },
+    'credits.thanks': {
+        en: 'Thanks for playing',
+        ko: '플레이해 주셔서 고마워요',
+    },
     'button.skipCredits': { en: 'Skip ▸▸', ko: '건너뛰기 ▸▸' },
     'menu.skipCredits': {
         en: 'Skip the credits and return to the title',

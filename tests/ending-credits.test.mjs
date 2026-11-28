@@ -34,6 +34,7 @@ const {
     registerLottie,
     previewScenes,
     bindInput,
+    translate,
 } = await loadSource(`
     export { ORBIT_ENDING } from './src/render/scene/orbit/ending-timeline';
     export { STAGE_FIVE } from './src/game/stages/orbit/data';
@@ -59,6 +60,7 @@ const {
     export { registerLottie } from './src/render/lottie';
     export { previewScenes } from './src/preview-scenes';
     export { bindInput } from './src/ui/input';
+    export { translate } from './src/i18n';
 `);
 
 const E = ORBIT_ENDING;
@@ -125,22 +127,62 @@ test('the timeline cuts wide after the last stare, rolls the credits a second la
     assert.equal(epilogueBeat(E.closing + 0.5).cut, 'wide');
 });
 
-test('the credits keep their sections but only the engine is filled in for now', () => {
-    assert.deepEqual(CREDITS, {
+test('every credit label shows while the names are left empty for now', () => {
+    assert.deepEqual(CREDITS.title, ['THE CHAIR']);
+    assert.equal(CREDITS.engine, true);
+    assert.deepEqual(CREDITS.thanks, ['credits.thanks']);
+    const entries = [...CREDITS.roles, ...CREDITS.assets];
+    assert.ok(entries.length >= 7);
+    assert.ok(entries.every((entry) => entry.names.length === 0));
+    assert.deepEqual(
+        CREDITS.assets.map((entry) => entry.licence),
+        [undefined, 'CC0', 'SIL OFL 1.1'],
+    );
+    for (const locale of ['en', 'ko']) {
+        const { rows } = creditRows(locale);
+        const texts = rows.filter((row) => row.kind === 'text');
+        assert.equal(texts[0].text, 'THE CHAIR');
+        for (const entry of entries) {
+            assert.ok(
+                texts.some(
+                    (row) => row.text === translate(entry.label, locale),
+                ),
+                `${entry.label} is shown in ${locale}`,
+            );
+        }
+        assert.ok(texts.some((row) => row.text === 'CC0'));
+        assert.ok(texts.some((row) => row.text === 'SIL OFL 1.1'));
+        assert.equal(texts.at(-1).text, translate('credits.thanks', locale));
+        assert.equal(rows.filter((row) => row.kind === 'logo').length, 1);
+        assert.ok(
+            texts.every((row) => row.text.trim()),
+            'empty names draw nothing',
+        );
+    }
+    const blank = {
+        ...CREDITS,
+        roles: [{ label: 'credits.role.code', names: ['', ' '] }],
+    };
+    const named = {
+        ...CREDITS,
+        roles: [{ label: 'credits.role.code', names: ['Somebody'] }],
+    };
+    const bare = {
+        ...CREDITS,
+        roles: [{ label: 'credits.role.code', names: [] }],
+    };
+    assert.equal(creditRows('en', blank).length, creditRows('en', bare).length);
+    assert.ok(
+        creditsEnd(named) > creditsEnd(bare),
+        'a filled-in name lengthens the roll',
+    );
+    const none = {
         title: [],
         roles: [],
         assets: [],
-        engine: true,
+        engine: false,
         thanks: [],
-    });
-    const { rows, length } = creditRows('en');
-    assert.deepEqual(
-        rows.map((row) => row.kind),
-        ['logo'],
-        'empty sections leave no rows',
-    );
-    assert.equal(length, rows[0].height, 'and no gaps');
-    const none = { ...CREDITS, engine: false };
+    };
     assert.deepEqual(creditRows('en', none), { rows: [], length: 0 });
     assert.ok(Number.isFinite(creditsEnd(none)));
 });
@@ -153,7 +195,14 @@ test('adding credits lengthens the roll and moves its end, the same in every lan
         en.rows.map((row) => row.y),
         ko.rows.map((row) => row.y),
     );
-    assert.ok(creditsEnd(SAMPLE) > CREDITS_END + 5, 'more content, later end');
+    const longer = {
+        ...SAMPLE,
+        roles: [...SAMPLE.roles, { label: 'settings.sfx', names: ['A', 'B'] }],
+    };
+    assert.ok(
+        creditsEnd(longer) > creditsEnd(SAMPLE) + 1,
+        'more content, later end',
+    );
     for (const content of [CREDITS, SAMPLE]) {
         const { length } = creditRows('en', content);
         const end = creditsEnd(content);
@@ -205,46 +254,66 @@ test('the roll is drawn in a masked column on the right as a pure function of ti
     assert.deepEqual(draw(creditsEnd(SAMPLE) + 0.1).commands, []);
 });
 
+/** Every credit line drawn at `t` lies inside the column and stays legible. */
+function assertLinesFit(content, t, { W, H, locale }) {
+    const column = creditsColumn(W, H);
+    const ctx = context(t, { W, H, locale });
+    ctx.commands = [];
+    drawCredits(ctx, t, content);
+    const lines = ctx.commands.filter((command) => command.kind === 'text');
+    for (const { text } of lines) {
+        const half =
+            (ctx.measureText(text.content, 1, text.font) * text.size) / 2;
+        assert.ok(
+            text.x - half >= column.left - 0.5 &&
+                text.x + half <= column.right + 0.5,
+            `${text.content} fits ${W}x${H} ${locale}`,
+        );
+        assert.ok(text.size >= 8, `${text.content} stays legible`);
+    }
+    return lines.length;
+}
+
 test('credit lines fit the column on phones in English and Korean', () => {
-    for (const [W, H] of [
+    const screens = [
         [568, 320],
         [667, 375],
         [740, 360],
         [800, 600],
         [1280, 720],
-    ]) {
+    ];
+    for (const [W, H] of screens) {
         const column = creditsColumn(W, H);
         assert.ok(column.left > W * 0.45 && column.right <= W - 12);
-        for (const locale of ['en', 'ko']) {
-            for (let t = E.credits; t < creditsEnd(SAMPLE); t += 0.5) {
-                const ctx = context(t, { W, H, locale });
-                ctx.commands = [];
-                drawCredits(ctx, t, SAMPLE);
-                for (const command of ctx.commands) {
-                    if (command.kind !== 'text') {
-                        continue;
-                    }
-                    const { content, size, font, x } = command.text;
-                    const half = (ctx.measureText(content, 1, font) * size) / 2;
-                    assert.ok(
-                        x - half >= column.left - 0.5 &&
-                            x + half <= column.right + 0.5,
-                        `${content} fits ${W}x${H} ${locale}`,
-                    );
-                    assert.ok(size >= 8, `${content} stays legible`);
-                }
+    }
+    for (const content of [CREDITS, SAMPLE]) {
+        const times = [];
+        for (let t = E.credits; t < creditsEnd(content); t += 0.5) {
+            times.push(t);
+        }
+        let drawn = 0;
+        for (const [W, H] of screens) {
+            for (const locale of ['en', 'ko']) {
+                drawn += times
+                    .map((t) => assertLinesFit(content, t, { W, H, locale }))
+                    .reduce((a, b) => a + b, 0);
             }
         }
+        assert.ok(drawn > 100, 'lines were checked');
     }
 });
 
 test('the ThorVG logo rolls through as the splash Lottie, screened over space', () => {
     const logo = (t) => frame(t).commands.filter((c) => c.kind === 'lottie');
-    const middle = (E.credits + CREDITS_END) / 2;
+    const { rows, length } = creditRows('en');
+    const row = rows.find((r) => r.kind === 'logo');
+    // When the logo's centre crosses the middle of the screen.
+    const speed = (length + 1) / (CREDITS_END - E.credits);
+    const middle = E.credits + (row.y + 0.5) / speed;
     const fallback = frame(middle)
         .layer('orbit-credits')
         .map((command) => command.text.content);
-    assert.deepEqual(fallback, ['Powered by ThorVG'], 'text until it loads');
+    assert.ok(fallback.includes('Powered by ThorVG'), 'text until it loads');
     registerLottie('thorvg-logo', '{}');
     const [lottie] = logo(middle);
     assert.ok(lottie, 'the logo scrolls through');
