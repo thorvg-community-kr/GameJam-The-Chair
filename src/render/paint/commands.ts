@@ -1,6 +1,7 @@
 import type {
     Blend,
     DrawCommand,
+    GroupSpec,
     PathCommand,
     LayerSpec,
     LottieSpec,
@@ -14,7 +15,9 @@ export type LayerItem = {
     texts: TextSpec[];
     lotties: LottieSpec[];
 };
-export type Item = { cmd: PathCommand } | { text: TextSpec } | LayerItem;
+export type GroupItem = { group: GroupSpec; key: string; items: Item[] };
+export type Item =
+    { cmd: PathCommand } | { text: TextSpec } | LayerItem | GroupItem;
 
 // Cull off-canvas children: ThorVG SW includes their empty origin boxes in
 // layer buffer bounds.
@@ -110,6 +113,7 @@ function blendOnly(spec: LayerSpec) {
 
 // Loose text keeps its own opacity, so only layered commands are culled.
 const invisible = (cmd: DrawCommand) =>
+    cmd.kind !== 'group' &&
     !!cmd.layer &&
     (cmd.kind !== 'text' || !!cmd.layer.holdsText) &&
     cmd.layer.opacity !== undefined &&
@@ -119,16 +123,21 @@ const sharesScene = (a: LayerSpec, b: LayerSpec) =>
     a === b || (a.blend === b.blend && blendOnly(a) && blendOnly(b));
 
 export function collect(commands: DrawCommand[]): Item[] {
-    const items: Item[] = [];
+    const root: Item[] = [];
+    let items = root;
+    const parents: Item[][] = [];
     const seen = new Map<string, number>();
     let open: LayerItem | null = null;
+    const unique = (key: string) => {
+        const uses: number = seen.get(key) ?? 0;
+        seen.set(key, uses + 1);
+        return uses ? `${key}#${uses}` : key;
+    };
     const layerFor = (layer: LayerSpec) => {
         if (!open || !sharesScene(open.layer, layer)) {
-            const uses: number = seen.get(layer.key) ?? 0;
-            seen.set(layer.key, uses + 1);
             open = {
                 layer,
-                key: uses ? `${layer.key}#${uses}` : layer.key,
+                key: unique(layer.key),
                 cmds: [],
                 texts: [],
                 lotties: [],
@@ -138,6 +147,22 @@ export function collect(commands: DrawCommand[]): Item[] {
         return open;
     };
     for (const cmd of commands) {
+        if (cmd.kind === 'group') {
+            open = null;
+            if (cmd.group) {
+                const group: GroupItem = {
+                    group: cmd.group,
+                    key: unique(cmd.group.key),
+                    items: [],
+                };
+                items.push(group);
+                parents.push(items);
+                items = group.items;
+            } else {
+                items = parents.pop() ?? root;
+            }
+            continue;
+        }
         if (invisible(cmd)) {
             continue;
         }
@@ -165,5 +190,5 @@ export function collect(commands: DrawCommand[]): Item[] {
         }
         layerFor(cmd.layer).cmds.push(cmd);
     }
-    return items;
+    return root;
 }

@@ -44,6 +44,8 @@ Canvas2D fallback은 기본 path, fill, stroke, gradient, blend를 그립니다.
 
 `RenderCtx`는 offset, rotation, scale, mirror, 현재 layer를 공유합니다. 장면 helper는 바꾼 값을 호출 범위 안에서 복구해야 합니다. layer는 중첩 stack이 아니므로 `beginLayer()`와 `endLayer()`를 겹쳐 사용하지 않습니다.
 
+A `kind: 'group'` command wraps every command, text and layer up to its closing marker (`group: null`) in one ThorVG `Scene` and applies a single clip or mask to that Scene. Layers inside a group get their own Scenes keyed by the group prefix, so a layer moving in and out of a group never shares a Scene. The opening iris draws the clock without masks and then covers it with the office through the circular iris: runs of plain office commands share an alpha-mask group, and blend layers stay outside the group with the iris as their clip. The GL engine re-applies a Scene clip for every child shape, so groups with many children use a mask instead of a clip; ThorVG 1.1.3's SW engine drops the blend of a layer inside a masked group or with its own mask, so blend layers use a clip. Clock commands that lie entirely inside the iris circle are dropped before painting.
+
 `paint/commands.ts`는 순서를 유지하며 인접한 호환 layer를 묶습니다. `paint/thorvg.ts`는 shape, text, scene 풀을 재사용합니다. 새 paint 속성을 추가하면 다음 프레임에 이전 값이 남지 않도록 reset 처리도 추가해야 합니다. 카메라와 바퀴 회전은 이전 draw 결과를 사용하며, 스테이지 변경이나 시간 역행에서 초기화됩니다.
 
 ### Incremental cutscene updates

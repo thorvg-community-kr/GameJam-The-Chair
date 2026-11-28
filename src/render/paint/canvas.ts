@@ -76,6 +76,20 @@ export function paintCanvas(
     commands: DrawCommand[],
 ): void {
     for (const cmd of commands) {
+        if (cmd.kind === 'group') {
+            if (cmd.group) {
+                bg.save();
+                clipCanvas(bg, cmd.group, ctx);
+                // An opaque group mask only cuts its outline.
+                if (cmd.group.mask && !cmd.group.maskInvert) {
+                    tracePath2d(bg, cmd.group.mask);
+                    bg.clip();
+                }
+            } else {
+                bg.restore();
+            }
+            continue;
+        }
         if (cmd.kind === 'text') {
             text2d(bg, cmd.text);
             continue;
@@ -119,20 +133,29 @@ function applyCanvasLayer(
         const m = layer.retained.transform;
         bg.transform(m.e11, m.e21, m.e12, m.e22, m.e13, m.e23);
     }
-    if (layer?.clip) {
-        tracePath2d(bg, layer.clip);
-        bg.clip();
-    }
-    if (layer?.mask && layer.maskInvert) {
-        tracePath2d(bg, layer.mask);
-        bg.rect(0, 0, ctx.W, ctx.H);
-        bg.clip('evenodd');
+    if (layer) {
+        clipCanvas(bg, layer, ctx);
     }
     if (layer?.opacity !== undefined) {
         bg.globalAlpha = layer.opacity;
     }
     if (layer?.blur) {
         bg.filter = `blur(${layer.blur}px)`;
+    }
+}
+function clipCanvas(
+    bg: CanvasRenderingContext2D,
+    spec: Pick<LayerSpec, 'clip' | 'mask' | 'maskInvert'>,
+    ctx: RenderCtx,
+) {
+    if (spec.clip) {
+        tracePath2d(bg, spec.clip);
+        bg.clip();
+    }
+    if (spec.mask && spec.maskInvert) {
+        tracePath2d(bg, spec.mask);
+        bg.rect(0, 0, ctx.W, ctx.H);
+        bg.clip('evenodd');
     }
 }
 function fillCanvasPath(

@@ -79,7 +79,27 @@ export type SceneTalk = {
     reaction: { text: string; life: number } | null;
     speech: { name: string; text: string; x: number; life: number } | null;
 };
-export type DrawCommand = PathCommand | TextCommand | LottieCommand;
+export type DrawCommand =
+    PathCommand | TextCommand | LottieCommand | GroupCommand;
+
+/**
+ * One ThorVG Scene around every command between an opening marker and its
+ * closing marker, so a single clip or mask covers all of them.
+ */
+export type GroupSpec = {
+    key: string;
+    clip?: PathCommand;
+    mask?: PathCommand;
+    maskInvert?: boolean;
+};
+export type GroupCommand = {
+    kind: 'group';
+    points: Vector[];
+    /** Opens a group; null closes the open one. */
+    group: GroupSpec | null;
+    /** Ignored; present so layer helpers can spread any command. */
+    layer?: LayerSpec;
+};
 
 /** A bundled Lottie animation drawn by ThorVG at a given time. */
 export type LottieAsset = 'thorvg-logo';
