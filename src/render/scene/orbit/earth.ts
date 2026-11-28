@@ -31,6 +31,25 @@ const alpha = (value: number) =>
     Math.round(Math.max(0, Math.min(1, value)) * 255)
         .toString(16)
         .padStart(2, '0');
+/** Whether a projected outline, grown by `margin` px, can touch the screen. */
+const onScreen = (points: Vector[], ctx: RenderCtx, margin = 8) => {
+    let left = Infinity;
+    let right = -Infinity;
+    let top = Infinity;
+    let bottom = -Infinity;
+    for (const [x, y] of points) {
+        left = Math.min(left, x);
+        right = Math.max(right, x);
+        top = Math.min(top, y);
+        bottom = Math.max(bottom, y);
+    }
+    return (
+        right >= -margin &&
+        left <= ctx.W + margin &&
+        bottom >= -margin &&
+        top <= ctx.H + margin
+    );
+};
 const H = STAGE_FIVE.heights;
 const NEAR = 20;
 export function earthAltitude(z: number): number {
@@ -371,15 +390,41 @@ const LAND: Array<{
         ],
     },
 ];
-const CLOUDS: Array<[number, number, number, number]> = (() => {
+const CLOUD_SIDES = 9;
+type Cap = { center: V3; cos: number; sin: number };
+const capOf = (points: V3[]): Cap => {
+    const center = unit(points.reduce((sum, p) => add(sum, p), [0, 0, 0]));
+    const cos = Math.min(...points.map((p) => dot(p, center)));
+    return { center, cos, sin: Math.sqrt(Math.max(0, 1 - cos * cos)) };
+};
+/** Largest dot(p, axis) over any p inside the cap; axis must be unit length. */
+const capReach = ({ center, cos, sin }: Cap, axis: V3) => {
+    const c = dot(center, axis);
+    if (c >= cos) {
+        return 1;
+    }
+    return c * cos + Math.sqrt(Math.max(0, 1 - c * c)) * sin;
+};
+// Clouds sit on the unit sphere at zero drift; drift turns the camera instead.
+const CLOUDS: Array<{ center: V3; points: V3[] }> = (() => {
     let seed = 4417;
     const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    return Array.from({ length: 380 }, () => [
-        72 + random() * 80,
-        -8 + random() * 56,
-        0.3 + random() * 1.1,
-        0.35 + random() * 0.5,
-    ]);
+    return Array.from({ length: 380 }, (_, k) => {
+        const lon = 72 + random() * 80;
+        const lat = -8 + random() * 56;
+        const r = 0.3 + random() * 1.1;
+        const stretch = 0.35 + random() * 0.5;
+        return {
+            center: globe(lon, lat),
+            points: Array.from({ length: CLOUD_SIDES }, (_, i) => {
+                const a = (i / CLOUD_SIDES) * Math.PI * 2;
+                return globe(
+                    lon + Math.cos(a) * r * (1 + 0.3 * Math.sin(i * 2.3 + k)),
+                    lat + Math.sin(a) * r * stretch,
+                );
+            }),
+        };
+    });
 })();
 const LAND_DENSE = (() => {
     const densify = (outline: Array<[number, number]>) =>
@@ -396,7 +441,10 @@ const LAND_DENSE = (() => {
                 ),
             );
         });
-    return LAND.map((land) => ({ ...land, points: densify(land.outline) }));
+    return LAND.map((land) => {
+        const points = densify(land.outline);
+        return { ...land, points, cap: capOf(points) };
+    });
 })();
 const LAND_ORDER = [
     ...LAND_DENSE.filter((land) => !land.inland),
@@ -434,6 +482,14 @@ const CITIES: Array<[number, number, number]> = [
     [118.8, 32.1, 1.4],
     [126.5, 45.8, 1.2],
 ];
+const CITY_POINTS = CITIES.map(([lon, lat, size]) => ({
+    at: globe(lon, lat),
+    size,
+}));
+const HORIZON_STEPS = Array.from({ length: 44 }, (_, i) => {
+    const t = (-86 + i * 4) * rad;
+    return [Math.cos(t), Math.sin(t)] as const;
+});
 export type EarthCamera = {
     cx: number;
     cy: number;
@@ -441,44 +497,63 @@ export type EarthCamera = {
     roll: number;
     pitch: number;
 };
-function earthView(z: number, yaw: number, camera: EarthCamera, spin = 0) {
-    const h = earthAltitude(z);
-    const [lon, lat] = groundTrack(z);
-    const from = Math.min(z, STAGE_FIVE.checkpoint.z - 200);
-    const [aLon, aLat] = groundTrack(from);
-    const [bLon, bLat] = groundTrack(from + 200);
-    const up = globe(lon, lat);
-    const ahead = add(globe(bLon, bLat), globe(aLon, aLat), -1);
-    let forward = unit(add(ahead, up, -dot(ahead, up)));
-    const turn = Math.atan(yaw) + spin;
-    forward = unit(
-        add(scale(forward, Math.cos(turn)), cross(forward, up), Math.sin(turn)),
-    );
-    const right = cross(forward, up);
+type Basis = {
+    up: V3;
+    forward: V3;
+    right: V3;
+    lookUp: V3;
+    lookAhead: V3;
+};
+// Turning the globe by +angle about its axis is the same as turning the
+// camera basis by -angle, which keeps per-point work to dot products.
+const turnBasis = (basis: Basis, angle: number): Basis => {
+    const c = Math.cos(angle);
+    const s = Math.sin(angle);
+    const turn = ([x, y, z]: V3): V3 => [x * c + y * s, y * c - x * s, z];
+    return {
+        up: turn(basis.up),
+        forward: turn(basis.forward),
+        right: turn(basis.right),
+        lookUp: turn(basis.lookUp),
+        lookAhead: turn(basis.lookAhead),
+    };
+};
+function earthFrame(
+    { up, forward, right, lookUp, lookAhead }: Basis,
+    h: number,
+    camera: EarthCamera,
+) {
     const limb = R / (R + h);
-    const { cx, cy, focal, roll, pitch } = camera;
-    const lookAhead = add(
-        scale(forward, Math.cos(pitch)),
-        up,
-        -Math.sin(pitch),
-    );
-    const lookUp = add(scale(up, Math.cos(pitch)), forward, Math.sin(pitch));
+    const rim = Math.sqrt(1 - limb * limb);
+    const { cx, cy, focal, roll } = camera;
     const cos = Math.cos(roll);
     const sin = Math.sin(roll);
+    const lift = R + h;
+    // Camera-space offsets of the eye along each axis.
+    const eyeRight = lift * dot(up, right);
+    const eyeUp = lift * dot(up, lookUp);
+    const eyeAhead = lift * dot(up, lookAhead);
     const toCamera = (n: V3): V3 => {
         let v = n;
         const along = dot(n, up);
         if (along < limb) {
-            const flat = add(n, up, -along);
-            const size = Math.hypot(...flat);
-            v = add(
-                scale(up, limb),
-                size > 1e-9 ? scale(flat, 1 / size) : forward,
-                Math.sqrt(1 - limb * limb),
-            );
+            const fx = n[0] - up[0] * along;
+            const fy = n[1] - up[1] * along;
+            const fz = n[2] - up[2] * along;
+            const size = Math.hypot(fx, fy, fz);
+            const k = size > 1e-9 ? rim / size : 0;
+            const base = size > 1e-9 ? 0 : rim;
+            v = [
+                up[0] * limb + fx * k + forward[0] * base,
+                up[1] * limb + fy * k + forward[1] * base,
+                up[2] * limb + fz * k + forward[2] * base,
+            ];
         }
-        const at = add(scale(v, R), up, -(R + h));
-        return [dot(at, right), dot(at, lookUp), dot(at, lookAhead)];
+        return [
+            R * dot(v, right) - eyeRight,
+            R * dot(v, lookUp) - eyeUp,
+            R * dot(v, lookAhead) - eyeAhead,
+        ];
     };
     const toScreen = ([ax, ay, az]: V3): Vector => {
         const x = (ax * focal) / az;
@@ -508,28 +583,56 @@ function earthView(z: number, yaw: number, camera: EarthCamera, spin = 0) {
         });
         return out.length >= 3 ? out.map(toScreen) : [];
     };
-    const horizonAt = (t: number) =>
-        project(
-            add(
-                scale(up, limb),
-                add(scale(forward, Math.cos(t)), right, Math.sin(t)),
-                Math.sqrt(1 - limb * limb),
-            ),
-        );
-    const horizon: Vector[] = [];
-    for (let a = -86; a <= 86; a += 4) {
-        horizon.push(horizonAt(a * rad));
-    }
-    const visible = (n: V3) => dot(n, up) >= limb && toCamera(n)[2] >= NEAR;
+    const visible = (n: V3) =>
+        dot(n, up) >= limb && R * dot(n, lookAhead) - eyeAhead >= NEAR;
+    /** False only when no point of the cap can be visible. */
+    const mayShow = (cap: Cap) =>
+        capReach(cap, up) >= limb &&
+        R * capReach(cap, lookAhead) - eyeAhead >= NEAR;
+    return { project, outline, visible, mayShow, limb, rim };
+}
+function earthView(z: number, yaw: number, camera: EarthCamera, spin = 0) {
+    const h = earthAltitude(z);
+    const [lon, lat] = groundTrack(z);
+    const from = Math.min(z, STAGE_FIVE.checkpoint.z - 200);
+    const [aLon, aLat] = groundTrack(from);
+    const [bLon, bLat] = groundTrack(from + 200);
+    const up = globe(lon, lat);
+    const ahead = add(globe(bLon, bLat), globe(aLon, aLat), -1);
+    let forward = unit(add(ahead, up, -dot(ahead, up)));
+    const turn = Math.atan(yaw) + spin;
+    forward = unit(
+        add(scale(forward, Math.cos(turn)), cross(forward, up), Math.sin(turn)),
+    );
+    const { pitch } = camera;
+    const basis: Basis = {
+        up,
+        forward,
+        right: cross(forward, up),
+        lookAhead: add(scale(forward, Math.cos(pitch)), up, -Math.sin(pitch)),
+        lookUp: add(scale(up, Math.cos(pitch)), forward, Math.sin(pitch)),
+    };
+    const frame = earthFrame(basis, h, camera);
+    const { limb, rim } = frame;
+    const horizonPoint = (c: number, s: number) =>
+        frame.project([
+            up[0] * limb + (forward[0] * c + basis.right[0] * s) * rim,
+            up[1] * limb + (forward[1] * c + basis.right[1] * s) * rim,
+            up[2] * limb + (forward[2] * c + basis.right[2] * s) * rim,
+        ]);
+    const horizonAt = (t: number) => horizonPoint(Math.cos(t), Math.sin(t));
+    const horizon = HORIZON_STEPS.map(([c, s]) => horizonPoint(c, s));
     return {
-        project,
-        outline,
-        visible,
+        ...frame,
+        /** The same view of a globe turned by `angle` about its axis. */
+        turned: (angle: number) =>
+            earthFrame(turnBasis(basis, angle), h, camera),
         horizon,
         horizonAt,
         middle: horizon[Math.floor(horizon.length / 2)],
     };
 }
+type EarthView = ReturnType<typeof earthView>;
 export function orbitEarth(
     ctx: RenderCtx,
     travel: number,
@@ -551,21 +654,16 @@ export function orbitEarth(
     const view = earthView(travel, yaw, camera, spin);
     const { horizon, middle } = view;
     const far = Math.max(ctx.W, ctx.H) * 4;
-    const {
-        surface,
-        ground,
-        clip,
-    }: {
-        surface: {
-            key: string;
-            clip: PathCommand;
-        };
-        ground: Vector[];
-        clip: DrawCommand;
-    } = orbitEarthDetails(horizon, far, ctx, middle, {
-        strength,
-        view,
-    });
+    const { surface, ground, clip, coasts } = orbitEarthDetails(
+        horizon,
+        far,
+        ctx,
+        middle,
+        {
+            strength,
+            view,
+        },
+    );
     orbitEarthDetails3(ctx, night, strength, view, surface);
     if (night > 0) {
         ctx.commands.push({
@@ -574,27 +672,17 @@ export function orbitEarth(
             fill: '#06101f' + alpha(0.74 * night * strength),
             layer: surface,
         });
-        for (const land of LAND_DENSE) {
-            if (land.inland) {
-                continue;
-            }
-            const points = land.points;
-            if (!points.some(view.visible)) {
-                continue;
-            }
-            const v = view.outline(points);
-            if (v.length) {
-                ctx.commands.push({
-                    kind: 'path',
-                    points: v,
-                    fill: null,
-                    stroke: {
-                        width: Math.max(1, ctx.W / 800),
-                        color: '#6f8fbf' + alpha(0.45 * night * strength),
-                    },
-                    layer: surface,
-                });
-            }
+        for (const v of coasts) {
+            ctx.commands.push({
+                kind: 'path',
+                points: v,
+                fill: null,
+                stroke: {
+                    width: Math.max(1, ctx.W / 800),
+                    color: '#6f8fbf' + alpha(0.45 * night * strength),
+                },
+                layer: surface,
+            });
         }
         orbitEarthDetails4(strength, night, clip, view, ctx);
     }
@@ -604,13 +692,7 @@ function orbitEarthDetails4(
     strength: number,
     night: number,
     clip: PathCommand,
-    view: {
-        project: (n: V3) => Vector;
-        outline: (points: V3[]) => Vector[];
-        visible: (n: V3) => boolean;
-        horizon: Vector[];
-        middle: Vector;
-    },
+    view: EarthView,
     ctx: RenderCtx,
 ) {
     const glow = {
@@ -619,11 +701,11 @@ function orbitEarthDetails4(
         opacity: strength * night,
         clip,
     };
-    for (const [lon, lat, size] of CITIES) {
-        if (!view.visible(globe(lon, lat))) {
+    for (const { at, size } of CITY_POINTS) {
+        if (!view.visible(at)) {
             continue;
         }
-        const [x, y] = view.project(globe(lon, lat));
+        const [x, y] = view.project(at);
         const r = (size * ctx.W) / 420;
         ctx.commands.push({
             kind: 'path',
@@ -662,13 +744,7 @@ function orbitEarthDetails3(
     ctx: RenderCtx,
     night: number,
     strength: number,
-    view: {
-        project: (n: V3) => Vector;
-        outline: (points: V3[]) => Vector[];
-        visible: (n: V3) => boolean;
-        horizon: Vector[];
-        middle: Vector;
-    },
+    view: EarthView,
     surface: {
         key: string;
         clip: PathCommand;
@@ -676,22 +752,13 @@ function orbitEarthDetails3(
 ) {
     const drift = ctx.t * 0.015;
     const cloud = '#ffffff' + alpha(0.5 * (1 - night * 0.85) * strength);
-    CLOUDS.forEach(([lon, lat, r, stretch], k) => {
-        if (!view.visible(globe(lon + drift, lat))) {
-            return;
+    const turned = view.turned(drift * rad);
+    for (const { center, points } of CLOUDS) {
+        if (!turned.visible(center)) {
+            continue;
         }
-        const v = view.outline(
-            Array.from({ length: 9 }, (_, i) => {
-                const a = (i / 9) * Math.PI * 2;
-                return globe(
-                    lon +
-                        drift +
-                        Math.cos(a) * r * (1 + 0.3 * Math.sin(i * 2.3 + k)),
-                    lat + Math.sin(a) * r * stretch,
-                );
-            }),
-        );
-        if (v.length) {
+        const v = turned.outline(points);
+        if (v.length && onScreen(v, ctx)) {
             ctx.commands.push({
                 kind: 'path',
                 points: v,
@@ -699,7 +766,7 @@ function orbitEarthDetails3(
                 layer: surface,
             });
         }
-    });
+    }
 }
 function orbitEarthDetails2(
     horizon: Vector[],
@@ -747,13 +814,7 @@ function orbitEarthDetails(
         view,
     }: {
         strength: number;
-        view: {
-            project: (n: V3) => Vector;
-            outline: (points: V3[]) => Vector[];
-            visible: (n: V3) => boolean;
-            horizon: Vector[];
-            middle: Vector;
-        };
+        view: EarthView;
     },
 ) {
     const ground: Vector[] = [
@@ -782,30 +843,35 @@ function orbitEarthDetails(
             (color.length > 7 ? parseInt(color.slice(7, 9), 16) / 255 : 1) *
                 strength,
         );
+    const coasts: Vector[][] = [];
     for (const land of LAND_ORDER) {
         const points = land.points;
-        if (!points.some(view.visible)) {
+        if (!view.mayShow(land.cap) || !points.some(view.visible)) {
             continue;
         }
         const v = view.outline(points);
-        if (v.length) {
-            ctx.commands.push({
-                kind: 'path',
-                points: v,
-                fill: faded(land.color),
-                layer: surface,
-                ...(land.inland
-                    ? {}
-                    : {
-                          stroke: {
-                              width: Math.max(1, ctx.W / 700),
-                              color: faded('#d9efe0aa'),
-                          },
-                      }),
-            });
+        if (!v.length || !onScreen(v, ctx)) {
+            continue;
         }
+        if (!land.inland) {
+            coasts.push(v);
+        }
+        ctx.commands.push({
+            kind: 'path',
+            points: v,
+            fill: faded(land.color),
+            layer: surface,
+            ...(land.inland
+                ? {}
+                : {
+                      stroke: {
+                          width: Math.max(1, ctx.W / 700),
+                          color: faded('#d9efe0aa'),
+                      },
+                  }),
+        });
     }
-    return { surface, ground, clip };
+    return { surface, ground, clip, coasts };
 }
 export function earthHorizonAhead(
     travel: number,
