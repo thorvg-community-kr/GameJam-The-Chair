@@ -32,18 +32,19 @@ The linked public libraries identify these effects as CC0: [SFXMint license](htt
 | Extinguisher | Edited lever click and synthesized gas loop |
 | Chair and convoy motion | Crossfaded chair recording; horn at express transition |
 | Vent and duct warning, blast | Synthesized motor loop and edited wind |
+| Employee-of-the-month portrait drop | Quiet synthesized paper flutter |
 | Rooftop takeoff | Synthesized windup, kick and edited wind |
 | Sky desks, signs, floating gear | Synthesized wood creak and metal rattle |
 | Approaching bird and bird collision | Edited squawk and existing impact recording |
-| Satellite tracking, lock and capture | Synthesized scan and warning; edited shutter |
+| Satellite tracking, lock and capture | Synthesized scan until the shot, lock warning; dedicated edited shutter |
 | Orbit speed steps | Synthesized motor rise |
 | Bin fall | Synthesized hollow knocks and paper-like noise |
 | Menu buttons and volume confirmation | Synthesized tap and confirmation |
 
-`src/presentation/scene-audio.ts` observes snapshots without changing gameplay. Its stage modules produce one-shot and persistent-loop requests. `src/ui/game-audio.ts` shares routing between the game and motion preview. The Web Audio loop mixer reuses sources, fades changes, limits simultaneous loops, and retires voices when an emitter stops or moves out of range. Pause, restart, replay viewing, seeking and hidden tabs clear playback. The sky release and parked ending remain quiet; the shutter follows the actual satellite freeze/flash transition.
+`src/presentation/scene-audio.ts` observes snapshots without changing gameplay. Its stage modules produce one-shot and persistent-loop requests. `src/ui/game-audio.ts` shares routing between the game and motion preview. The Web Audio loop mixer reuses sources, fades changes, limits simultaneous loops, and retires voices when an emitter stops or moves out of range. Pause, restart, replay viewing, seeking and hidden tabs clear playback. The sky release and parked ending remain quiet; the shutter fires as each satellite damage zone opens.
 
 ## Verification
 
-Use Play in `/preview.html`; seeking is silent. Relevant scenes include `office-typing`, `lift-arrival-audio`, `extinguisher-spray`, `rooftop-shaft-low`, `rooftop-takeoff`, `sky-surface-audio`, `orbit-route`, and `orbit-photo`. The photograph marker identifies its real capture frame. Rewinding or looping a scene resets sound history.
+Use Play in `/preview.html`; seeking is silent. Relevant scenes include `office-typing`, `rooftop-entrance`, `lift-arrival-audio`, `extinguisher-spray`, `rooftop-shaft-low`, `rooftop-takeoff`, `sky-surface-audio`, `orbit-route`, and `orbit-photo`. The photograph marker identifies its real capture frame; the shutter itself follows the zone opening. Rewinding or looping a scene resets sound history.
 
 `tests/scene-audio.test.mjs` covers transition timing, distance, cancellation, the photograph, preview collision events and gameplay isolation. `tests/sound-assets.test.mjs` checks PCM formats, durations, headroom and sample boundaries. Final timbre and music balance should also be checked by listening in the game.

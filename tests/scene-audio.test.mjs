@@ -7,6 +7,7 @@ const { createGame, parseState } = await load('src/game/game.ts');
 const { sceneAudio } = await load('src/presentation/scene-audio.ts');
 const { createGameAudio } = await load('src/ui/game-audio.ts');
 const { STAGE_THREE } = await load('src/game/stages/rooftop/data.ts');
+const { STAGE_FIVE } = await load('src/game/stages/orbit/data.ts');
 const { previewScenes } = await load('src/preview-scenes.ts');
 const frame = (stage) => {
     const game = createGame();
@@ -122,21 +123,30 @@ test('nearby vents announce the warning before blowing and distant vents stay qu
     );
 });
 
-test('the last photograph preview contains a real freeze and one shutter cue', () => {
+test('the last photograph whirs before one shutter cue and stays quiet after it', () => {
     const scene = previewScenes
         .find((item) => item.id === 'orbit-photo')
         .create();
     assert.equal(scene.markers.length, 1);
     let previous = scene.sample(0).state;
     let shutters = 0;
+    let whirBefore = false;
+    let whirAfter = false;
     for (let t = 1 / 60; t < scene.duration; t += 1 / 60) {
         const next = scene.sample(t).state;
-        shutters += names(sceneAudio(previous, next)).filter(
-            (name) => name === 'shutter',
-        ).length;
+        const audio = sceneAudio(previous, next);
+        shutters += names(audio).filter((name) => name === 'shutter').length;
+        const whir = audio.loops.some((loop) => loop.name === 'satelliteScan');
+        if (shutters === 0) {
+            whirBefore ||= whir;
+        } else {
+            whirAfter ||= whir;
+        }
         previous = next;
     }
     assert.equal(shutters, 1);
+    assert.ok(whirBefore, 'the scan whir leads into the photograph');
+    assert.ok(!whirAfter, 'the scan whir stops once the shutter fires');
 });
 
 test('world audio stays silent in release and parked ending frames', () => {
@@ -198,4 +208,48 @@ test('audio observation never changes serialized gameplay', () => {
     const state = game.serialize();
     sceneAudio(before, next);
     assert.deepEqual(parseState(game.serialize()), parseState(state));
+});
+
+test('the employee-of-the-month portrait drops with one paper sound after the door shuts', () => {
+    const scene = previewScenes
+        .find((item) => item.id === 'rooftop-entrance')
+        .create();
+    let previous = scene.sample(0).state;
+    const heard = [];
+    for (let t = 1 / 60; t < scene.duration; t += 1 / 60) {
+        const next = scene.sample(t).state;
+        for (const name of names(sceneAudio(previous, next))) {
+            heard.push({ name, t });
+        }
+        previous = next;
+    }
+    const at = (name) => heard.filter((item) => item.name === name);
+    const [close] = at('doorClose');
+    const falls = at('portraitFall');
+    assert.equal(falls.length, 1);
+    assert.ok(close.t < falls[0].t);
+});
+
+test('the shutter fires when a satellite damage zone opens, even if the chair dodges it', () => {
+    const base = frame(5);
+    const beam = STAGE_FIVE.satelliteLight.beams[0];
+    const at = (z, time) => ({
+        ...base,
+        mode: 'play',
+        time,
+        orbit: {
+            ...base.orbit,
+            phase: 'door',
+            z,
+            speed: 300,
+            freeze: 0,
+            aims: base.orbit.aims.map(() => ({ x: 900, y: 900 })),
+        },
+    });
+    const shutters = (prev, next) =>
+        names(sceneAudio(prev, next)).filter((name) => name === 'shutter')
+            .length;
+    assert.equal(shutters(at(beam.from - 10, 10), at(beam.from - 5, 10.01)), 0);
+    assert.equal(shutters(at(beam.from - 1, 10), at(beam.from + 4, 10.01)), 1);
+    assert.equal(shutters(at(beam.from + 4, 10), at(beam.from + 9, 10.01)), 0);
 });

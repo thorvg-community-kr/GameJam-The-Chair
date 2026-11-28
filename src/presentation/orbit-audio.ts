@@ -18,9 +18,19 @@ export function orbitAudio({ prev, next, audio }: AudioScene): void {
     if (gearAt(after.z).index > gearAt(before.z).index) {
         addSound(audio, 'gearShift', 0.75);
     }
+    if (
+        STAGE_FIVE.satelliteLight.beams.some(
+            (item) => before.z < item.from && after.z >= item.from,
+        )
+    ) {
+        addSound(audio, 'shutter', 1);
+    }
+    if (after.freeze > 0 || satelliteLightOn(after, next.player, after.z)) {
+        return;
+    }
     const beam = STAGE_FIVE.satelliteLight.beams.find(
         (item) =>
-            after.z < item.to &&
+            after.z < item.from &&
             satelliteLightArrival(item, after.z, after.speed) <
                 STAGE_FIVE.satelliteLight.warn,
     );
@@ -28,7 +38,7 @@ export function orbitAudio({ prev, next, audio }: AudioScene): void {
         audio.loops.push({
             id: 'scan',
             name: 'satelliteScan',
-            gain: 0.3,
+            gain: 0.65,
             rate: satelliteLightLocked(beam, after.z, after.speed) ? 1.3 : 1,
         });
         if (
@@ -37,11 +47,5 @@ export function orbitAudio({ prev, next, audio }: AudioScene): void {
         ) {
             addSound(audio, 'satelliteAlert', 0.65);
         }
-    }
-    if (
-        !satelliteLightOn(before, prev.player, before.z) &&
-        satelliteLightOn(after, next.player, after.z)
-    ) {
-        addSound(audio, 'satelliteAlert', 0.8);
     }
 }

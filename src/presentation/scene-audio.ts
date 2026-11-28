@@ -12,7 +12,7 @@ import type { GameEvent } from '../game/types';
 
 function playerLoops(state: GameSnapshot, audio: SceneAudio) {
     if (state.spray.burst > 0) {
-        audio.loops.unshift({ id: 'gas', name: 'gasLoop', gain: 0.8, rate: 1 });
+        audio.loops.unshift({ id: 'gas', name: 'gasLoop', gain: 0.3, rate: 1 });
     }
     const speed = Math.abs(state.player.vx);
     if (state.stage < 4 && state.ground && speed > 18) {
@@ -22,18 +22,6 @@ function playerLoops(state: GameSnapshot, audio: SceneAudio) {
             gain: Math.min(0.8, speed / 420),
             rate: 0.7 + Math.min(0.9, speed / 450),
         });
-    }
-}
-
-function photograph(prev: GameSnapshot, next: GameSnapshot, audio: SceneAudio) {
-    if (
-        next.stage === 5 &&
-        next.mode !== 'pause' &&
-        next.orbit &&
-        prev.orbit &&
-        next.orbit.freeze > prev.orbit.freeze
-    ) {
-        addSound(audio, 'shutter', 0.9);
     }
 }
 
@@ -93,7 +81,6 @@ export function sceneAudio(
     if (prev.mode !== 'play') {
         return audio;
     }
-    photograph(prev, next, audio);
     if (next.mode !== 'play' || silentFrame(next) || silentFrame(prev)) {
         return audio;
     }

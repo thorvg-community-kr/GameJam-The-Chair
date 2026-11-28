@@ -19,6 +19,7 @@ for clip in json.loads((ROOT / 'edits.json').read_text()):
         f"highpass=f={clip['highpass']}",
         f"lowpass=f={clip['lowpass']}",
         *([f"afftdn=nr={clip['denoise']}:nf=-45:tn=1:gs=8"] if clip['denoise'] else []),
+        *([f"acompressor=threshold={clip['compress']}dB:ratio=8:attack=0.2:release=30:makeup=1"] if clip.get('compress') else []),
         f"afade=t=in:d={clip['fadeIn']}:curve=hsin",
         f"afade=t=out:st={duration - clip['fadeOut']}:d={clip['fadeOut']}:curve=hsin",
     ])

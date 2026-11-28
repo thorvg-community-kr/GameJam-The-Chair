@@ -5,6 +5,9 @@ import type { Sfx } from './sfx';
 import type { GameSnapshot } from '../game/game';
 import type { GameEvent } from '../game/types';
 import type { SceneAudio } from '../presentation/audio-types';
+import type { SfxName } from '../presentation/sfx';
+
+const FRAME_GAINS: Partial<Record<SfxName, number>> = { land: 0.45 };
 
 export type GameAudio = {
     update(next: GameSnapshot | null, events?: readonly GameEvent[]): void;
@@ -77,13 +80,13 @@ class GameAudioPlayer implements GameAudio {
                 this.sfx.stop(true);
             }
             if (beganSpray(before, next)) {
-                this.sfx.play('sprayLever', undefined, { gain: 0.55 });
+                this.sfx.play('sprayLever', undefined, { gain: 0.3 });
             }
         }
         const audio = sceneAudio(before, next, events);
         for (const name of frameSounds(before, next, events)) {
             if (name !== 'spray') {
-                this.sfx.play(name);
+                this.sfx.play(name, undefined, { gain: FRAME_GAINS[name] });
             }
         }
         this.shots(audio);

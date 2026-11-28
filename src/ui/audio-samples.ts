@@ -17,8 +17,10 @@ import liftArriveUrl from '../../assets/sound/lift-arrive.wav?url';
 import liftLoopUrl from '../../assets/sound/lift-loop.wav?url';
 import metalRattleUrl from '../../assets/sound/metal-rattle.wav?url';
 import paperUrl from '../../assets/sound/paper.wav?url';
+import portraitFallUrl from '../../assets/sound/portrait-fall.wav?url';
 import satelliteAlertUrl from '../../assets/sound/satellite-alert.wav?url';
 import scanLoopUrl from '../../assets/sound/scan-loop.wav?url';
+import shutterUrl from '../../assets/sound/shutter.wav?url';
 import splashUrl from '../../assets/sound/splash.wav?url';
 import typingShortUrl from '../../assets/sound/typing-short.wav?url';
 import typingUrl from '../../assets/sound/typing.wav?url';
@@ -54,7 +56,7 @@ export const SAMPLES = new Map<AudioName, { url: string; seconds: number }>([
     ['uiError', { url: uiErrorUrl, seconds: 0.33 }],
     ['liftArrival', { url: liftArriveUrl, seconds: 1.3 }],
     ['birdCall', { url: birdCallUrl, seconds: 0.43 }],
-    ['shutter', { url: clickUrl, seconds: 0.32 }],
+    ['shutter', { url: shutterUrl, seconds: 0.24 }],
     ['sprayLever', { url: clickUrl, seconds: 0.32 }],
     ['spray', { url: clickUrl, seconds: 0.32 }],
     ['woodCreak', { url: woodCreakUrl, seconds: 0.5 }],
@@ -66,6 +68,7 @@ export const SAMPLES = new Map<AudioName, { url: string; seconds: number }>([
     ['uiTap', { url: uiTapUrl, seconds: 0.06 }],
     ['uiConfirm', { url: uiConfirmUrl, seconds: 0.18 }],
     ['ventBlow', { url: windUrl, seconds: 1.25 }],
+    ['portraitFall', { url: portraitFallUrl, seconds: 0.45 }],
     ['crash', { url: binRattleUrl, seconds: 0.65 }],
     ['gasLoop', { url: gasLoopUrl, seconds: 0.92 }],
     ['ventMotor', { url: ventLoopUrl, seconds: 0.92 }],

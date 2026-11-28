@@ -72,6 +72,19 @@
     "denoise": 8
   },
   {
+    "id": "shutter",
+    "source": "click.mp3",
+    "start": 0,
+    "end": 0.24,
+    "highpass": 90,
+    "lowpass": 12000,
+    "fadeIn": 0.002,
+    "fadeOut": 0.03,
+    "peak": 0.48,
+    "denoise": 8,
+    "compress": -26
+  },
+  {
     "id": "wind",
     "source": "wind.mp3",
     "start": 0.55,
