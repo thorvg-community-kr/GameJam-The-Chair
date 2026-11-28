@@ -802,11 +802,15 @@ class ChairChatTick {
                 CHAIR_CHAT_INTERVAL.dismissed * CHAIR_CHAT.dismissed.length
         ) {
             this.c.chat = { kind: 'gossip', age: 0 };
-        } else if (this.c.chat.kind === 'wary' && this.c.chat.age >= 2.2) {
+        } else if (this.c.chat.kind === 'wary' && this.c.chat.age >= 1.9) {
             this.c.chat = { kind: 'realizing', age: 0 };
-        } else if (this.c.chat.kind === 'realizing' && this.c.chat.age >= 2.4) {
+        } else if (this.c.chat.kind === 'realizing' && this.c.chat.age >= 2) {
             this.c.chat = { kind: 'welcoming', age: 0 };
-        } else if (this.c.chat.kind === 'welcoming' && this.c.chat.age >= 2) {
+        } else if (
+            this.c.chat.kind === 'welcoming' &&
+            this.c.chat.age >=
+                CHAIR_CHAT_INTERVAL.welcoming * CHAIR_CHAT.welcoming.length
+        ) {
             this.c.lesson = Math.max(0, this.c.lesson);
             this.c.chat = {
                 kind: 'orientation',

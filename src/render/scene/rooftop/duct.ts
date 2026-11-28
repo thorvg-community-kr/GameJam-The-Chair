@@ -79,39 +79,15 @@ function drawDuctBack(ctx: RenderCtx, x: number, y: number) {
         ],
         ctx.gradientFill(x + 20, 0, x + 180, 0, {
             stops: [
-                [0, '#adb8c7'],
-                [0.42, '#7c8ea6'],
-                [0.73, '#a3afc1'],
-                [1, '#7b8da5'],
+                [0, PIPE.light],
+                [0.42, PIPE.base],
+                [0.73, PIPE.light],
+                [1, PIPE.dark],
             ],
         }),
     );
     drawDuctFront(ctx, x, y, top);
-    ctx.polygon(
-        [
-            [x + 4, y - 20],
-            [x + 20, y - 29],
-            [x + 20, y + 27],
-            [x + 4, y + 23],
-        ],
-        '#253d57',
-    );
-    for (let i = 0; i < 4; i++) {
-        const ly = y - 18 + i * 13;
-        ctx.polygon(
-            [
-                [x + 3, ly + 7],
-                [x + 21, ly - 2],
-                [x + 21, ly + 4],
-                [x + 3, ly + 12],
-            ],
-            '#8da0b7',
-        );
-        ctx.rod(x + 3, ly + 6, x + 21, ly - 3, {
-            w: 2,
-            c: '#d2dbe3',
-        });
-    }
+    pipeLip(ctx, x - 6, y - 50, 34, 94);
 }
 function drawDuctFront(ctx: RenderCtx, x: number, y: number, top: number) {
     ctx.effectPath(
@@ -128,46 +104,62 @@ function drawDuctFront(ctx: RenderCtx, x: number, y: number, top: number) {
         ],
         ctx.gradientFill(x, 0, x + 140, 0, {
             stops: [
-                [0, '#d6dce2'],
-                [1, '#bdc8d5'],
+                [0, PIPE.shine],
+                [1, PIPE.light],
             ],
         }),
     );
     for (const sx of [x + 40, x + 108]) {
-        ctx.rect(sx, y - 41, 11, 80, '#afbdcc');
+        ctx.rect(sx, y - 41, 11, 80, PIPE.dark);
         ctx.rod(sx + 2, y - 40, sx + 2, y + 38, {
             w: 2,
-            c: '#d8dfe5',
+            c: PIPE.light,
         });
-        for (const by of [y - 32, y + 29]) {
-            ctx.ellipse(sx + 7, by, 2, 2, {
-                c: '#546d87',
-            });
-        }
     }
     for (let sy = top + 50; sy < y - 90; sy += 144) {
-        ctx.rect(x + 120, sy, 65, 11, '#b1bdcd');
-        for (const bx of [x + 126, x + 178]) {
-            ctx.ellipse(bx, sy + 5, 2, 2, {
-                c: '#596f87',
-            });
-        }
+        ctx.rect(x + 120, sy, 65, 11, PIPE.dark);
     }
-    ctx.polygon(
-        [
-            [x, y - 25],
-            [x + 24, y - 38],
-            [x + 24, y + 35],
-            [x, y + 29],
-        ],
-        '#ced5dd',
-    );
 }
 function hash(n: number) {
     const v = Math.sin(n * 127.1 + 311.7) * 43758.5453;
     return v - Math.floor(v);
 }
 const smooth = (v: number) => v * v * (3 - 2 * v);
+const PIPE = {
+    shine: '#b8f27c',
+    light: '#6fd03c',
+    base: '#38a82a',
+    dark: '#1d6b1a',
+    hole: '#0d2410',
+};
+function pipeLip(
+    ctx: RenderCtx,
+    x: number,
+    top: number,
+    width: number,
+    height: number,
+) {
+    ctx.gradientPolygon(
+        [
+            [x, top],
+            [x + width, top],
+            [x + width, top + height],
+            [x, top + height],
+        ],
+        ctx.gradientFill(0, top, 0, top + height, {
+            stops: [
+                [0, PIPE.dark],
+                [0.18, PIPE.light],
+                [0.32, PIPE.shine],
+                [0.5, PIPE.base],
+                [1, PIPE.dark],
+            ],
+        }),
+    );
+    ctx.rod(x, top, x, top + height, { w: 3, c: PIPE.dark });
+    ctx.rod(x + width, top, x + width, top + height, { w: 3, c: PIPE.dark });
+    ctx.ellipse(x, top + height / 2, 6, height / 2 - 6, { c: PIPE.hole });
+}
 function ductSteam(
     ctx: RenderCtx,
     x: number,
@@ -948,7 +940,7 @@ export function rooftopVents(ctx: RenderCtx): void {
                 for (let i = 0; i < 4; i++) {
                     const u = (phase.age * (1.5 + phase.age * 2) + i / 4) % 1;
                     ctx.ellipse(
-                        cx - 14 - u * 40,
+                        cx - 30 - u * 40,
                         cy - 14 + i * 9 - u * 10,
                         3 + u * 7,
                         2 + u * 4,
@@ -964,7 +956,7 @@ export function rooftopVents(ctx: RenderCtx): void {
                     0.6,
                 );
                 const angle = vent.axis === 'y' ? 90 : vent.dir > 0 ? 0 : 180;
-                ductSteam(ctx, cx - 14, cy, phase.age * pace, {
+                ductSteam(ctx, cx - 30, cy, phase.age * pace, {
                     duration: vent.blow * pace,
                     strength: 0.9,
                     blurAngle: angle,
@@ -982,40 +974,27 @@ function ventGrille(
         age: number;
     },
 ) {
-    ctx.polygon(
+    ctx.gradientPolygon(
         [
-            [x, y - 30],
-            [x - 13, y - 26],
-            [x - 13, y + 26],
-            [x, y + 30],
+            [x, y - 20],
+            [x - 16, y - 20],
+            [x - 16, y + 20],
+            [x, y + 20],
         ],
-        '#9fabb9',
+        ctx.gradientFill(0, y - 20, 0, y + 20, {
+            stops: [
+                [0, PIPE.light],
+                [0.3, PIPE.shine],
+                [0.55, PIPE.base],
+                [1, PIPE.dark],
+            ],
+        }),
     );
-    ctx.polygon(
-        [
-            [x - 2, y - 25],
-            [x - 11, y - 22],
-            [x - 11, y + 22],
-            [x - 2, y + 25],
-        ],
-        '#22374e',
-    );
-    for (let i = 0; i < 4; i++) {
-        const ly = y - 17 + i * 11;
-        ctx.rod(x - 2, ly + 5, x - 11, ly - 2, {
-            w: 2.5,
-            c: '#c3ccd6',
-        });
-    }
-    for (const by of [y - 27, y + 27]) {
-        ctx.ellipse(x - 7, by, 1.6, 1.6, {
-            c: '#566b82',
-        });
-    }
+    pipeLip(ctx, x - 30, y - 28, 16, 56);
     const lit =
         phase.kind === 'blow' ||
         (phase.kind === 'warn' && Math.sin(phase.age * 26) > 0);
-    ctx.ellipse(x - 7, y - 36, 3, 3, {
+    ctx.ellipse(x - 7, y - 34, 3, 3, {
         c: lit ? '#ff5b4a' : '#6a2a27',
     });
 }
