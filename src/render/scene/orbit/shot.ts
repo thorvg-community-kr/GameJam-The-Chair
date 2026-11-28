@@ -167,7 +167,7 @@ function backdrop(
         skyBottom,
     );
     const horizon = orbitEarth(ctx, shot.travel, earth, 0, {
-        strength: heights.air,
+        strength: heights.air > 0 ? 1 : 0,
         night: heights.shadow * (1 - shot.ending.wide),
         spin,
     });
@@ -245,7 +245,7 @@ function prepareOrbitProjections(
         since < 0
             ? {
                   anchor: cam,
-                  turn: look,
+                  panorama: look,
                   nearDepth: 1100,
                   unwrapped: true,
                   only: basinCloudSeeds(
@@ -258,7 +258,7 @@ function prepareOrbitProjections(
                       cam,
                   ),
               }
-            : { anchor: cam, turn: look };
+            : { anchor: cam, panorama: look };
     const cloudsShown = clouds >= 0.02;
     if (cloudsShown) {
         orbitCloudBank(ctx, view, travel, false, { ...options, alpha: clouds });
@@ -465,7 +465,7 @@ class OrbitDrawing {
         this.turn = turn;
         this.ending = ending;
         this.since = since;
-        this.clouds = 1 - orbitHeights(this.travel).air;
+        this.clouds = orbitHeights(this.travel).air < 1 ? 1 : 0;
         this.wide = this.ending.wide;
         this.blend = smooth(this.shot.entry);
         this.mix = (a: number, b: number, k: number) => a + (b - a) * k;
@@ -586,6 +586,21 @@ class OrbitDrawing {
         }
         endingFade(this.ctx, this.ending);
     }
+    private watcherPoint(x: number, y: number, z: number): Point3 {
+        const at = this.point(x, y, z);
+        if (this.since >= 0) {
+            return at;
+        }
+        const [sx, sy] = this.view.project(at);
+        const [hx, hy] = this.chair.project([4, 70, 0]);
+        const margin = this.ctx.W * 0.24;
+        const weight = smooth((margin * 2 - Math.abs(sx - hx)) / margin);
+        const pixelRise = sy - this.view.project([at[0], at[1] + 1, at[2]])[1];
+        const lift =
+            (weight * Math.max(0, sy - hy + this.ctx.H * 0.24)) /
+            Math.max(0.01, pixelRise);
+        return [at[0], at[1] + lift, at[2]];
+    }
     private drawAtmosphere() {
         if (this.turn >= ORBIT_WATCH.glintsFrom) {
             orbitCloudGlints(this.ctx, this.clouds);
@@ -597,7 +612,7 @@ class OrbitDrawing {
             this.turn > 0
                 ? orbitWatchers(
                       this.view,
-                      this.point,
+                      (x, y, z) => this.watcherPoint(x, y, z),
                       this.travel,
                       this.ctx.t,
                       {
@@ -729,7 +744,7 @@ class OrbitDrawing {
                 ctx: this.ctx,
                 view: this.view,
                 since: this.since,
-                look: this.look,
+                look: (-(this.turn + this.spin) * Math.PI) / 2,
                 clouds: this.clouds,
                 travel: this.travel,
             });

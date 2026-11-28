@@ -467,7 +467,7 @@ export function departureCake(
             fill: '#fff5d8',
             opts: {
                 rotation,
-                opacity: 1 - progress * progress,
+                opacity: 1,
             },
         });
     };
