@@ -11,12 +11,14 @@ const {
     skySurface,
     skyGust,
     skyHazards,
+    skyBirdRobot,
+    SKY_ROBOT_ODDS,
     skyStep,
     createSky,
     STAGE_FOUR,
 } = await bundled({
     stdin: {
-        contents: `export { createGame } from './src/game/game'; export { skyPlatforms, skySurface, skyGust, skyHazards, createSky, STAGE_FOUR } from './src/game/stages/sky/data'; export { skyStep } from './src/game/stages/sky/course/decide'; export { FOCUS_DAMAGE } from './src/game/level';`,
+        contents: `export { createGame } from './src/game/game'; export { skyPlatforms, skySurface, skyGust, skyHazards, skyBirdRobot, SKY_ROBOT_ODDS, createSky, STAGE_FOUR } from './src/game/stages/sky/data'; export { skyStep } from './src/game/stages/sky/course/decide'; export { FOCUS_DAMAGE } from './src/game/level';`,
         resolveDir: process.cwd(),
     },
     bundle: true,
@@ -348,7 +350,11 @@ test('a bird or paper hit costs focus once per pass and running out of focus end
         runUntil(
             () =>
                 skyHazards(t).some(
-                    (h) => h.kind === 'bird' && h.x > 4000 && h.x < 4400,
+                    (h) =>
+                        h.kind === 'bird' &&
+                        !h.robot &&
+                        h.x > 4000 &&
+                        h.x < 4400,
                 ),
             () => {
                 t += 0.05;
@@ -358,7 +364,7 @@ test('a bird or paper hit costs focus once per pass and running out of focus end
         return t;
     })();
     const bird = skyHazards(time).find(
-        (h) => h.kind === 'bird' && h.x > 4000 && h.x < 4400,
+        (h) => h.kind === 'bird' && !h.robot && h.x > 4000 && h.x < 4400,
     );
     const place = (s, t, focus) => {
         const target = skyHazards(t).find((h) => h.id === bird.id);
@@ -410,3 +416,80 @@ test('desks rock back and forth and carry the chair standing on them', () => {
     const r = skyStep({ ...input, time: 1 / 120 }, 1 / 120);
     assert.equal(r.ground, true, 'still standing a tick later');
 });
+
+test('bird spawns roll white robots 15%, black robots 15% and ordinary birds 70%', () => {
+    assert.deepEqual({ ...SKY_ROBOT_ODDS }, { liquid: 15, black: 15 });
+    const counts = { liquid: 0, black: 0, bird: 0 };
+    const lanes = 3;
+    const cycles = 20000;
+    for (let lane = 0; lane < lanes; lane++) {
+        for (let n = 0; n < cycles; n++) {
+            counts[skyBirdRobot(lane * 100000 + n) ?? 'bird']++;
+        }
+    }
+    const total = lanes * cycles;
+    const share = (k) => counts[k] / total;
+    assert.ok(
+        Math.abs(share('liquid') - 0.15) < 0.01,
+        `white ${share('liquid')}`,
+    );
+    assert.ok(
+        Math.abs(share('black') - 0.15) < 0.01,
+        `black ${share('black')}`,
+    );
+    assert.ok(Math.abs(share('bird') - 0.7) < 0.01, `bird ${share('bird')}`);
+});
+
+test('same seed and inputs reproduce the same bird spawns', () => {
+    const run = () => {
+        const game = createGame({ seed: 42 });
+        game.startStage(4);
+        game.setInput('right');
+        const spawns = [];
+        for (let tick = 0; tick < 120 * 30; tick++) {
+            game.step();
+            if (tick % 60 === 0) {
+                const { time } = JSON.parse(game.serialize());
+                spawns.push(
+                    skyHazards(time)
+                        .filter((h) => h.kind === 'bird')
+                        .map((h) => `${h.focusId}:${h.robot ?? 'bird'}`)
+                        .join(','),
+                );
+            }
+        }
+        return spawns;
+    };
+    const first = run();
+    assert.ok(first.some((s) => /liquid|black/.test(s)));
+    assert.deepEqual(run(), first);
+});
+
+for (const checkpoint of [0, 1]) {
+    test(`falling off stage 4 restores focus to 100 at checkpoint ${checkpoint}`, () => {
+        const game = createGame({ seed: 3 });
+        game.startStage(4);
+        const state = JSON.parse(game.serialize());
+        const mark = STAGE_FOUR.checkpoints[checkpoint];
+        state.checkpoint = checkpoint;
+        state.sky.phase = 'course';
+        state.sky.lift = 1;
+        state.ground = false;
+        Object.assign(state.p, {
+            x: mark.x + 200,
+            y: STAGE_FOUR.fallY + 40,
+            vx: 0,
+            vy: 400,
+        });
+        state.focus.value = 12;
+        state.focus.recoveryClock = 0.5;
+        game.restore(JSON.stringify(state));
+        game.step();
+        const after = JSON.parse(game.serialize());
+        assert.equal(after.deaths, state.deaths + 1, 'the chair fell');
+        assert.equal(after.p.x, mark.x);
+        assert.equal(after.p.y, mark.y);
+        assert.equal(after.focus.value, 100);
+        assert.equal(game.getSnapshot().focus, 100);
+    });
+}
