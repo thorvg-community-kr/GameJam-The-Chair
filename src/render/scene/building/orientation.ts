@@ -201,21 +201,21 @@ export function orientationLighting(ctx: RenderCtx): void {
         return;
     }
     const { level, age } = ctx.state.corridor.blackout;
-    const flicker =
-        age < STAGE_TWO.orientation.blackout.flicker
-            ? Math.floor(age / 0.06) % 2 === 0
-                ? 0.12
-                : -0.08
-            : 0;
-    const strength = Math.max(0, Math.min(0.78, level * 0.17 + flicker));
-    if (strength === 0) {
+    if (level === 0) {
         return;
     }
+    const flickering = age < STAGE_TWO.orientation.blackout.flicker;
+    const dimColor = flickering
+        ? Math.floor(age / 0.06) % 2 === 0
+            ? '#000000cc'
+            : '#000000a3'
+        : '#000000b8';
+    const clearRadius = 255 - level * 28;
+    const outerRadius = 600 - level * 75;
     const left = ctx.cam;
     const top = -ctx.vertical;
     const width = ctx.W / ctx.scale;
     const height = ctx.H / ctx.scale;
-    const radius = Math.max(235, 470 - level * 55);
     ctx.withLayer({ key: 'orientation-blackout', blend: 'multiply' }, () => {
         ctx.gradientPolygon(
             [
@@ -224,17 +224,13 @@ export function orientationLighting(ctx: RenderCtx): void {
                 [left + width, top + height],
                 [left, top + height],
             ],
-            ctx.radialFill(
-                ctx.player.x + 65,
-                ctx.player.y - 15,
-                radius,
-                [
-                    [0, '#10182700'],
-                    [0.48, '#10182700'],
-                    [1, '#101827'],
-                ],
-                strength,
-            ),
+            ctx.radialFill(ctx.player.x + 65, ctx.player.y - 15, outerRadius, [
+                [0, '#00000000'],
+                [clearRadius / outerRadius, '#00000000'],
+                [(clearRadius + 40) / outerRadius, dimColor],
+                [(outerRadius - 35) / outerRadius, dimColor],
+                [1, '#000000'],
+            ]),
         );
     });
 }
