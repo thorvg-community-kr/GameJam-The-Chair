@@ -537,9 +537,10 @@ class OrbitDrawing {
                 loose: this.ending.loose,
                 rest: this.ending.rest,
                 rocket: this.shot.rocket,
+                screen: (riderView, bob) =>
+                    endingLaptopScreen(riderView, this.ending, bob),
             },
         );
-        endingLaptopScreen(this.chair, this.ending, this.laptopBob);
         orbitEdgePuffs(this.chair, this.edge, this.over, this.ctx.t);
         satelliteChairGlow(this.ctx, this.chair, this.light, this.pulse);
         this.ctx.commands.push(

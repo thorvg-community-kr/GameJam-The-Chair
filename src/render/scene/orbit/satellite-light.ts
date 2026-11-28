@@ -680,13 +680,26 @@ export function satelliteLitChair(
                 .padStart(2, '0');
         }).join('') +
         color.slice(7);
+    const tintDecal = (
+        decal: NonNullable<Parameters<SkyProjection['polygon']>[2]>['decals'],
+    ) => decal?.map((item) => ({ ...item, color: tint(item.color) }));
     return {
         ...chair,
-        polygon: (points, color) => chair.polygon(points, tint(color)),
+        polygon: (points, color, options) =>
+            chair.polygon(
+                points,
+                tint(color),
+                options?.decals
+                    ? { ...options, decals: tintDecal(options.decals) }
+                    : options,
+            ),
         profile: (outline, halfWidth, color, z, options) =>
             chair.profile(outline, halfWidth, tint(color), z, options),
-        oval: (center, radii, color) => chair.oval(center, radii, tint(color)),
-        rod: (a, b, r, color) => chair.rod(a, b, r, tint(color)),
+        box: (bounds, color, shade) => chair.box(bounds, tint(color), shade),
+        oval: (center, radii, color, axes) =>
+            chair.oval(center, radii, tint(color), axes),
+        rod: (a, b, r, color, options) =>
+            chair.rod(a, b, r, tint(color), options),
     };
 }
 export function satelliteChairGlow(

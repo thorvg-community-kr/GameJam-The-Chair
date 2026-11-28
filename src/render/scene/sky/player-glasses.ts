@@ -1,96 +1,123 @@
-import type { Point3, SkyProjection } from '../shared/projection';
+import type { Decal, Point3, SkyProjection } from '../shared/projection';
+
 const point = ([x, y, z]: Point3, bob: number): Point3 => [x, -y - 35 + bob, z];
-const FRONT = 15.2;
-const TOP = -87.6;
-const BOTTOM = -79;
-const INNER = 1.6;
-const OUTER = 10.6;
-export function endingGlasses(view: SkyProjection, bob: number): void {
-    for (const side of [-1, 1]) {
-        lens(view, bob, side);
-    }
-    view.rod(
-        point([FRONT, -84.6, -INNER], bob),
-        point([FRONT, -84.6, INNER], bob),
-        0.55,
-        '#50606a',
-    );
-}
-function facing(
-    view: SkyProjection,
-    bob: number,
+export const GLASSES_FRONT = 14.0;
+const TOP = -86.6;
+const BOTTOM = -78.8;
+const INNER = 1.5;
+const OUTER = 9.1;
+
+function rect(
     x: number,
-    top: number,
-    {
-        bottom,
-        z0,
-        z1,
-        color,
-    }: {
-        bottom: number;
-        z0: number;
-        z1: number;
-        color: string;
-    },
-) {
-    const [a, b] = z0 < z1 ? [z0, z1] : [z1, z0];
-    view.polygon(
-        [
-            point([x, top, a], bob),
-            point([x, top, b], bob),
-            point([x, bottom, b], bob),
-            point([x, bottom, a], bob),
-        ],
-        color,
-    );
+    ys: [number, number],
+    zs: [number, number],
+    bob: number,
+): Point3[] {
+    const [top, bottom] = ys;
+    const [a, b] = zs[0] < zs[1] ? zs : [zs[1], zs[0]];
+    return [
+        point([x, top, a], bob),
+        point([x, top, b], bob),
+        point([x, bottom, b], bob),
+        point([x, bottom, a], bob),
+    ];
 }
-function lens(view: SkyProjection, bob: number, side: number) {
+
+function lensFront(view: SkyProjection, bob: number, side: number) {
     const inner = side * INNER;
     const outer = side * OUTER;
-    facing(view, bob, FRONT, TOP, {
-        bottom: BOTTOM,
-        z0: inner,
-        z1: outer,
-        color: '#83c8e4',
-    });
-    facing(view, bob, FRONT + 0.1, TOP + 0.7, {
-        bottom: BOTTOM - 0.7,
-        z0: side * (OUTER - 3),
-        z1: side * (OUTER - 1.6),
-        color: '#bfe6ef',
-    });
-    facing(view, bob, FRONT + 0.15, -84.6, {
-        bottom: -81.8,
-        z0: side * 5.2,
-        z1: side * 6.8,
-        color: '#446d82',
-    });
+    const decals: Decal[] = [
+        {
+            kind: 'poly',
+            points: rect(
+                GLASSES_FRONT,
+                [TOP + 0.65, BOTTOM - 0.65],
+                [side * (OUTER - 2.4), side * (OUTER - 1.2)],
+                bob,
+            ),
+            color: '#bfe6ef',
+        },
+        {
+            kind: 'poly',
+            points: rect(
+                GLASSES_FRONT,
+                [-84.2, -81.6],
+                [side * 4.4, side * 5.9],
+                bob,
+            ),
+            color: '#446d82',
+        },
+    ];
+    view.polygon(
+        rect(GLASSES_FRONT, [TOP, BOTTOM], [inner, outer], bob),
+        '#83c8e4',
+        { decals },
+    );
     for (const z of [inner, outer]) {
         view.rod(
-            point([FRONT, TOP, z], bob),
-            point([FRONT, BOTTOM, z], bob),
-            0.6,
+            point([GLASSES_FRONT, TOP, z], bob),
+            point([GLASSES_FRONT, BOTTOM, z], bob),
+            0.44,
             '#83c8e4',
+            { sides: 6 },
         );
     }
     for (const y of [TOP, BOTTOM]) {
         view.rod(
-            point([FRONT, y, inner], bob),
-            point([FRONT, y, outer], bob),
-            0.5,
+            point([GLASSES_FRONT, y, inner], bob),
+            point([GLASSES_FRONT, y, outer], bob),
+            0.42,
             '#50606a',
+            { sides: 6 },
         );
     }
+}
+
+export function endingGlassesFront(view: SkyProjection, bob: number): void {
+    for (const side of [-1, 1]) {
+        lensFront(view, bob, side);
+    }
     view.rod(
-        point([FRONT, -84.6, outer], bob),
-        point([13, -84.6, side * 13.6], bob),
-        0.55,
+        point([GLASSES_FRONT, -83.8, -INNER], bob),
+        point([GLASSES_FRONT, -83.8, INNER], bob),
+        0.42,
+        '#50606a',
+        { sides: 6 },
+    );
+}
+
+export function endingGlassesTemple(
+    view: SkyProjection,
+    bob: number,
+    side: number,
+): void {
+    const outer = side * OUTER;
+    view.rod(
+        point([GLASSES_FRONT, -83.8, outer], bob),
+        point([11.4, -83.8, side * 11.4], bob),
+        0.42,
         '#3a414b',
+        { sides: 6 },
     );
     view.rod(
-        point([13, -84.6, side * 13.6], bob),
-        point([-5, -83, side * 14.8], bob),
-        0.55,
+        point([11.4, -83.8, side * 11.4], bob),
+        point([-5.5, -82.4, side * 11.6], bob),
+        0.42,
         '#3a414b',
+        { sides: 6 },
     );
+    view.rod(
+        point([-5.5, -82.4, side * 11.6], bob),
+        point([-7.6, -80.2, side * 11.5], bob),
+        0.36,
+        '#3a414b',
+        { sides: 6 },
+    );
+}
+
+export function endingGlasses(view: SkyProjection, bob: number): void {
+    endingGlassesFront(view, bob);
+    for (const side of [-1, 1]) {
+        endingGlassesTemple(view, bob, side);
+    }
 }

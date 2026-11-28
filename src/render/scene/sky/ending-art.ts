@@ -1,11 +1,18 @@
-import { endingGlasses } from './player-glasses';
-import { endingHair } from './player-hair';
+import { riderHeadBsp, riderNeckPart } from './player-head';
+import {
+    LAPTOP_BASE_TOP,
+    SCREEN_BACK_NORMAL,
+    drawRetroLaptopBase,
+    drawRetroLaptopScreen,
+    laptopScreenOrigin,
+    laptopScreenPoint,
+} from './retro-laptop';
 import { ART } from '../../art';
-import { PLAYER_OUTLINES } from '../player/art';
 import { placedProjection } from '../shared/projection';
 
-import type { Vector } from '../../types';
-import type { Point3, SkyProjection } from '../shared/projection';
+import type { Decal, Point3, SkyProjection } from '../shared/projection';
+
+export { laptopScreenPoint };
 
 type Place = (p: Point3) => Point3;
 /** Epilogue pose: the chair and the rider move independently. */
@@ -30,11 +37,23 @@ export type EndingPose = {
         rider?: (color: string) => string;
     };
 };
+
+type ScreenDraw = (view: SkyProjection, bob: number) => void;
+type FramePose = Pick<EndingPose, 'sink' | 'splay' | 'tremble' | 'sweat'>;
+
 const NECK: Point3 = [-2, 33, 0];
-const GLASSES_BIAS = 8;
-/** Side-cap scale of the head; below 1 it rounds into the cheeks and temples. */
-const HEAD_ROUND = 0.62;
 const BACKREST_PIVOT: Point3 = [-24, -25, 0];
+const ARM_SPLIT_X = 9.0;
+const SEAT_TOP_Y2D = -14.6;
+const HIP_TOP_Y2D = -25.3;
+const SHOULDER_TOP_Y2D = -62.5;
+const NECK_TOP_Y2D = -67.0;
+
+const LEGS = [
+    { z: -9.2, kneeX: 30.5, ankleX: 35.0, ankleY: 6.5 },
+    { z: 9.2, kneeX: 28.5, ankleX: 30.5, ankleY: 8.0 },
+] as const;
+
 const rotateY = (p: Point3, c: Point3, a: number): Point3 => {
     const x = p[0] - c[0];
     const z = p[2] - c[2];
@@ -44,6 +63,7 @@ const rotateY = (p: Point3, c: Point3, a: number): Point3 => {
         c[2] + x * Math.sin(a) + z * Math.cos(a),
     ];
 };
+
 /** Positive angles tip the top of the part toward +x. */
 export const tipForward = (p: Point3, c: Point3, a: number): Point3 => {
     const x = p[0] - c[0];
@@ -54,24 +74,545 @@ export const tipForward = (p: Point3, c: Point3, a: number): Point3 => {
         p[2],
     ];
 };
+
 export function tintedProjection(
     view: SkyProjection,
     tint: (color: string) => string,
 ): SkyProjection {
     const keep = (color: string) => tint(color.slice(0, 7)) + color.slice(7);
+    const keepDecals = (
+        decals: NonNullable<Parameters<SkyProjection['polygon']>[2]>['decals'],
+    ) => decals?.map((item) => ({ ...item, color: keep(item.color) }));
     return {
         ...view,
-        polygon: (points, color) => view.polygon(points, keep(color)),
+        polygon: (points, color, options) =>
+            view.polygon(
+                points,
+                keep(color),
+                options?.decals
+                    ? { ...options, decals: keepDecals(options.decals) }
+                    : options,
+            ),
         profile: (outline, halfWidth, color, z, options) =>
             view.profile(outline, halfWidth, keep(color), z, options),
-        oval: (center, radii, color) => view.oval(center, radii, keep(color)),
-        rod: (a, b, r, color) => view.rod(a, b, r, keep(color)),
+        box: (bounds, color, shade) => view.box(bounds, keep(color), shade),
+        oval: (center, radii, color, axes) =>
+            view.oval(center, radii, keep(color), axes),
+        rod: (a, b, r, color, options) =>
+            view.rod(a, b, r, keep(color), options),
     };
 }
+
 const placed = (view: SkyProjection, place?: Place) =>
     place ? placedProjection(view, place) : view;
 const tinted = (view: SkyProjection, tint?: (color: string) => string) =>
     tint ? tintedProjection(view, tint) : view;
+
+const p3 = (x: number, y: number, z: number, bob: number): Point3 => [
+    x,
+    -y - 35 + bob,
+    z,
+];
+
+const lerp3 = (a: Point3, b: Point3, t: number): Point3 => [
+    a[0] + (b[0] - a[0]) * t,
+    a[1] + (b[1] - a[1]) * t,
+    a[2] + (b[2] - a[2]) * t,
+];
+
+const hex = (value: number) =>
+    Math.round(Math.max(0, Math.min(1, value)) * 255)
+        .toString(16)
+        .padStart(2, '0');
+
+function drawChairLower(
+    chairView: SkyProjection,
+    upperView: SkyProjection,
+    bob: number,
+    frame: FramePose = {},
+) {
+    const palette = ART.palette;
+    const { sink = 0, splay = 0, tremble = 0, sweat = -1 } = frame;
+    const hub = 13 + sink * 0.4;
+    const spread = 1 + 0.28 * splay;
+    const drawBase = () =>
+        chairView.part(() => {
+            chairView.rod(
+                p3(tremble, -4 + sink, 0, bob),
+                p3(0, 16, 0, bob),
+                3,
+                palette.steel,
+                { shade: true },
+            );
+            for (const [x, z] of [
+                [-27, 22],
+                [27, 22],
+                [-27, -22],
+                [27, -22],
+                [0, -30],
+            ]) {
+                chairView.rod(
+                    p3(0, hub, 0, bob),
+                    p3(x * spread, 21, z * spread, bob),
+                    2.5,
+                    palette.steel,
+                    { shade: true },
+                );
+                chairView.oval(
+                    p3(x * spread, 23, z * spread, bob),
+                    [7, 8, 5],
+                    '#3f4650',
+                );
+                chairView.oval(
+                    p3(x * spread, 23, z * spread + 4.7, bob),
+                    [2.5, 2.5, 0.5],
+                    '#9197a2',
+                );
+            }
+            if (sweat >= 0 && sweat <= 1) {
+                const y = -2 + sink + 16 * sweat;
+                chairView.oval(
+                    p3(3.6 + tremble, y, 2.2, bob),
+                    [1.9, 2.8, 1.9],
+                    '#9fd8ff',
+                );
+                chairView.oval(
+                    p3(3.9 + tremble, y - 0.6, 2.2, bob),
+                    [0.4, 0.6, 0.4],
+                    '#ffffff',
+                );
+            }
+        });
+    const drawSeat = () =>
+        upperView.part(() => {
+            upperView.rod(
+                p3(-24, -10, 0, bob),
+                p3(-25.5, SEAT_TOP_Y2D, 0, bob),
+                3.2,
+                '#515665',
+                { sides: 8, shade: true },
+            );
+            upperView.profile(
+                [
+                    [-28, -(-14.2) - 35 + bob],
+                    [26, -(-14.2) - 35 + bob],
+                    [26, -(-3.5) - 35 + bob],
+                    [-28, -(-3.5) - 35 + bob],
+                ],
+                25,
+                '#6f7687',
+                0,
+                { bevel: 0.9, shade: true },
+            );
+        });
+    chairView.split(p3(0, -3.5, 0, bob), [0, 1, 0], drawBase, drawSeat);
+}
+
+function drawBackrest(backView: SkyProjection, bob: number) {
+    backView.part(() => {
+        backView.rod(
+            p3(-25.5, SEAT_TOP_Y2D, 0, bob),
+            p3(-31, -58, 0, bob),
+            3.2,
+            '#515665',
+            { sides: 8, shade: true },
+        );
+        backView.profile(
+            [
+                [-36.5, -(-66) - 35 + bob],
+                [-24.0, -(-66) - 35 + bob],
+                [-24.0, -(-19) - 35 + bob],
+                [-35.0, -(-19) - 35 + bob],
+            ],
+            23,
+            '#666d80',
+            0,
+            { bevel: 0.9, shade: true },
+        );
+    });
+}
+
+function calfSplitX(leg: (typeof LEGS)[number]) {
+    const t = (SEAT_TOP_Y2D - -19.2) / (leg.ankleY - -19.2);
+    return leg.kneeX + (leg.ankleX - leg.kneeX) * t;
+}
+
+function drawCalfLower(
+    view: SkyProjection,
+    leg: (typeof LEGS)[number],
+    bob: number,
+) {
+    view.part(() => {
+        const splitX = calfSplitX(leg);
+        view.rod(
+            p3(splitX, SEAT_TOP_Y2D, leg.z, bob),
+            p3(leg.ankleX, leg.ankleY, leg.z, bob),
+            4.2,
+            '#56667c',
+            { sides: 10, capA: true, capB: true, shade: true },
+        );
+        view.box(
+            {
+                x0: leg.ankleX - 4.2,
+                x1: leg.ankleX + 10.2,
+                y0: -(leg.ankleY + 5.5) - 35 + bob,
+                y1: -(leg.ankleY + 0.3) - 35 + bob,
+                z0: leg.z - 4.3,
+                z1: leg.z + 4.3,
+            },
+            '#353c4a',
+            true,
+        );
+    });
+}
+
+function drawThighAndKnee(
+    view: SkyProjection,
+    leg: (typeof LEGS)[number],
+    bob: number,
+) {
+    view.part(() => {
+        const splitX = calfSplitX(leg);
+        view.rod(
+            p3(6.5, -20.0, leg.z, bob),
+            p3(leg.kneeX - 1.2, -20.0, leg.z, bob),
+            4.6,
+            '#56667c',
+            { sides: 10, shade: true },
+        );
+        view.oval(
+            p3(leg.kneeX - 0.4, -19.8, leg.z, bob),
+            [4.6, 4.6, 4.5],
+            '#56667c',
+        );
+        view.rod(
+            p3(leg.kneeX, -19.2, leg.z, bob),
+            p3(splitX, SEAT_TOP_Y2D, leg.z, bob),
+            4.2,
+            '#56667c',
+            { sides: 10, capB: true, shade: true },
+        );
+    });
+}
+
+function drawTorso(view: SkyProjection, bob: number) {
+    view.part(() => {
+        view.profile(
+            [
+                [-16.2, -(-62.2) - 35 + bob],
+                [-5.0, -(-63.0) - 35 + bob],
+                [5.8, -(-60.2) - 35 + bob],
+                [8.4, -(-25.5) - 35 + bob],
+                [-16.2, -(-25.5) - 35 + bob],
+            ],
+            14.6,
+            ART.palette.shirt,
+            0,
+            { bevel: 0.9, shade: true },
+        );
+        const chestX = (y: number) => 5.8 + ((y + 60.2) * 2.6) / 34.7;
+        const on = (y: number, z: number, lift = 0.25) =>
+            p3(chestX(y) + lift, y, z, bob);
+        const chestDecals: Decal[] = [
+            {
+                kind: 'poly',
+                points: [on(-61.2, -1.2), on(-60.2, -6.8), on(-54.8, -3.0)],
+                color: '#fff6de',
+            },
+            {
+                kind: 'poly',
+                points: [on(-61.2, 1.2), on(-60.2, 6.8), on(-54.8, 3.0)],
+                color: '#fff6de',
+            },
+            {
+                kind: 'poly',
+                points: [
+                    on(-60.2, -1.9, 0.35),
+                    on(-60.2, 1.9, 0.35),
+                    on(-56.2, 1.3, 0.35),
+                    on(-56.2, -1.3, 0.35),
+                ],
+                color: '#93503a',
+            },
+            {
+                kind: 'poly',
+                points: [
+                    on(-56.2, -1.2, 0.3),
+                    on(-56.2, 1.2, 0.3),
+                    on(-36.5, 2.4, 0.3),
+                    on(-33.5, 0, 0.3),
+                    on(-36.5, -2.4, 0.3),
+                ],
+                color: '#a65e44',
+            },
+        ];
+        view.biased(0.6, () => {
+            view.polygon(
+                [
+                    on(-60.2, -7.2, 0.15),
+                    on(-60.2, 7.2, 0.15),
+                    on(-32.0, 7.2, 0.15),
+                    on(-32.0, -7.2, 0.15),
+                ],
+                ART.palette.shirt,
+                { shade: false, decals: chestDecals },
+            );
+        });
+    });
+}
+
+function armGeometry(side: number, bob: number, elapsed: number, rest: number) {
+    const lift = -4 * rest;
+    const tap =
+        Math.sin(elapsed * 24 + (side > 0 ? 0 : Math.PI)) * 1.1 * (1 - rest) +
+        lift;
+    const handY = LAPTOP_BASE_TOP - 2.3 + tap;
+    const sh = p3(-5.5, -57.5, side * 18.4, bob);
+    const elb = p3(-4.5, -34.8, side * 18.6, bob);
+    const wrist = p3(22.0, handY + 0.9, side * 11.4, bob);
+    const t = (ARM_SPLIT_X - elb[0]) / (wrist[0] - elb[0]);
+    const mid = lerp3(elb, wrist, t);
+    const palm = p3(30.5, handY - 0.3, side * 9.5, bob);
+    return { sh, elb, mid, wrist, palm, handY };
+}
+
+function drawUpperArm(
+    view: SkyProjection,
+    side: number,
+    { bob, elapsed, rest }: { bob: number; elapsed: number; rest: number },
+) {
+    const { sh, elb, mid } = armGeometry(side, bob, elapsed, rest);
+    view.part(() => {
+        view.rod(sh, elb, 3.6, '#e6e0cc', {
+            sides: 10,
+            capA: true,
+            capB: true,
+            shade: true,
+        });
+        view.oval(sh, [3.8, 4.0, 3.6], '#ebe6d4');
+        view.rod(
+            p3(-5.1, -39.5, side * 18.7, bob),
+            p3(-5.0, -34.8, side * 18.8, bob),
+            3.9,
+            '#fff6de',
+            { sides: 10, capA: true, capB: true, shade: true },
+        );
+        view.oval(elb, [3.0, 3.0, 3.0], ART.palette.skin);
+        view.rod(elb, mid, 2.8, ART.palette.skin, { sides: 10, shade: true });
+    });
+}
+
+function drawForearmAndHand(
+    view: SkyProjection,
+    side: number,
+    { bob, elapsed, rest }: { bob: number; elapsed: number; rest: number },
+) {
+    const { mid, wrist, palm, handY } = armGeometry(side, bob, elapsed, rest);
+    view.part(() => {
+        view.rod(mid, wrist, 2.8, ART.palette.skin, {
+            sides: 10,
+            capB: true,
+            shade: true,
+        });
+        view.rod(wrist, palm, 2.3, ART.palette.skin, {
+            sides: 8,
+            capB: true,
+            shade: true,
+        });
+        for (const offset of [-1.2, 0, 1.2]) {
+            view.rod(
+                p3(30.0, handY - 0.2, side * 9.5 + offset, bob),
+                p3(35.0, handY + 1.0, side * 8.8 + offset * 0.9, bob),
+                0.8,
+                '#dfb98f',
+                { sides: 6, capB: true, shade: true },
+            );
+        }
+    });
+}
+
+type AssemblySpec = {
+    root: SkyProjection;
+    chairView?: SkyProjection;
+    upperView?: SkyProjection;
+    backView?: SkyProjection;
+    riderView?: SkyProjection;
+    neckView?: SkyProjection;
+    headView?: SkyProjection;
+    frame?: FramePose;
+    bob: number;
+    elapsed: number;
+    rest: number;
+    screen?: ScreenDraw;
+    attachedExtinguisher?: { spray: number; rocket: number };
+};
+
+function drawHipAndThighsBsp(riderView: SkyProjection, bob: number) {
+    const pelvis = () =>
+        riderView.part(() => {
+            riderView.box(
+                {
+                    x0: -15,
+                    x1: 6.5,
+                    y0: -(-15.0) - 35 + bob,
+                    y1: -(-25.1) - 35 + bob,
+                    z0: -14.2,
+                    z1: 14.2,
+                },
+                '#4f5e73',
+                true,
+            );
+        });
+    const thighs = () =>
+        riderView.split(
+            p3(18, -20, 0, bob),
+            [0, 0, 1],
+            () => drawThighAndKnee(riderView, LEGS[0], bob),
+            () => drawThighAndKnee(riderView, LEGS[1], bob),
+        );
+    riderView.split(p3(6.5, -20, 0, bob), [1, 0, 0], pelvis, thighs);
+}
+
+function drawMidAndLaptopBsp(
+    riderView: SkyProjection,
+    spec: Pick<AssemblySpec, 'bob' | 'elapsed' | 'rest' | 'screen'>,
+) {
+    const { bob, screen } = spec;
+    const armState = { bob, elapsed: spec.elapsed, rest: spec.rest };
+    const torsoAndUpperArms = () => {
+        if (riderView.planeSide(p3(-5, -45, 0, bob), [0, 0, 1])) {
+            drawUpperArm(riderView, -1, armState);
+            drawTorso(riderView, bob);
+            drawUpperArm(riderView, 1, armState);
+        } else {
+            drawUpperArm(riderView, 1, armState);
+            drawTorso(riderView, bob);
+            drawUpperArm(riderView, -1, armState);
+        }
+    };
+    const baseAndHands = () =>
+        riderView.split(
+            p3(30, LAPTOP_BASE_TOP - 0.15, 0, bob),
+            [0, 1, 0],
+            () => drawRetroLaptopBase(riderView, bob),
+            () =>
+                riderView.split(
+                    p3(25, LAPTOP_BASE_TOP - 2, 0, bob),
+                    [0, 0, 1],
+                    () => drawForearmAndHand(riderView, -1, armState),
+                    () => drawForearmAndHand(riderView, 1, armState),
+                ),
+        );
+    const laptopAndHands = () =>
+        riderView.split(
+            laptopScreenOrigin(bob),
+            SCREEN_BACK_NORMAL,
+            baseAndHands,
+            () => drawRetroLaptopScreen(riderView, bob, screen),
+        );
+    riderView.split(
+        p3(ARM_SPLIT_X, -42, 0, bob),
+        [1, 0, 0],
+        torsoAndUpperArms,
+        laptopAndHands,
+    );
+}
+
+function drawAssemblyBsp(spec: AssemblySpec) {
+    const { root, chairView, upperView, backView, riderView, bob } = spec;
+    const ref = riderView ?? chairView ?? root;
+
+    const drawLowerZone = () => {
+        const chair = () => {
+            if (chairView && upperView) {
+                drawChairLower(chairView, upperView, bob, spec.frame);
+            }
+        };
+        const calves = () => {
+            if (!riderView) {
+                return;
+            }
+            riderView.split(
+                p3(30, 0, 0, bob),
+                [0, 0, 1],
+                () => drawCalfLower(riderView, LEGS[0], bob),
+                () => drawCalfLower(riderView, LEGS[1], bob),
+            );
+        };
+        ref.split(p3(26.8, -5, 0, bob), [1, 0, 0], chair, calves);
+    };
+
+    const drawHeadAndNeck = () => {
+        if (!riderView) {
+            return;
+        }
+        const neckView = spec.neckView ?? riderView;
+        const headView = spec.headView ?? riderView;
+        riderView.split(
+            p3(0, NECK_TOP_Y2D, 0, bob),
+            [0, 1, 0],
+            () => riderNeckPart(neckView, bob),
+            () => riderHeadBsp(headView, ART.palette.skin, bob),
+        );
+    };
+
+    const drawBackAndTank = () => {
+        if (!backView) {
+            return;
+        }
+        const tank = spec.attachedExtinguisher;
+        if (!tank) {
+            drawBackrest(backView, bob);
+            return;
+        }
+        backView.split(
+            p3(-36.5, -35, 0, bob),
+            [1, 0, 0],
+            () =>
+                backView.part(() =>
+                    extinguisher(
+                        backView,
+                        bob,
+                        spec.elapsed,
+                        tank.spray,
+                        tank.rocket,
+                    ),
+                ),
+            () => drawBackrest(backView, bob),
+        );
+    };
+
+    const drawRiderUpper = () => {
+        if (!riderView) {
+            return;
+        }
+        const upperBody = () =>
+            riderView.split(
+                p3(0, SHOULDER_TOP_Y2D, 0, bob),
+                [0, 1, 0],
+                () => drawMidAndLaptopBsp(riderView, spec),
+                drawHeadAndNeck,
+            );
+        riderView.split(
+            p3(0, HIP_TOP_Y2D, 0, bob),
+            [0, 1, 0],
+            () => drawHipAndThighsBsp(riderView, bob),
+            upperBody,
+        );
+    };
+
+    root.bsp(() => {
+        ref.split(p3(0, SEAT_TOP_Y2D, 0, bob), [0, 1, 0], drawLowerZone, () =>
+            ref.split(
+                p3(-21.5, -40, 0, bob),
+                [1, 0, 0],
+                drawBackAndTank,
+                drawRiderUpper,
+            ),
+        );
+    });
+}
+
 export function endingChair(
     view: SkyProjection,
     elapsed: number,
@@ -82,86 +623,97 @@ export function endingChair(
         rest = 0,
         rocket = 0,
         pose,
+        screen,
     }: {
         loose?: number;
         rest?: number;
         rocket?: number;
         pose?: EndingPose;
+        screen?: ScreenDraw;
     } = {},
 ): number {
-    const draw = chairDrawing(view, elapsed, arrival);
+    const bob =
+        Math.sin(elapsed * 1.6) * 1.5 + Math.sin(elapsed * 25) * 3 * arrival;
     if (pose) {
-        return posedChair(view, draw, rest, pose);
+        return posedChair(view, bob, elapsed, { rest, pose, screen });
     }
-    chairFrame(draw);
-    riderBody(draw);
-    riderHead(view, draw);
-    riderArms(view, draw, rest);
-    if (loose < 0) {
-        extinguisher(draw, spray, rocket);
-    } else {
-        extinguisher(
-            looseDrawing(view, draw, loose),
+    drawAssemblyBsp({
+        root: view,
+        chairView: view,
+        upperView: view,
+        backView: view,
+        riderView: view,
+        bob,
+        elapsed,
+        rest,
+        screen,
+        attachedExtinguisher: loose < 0 ? { spray, rocket } : undefined,
+    });
+    if (loose >= 0) {
+        drawLooseExtinguisher(
+            view,
+            elapsed,
+            loose,
             spray * Math.exp(-loose * 0.6),
             rocket,
         );
     }
-    return draw.bob;
+    return bob;
 }
+
 function posedChair(
     view: SkyProjection,
-    draw: ChairDrawing,
-    rest: number,
-    pose: EndingPose,
+    bob: number,
+    elapsed: number,
+    {
+        rest,
+        pose,
+        screen,
+    }: { rest: number; pose: EndingPose; screen?: ScreenDraw },
 ): number {
     const { parts = 'all', sink = 0, headYaw = 0 } = pose;
-    const redraw = (target: SkyProjection) =>
-        chairDrawing(target, draw.elapsed, 0, draw.bob);
     const chairView = tinted(placed(view, pose.chair), pose.tint?.chair);
-    if (parts !== 'rider') {
-        chairFrame(redraw(chairView), {
-            ...pose,
-            upper: redraw(
-                placedProjection(chairView, (p) => [p[0], p[1] - sink, p[2]]),
-            ),
-            back: redraw(
-                placedProjection(chairView, (p) =>
-                    tipForward(
-                        [p[0], p[1] - sink, p[2]],
-                        BACKREST_PIVOT,
-                        pose.backrest ?? 0,
-                    ),
-                ),
-            ),
-        });
-    }
-    if (parts === 'chair') {
-        return draw.bob;
-    }
+    const upperView = placedProjection(chairView, (p) => [
+        p[0],
+        p[1] - sink,
+        p[2],
+    ]);
+    const backView = placedProjection(chairView, (p) =>
+        tipForward(
+            [p[0], p[1] - sink, p[2]],
+            BACKREST_PIVOT,
+            pose.backrest ?? 0,
+        ),
+    );
     const sitting: Place = (p) =>
         (pose.chair ?? ((q: Point3) => q))([p[0], p[1] - sink, p[2]]);
     const riderView = tinted(
         placed(view, pose.rider ?? sitting),
         pose.tint?.rider,
     );
-    const body = redraw(riderView);
-    riderBody(body, 'front');
-    // The neck carries half of the turn, like a real neck under a turning head.
-    riderNeck(
-        redraw(
-            placedProjection(riderView, (p) => rotateY(p, NECK, headYaw / 2)),
-        ),
-        POSED_NECK,
-        5,
+    const neckView = placedProjection(riderView, (p) =>
+        rotateY(p, NECK, headYaw / 2),
     );
-    frontTie(riderView, body);
     const headView = placedProjection(riderView, (p) =>
         rotateY(p, NECK, headYaw),
     );
-    riderHead(headView, redraw(headView));
-    riderArms(riderView, body, rest);
-    return draw.bob;
+    drawAssemblyBsp({
+        root: view,
+        chairView: parts !== 'rider' ? chairView : undefined,
+        upperView: parts !== 'rider' ? upperView : undefined,
+        backView: parts !== 'rider' ? backView : undefined,
+        riderView: parts !== 'chair' ? riderView : undefined,
+        neckView: parts !== 'chair' ? neckView : undefined,
+        headView: parts !== 'chair' ? headView : undefined,
+        frame: pose,
+        bob,
+        elapsed,
+        rest,
+        screen,
+    });
+    return bob;
 }
+
 /** Rider-local view for parts drawn outside endingChair, such as the laptop screen. */
 export function riderProjection(
     view: SkyProjection,
@@ -172,11 +724,14 @@ export function riderProjection(
         (pose.chair ?? ((q: Point3) => q))([p[0], p[1] - sink, p[2]]);
     return tinted(placed(view, pose.rider ?? sitting), pose.tint?.rider);
 }
-function looseDrawing(
+
+function drawLooseExtinguisher(
     view: SkyProjection,
-    draw: ChairDrawing,
+    elapsed: number,
     loose: number,
-): ChairDrawing {
+    spray: number,
+    rocket: number,
+) {
     const centre: Point3 = [-46, -5, 0];
     const axis: Point3 = [0.3, 0.5, 0.81];
     const angle = loose * 0.9;
@@ -199,625 +754,76 @@ function looseDrawing(
             axis[2] * v[0] - axis[0] * v[2],
             axis[0] * v[1] - axis[1] * v[0],
         ];
-        return [0, 1, 2].map(
-            (i) =>
-                v[i] * cos +
-                c[i] * sin +
-                axis[i] * d * (1 - cos) +
-                centre[i] +
-                shift[i],
-        ) as Point3;
+        return [
+            v[0] * cos +
+                c[0] * sin +
+                axis[0] * d * (1 - cos) +
+                centre[0] +
+                shift[0],
+            v[1] * cos +
+                c[1] * sin +
+                axis[1] * d * (1 - cos) +
+                centre[1] +
+                shift[1],
+            v[2] * cos +
+                c[2] * sin +
+                axis[2] * d * (1 - cos) +
+                centre[2] +
+                shift[2],
+        ];
     };
-    const point = (x: number, y: number, z = 0): Point3 =>
-        move([x, -y - 35, z]);
-    return {
-        ...draw,
-        bob: 0,
-        point,
-        rod: (a, b, radius, color) =>
-            view.rod(point(...a), point(...b), radius, color),
-        oval: (
-            x,
-            y,
-            z,
-            rx,
-            {
-                ry,
-                rz,
-                color,
-            }: {
-                ry: number;
-                rz: number;
-                color: string;
-            },
-        ) => view.oval(point(x, y, z), [rx, ry, rz], color),
-    };
+    const looseView = placedProjection(view, move);
+    extinguisher(looseView, 0, elapsed, spray, rocket);
 }
-function chairDrawing(
-    view: SkyProjection,
-    elapsed: number,
-    arrival: number,
-    fixedBob?: number,
-) {
-    const C = ART.palette;
-    const bob =
-        fixedBob ??
-        Math.sin(elapsed * 1.6) * 1.5 + Math.sin(elapsed * 25) * 3 * arrival;
-    const point = (x: number, y: number, z = 0): Point3 => [
-        x,
-        -y - 35 + bob,
-        z,
-    ];
-    const profile = (points: Vector[], width: number, color: string, z = 0) =>
-        view.profile(
-            points.map(([x, y]) => [x, -y - 35 + bob]),
-            width,
-            color,
-            z,
-        );
-    const oval = (
-        x: number,
-        y: number,
-        z: number,
-        rx: number,
-        {
-            ry,
-            rz,
-            color,
-        }: {
-            ry: number;
-            rz: number;
-            color: string;
-        },
-    ) => view.oval(point(x, y, z), [rx, ry, rz], color);
-    const rod = (a: Point3, b: Point3, radius: number, color: string) =>
-        view.rod(point(...a), point(...b), radius, color);
-    return { C, bob, point, profile, oval, rod, elapsed };
-}
-type ChairDrawing = ReturnType<typeof chairDrawing>;
-export function laptopScreenPoint(
-    u: number,
-    v: number,
-    bob: number,
-    lift = 0,
-): Point3 {
-    return [
-        47 + 6.6 * v - 0.96 * lift,
-        1 + 24 * v + bob + 0.26 * lift,
-        -20 + 40 * u,
-    ];
-}
-type FramePose = Pick<EndingPose, 'sink' | 'splay' | 'tremble' | 'sweat'> & {
-    upper?: ChairDrawing;
-    back?: ChairDrawing;
-};
-function chairFrame(draw: ChairDrawing, frame: FramePose = {}) {
-    const { C: palette, rod, oval } = draw;
-    const { sink = 0, splay = 0, tremble = 0, sweat = -1 } = frame;
-    const upper = frame.upper ?? draw;
-    const back = frame.back ?? upper;
-    const hub = 13 + sink * 0.4;
-    rod([tremble, -4 + sink, 0], [0, 16, 0], 3, palette.steel);
-    const spread = 1 + 0.28 * splay;
-    for (const [x, z] of [
-        [-27, 22],
-        [27, 22],
-        [-27, -22],
-        [27, -22],
-        [0, -30],
-    ]) {
-        rod([0, hub, 0], [x * spread, 21, z * spread], 2.5, palette.steel);
-        oval(x * spread, 23, z * spread, 7, {
-            ry: 8,
-            rz: 5,
-            color: '#3f4650',
-        });
-        oval(x * spread, 23, z * spread + 4.7, 2.5, {
-            ry: 2.5,
-            rz: 0.5,
-            color: '#9197a2',
-        });
-    }
-    if (sweat >= 0 && sweat <= 1) {
-        const y = -2 + sink + 16 * sweat;
-        oval(3.6 + tremble, y, 2.2, 1.9, {
-            ry: 2.8,
-            rz: 1.9,
-            color: '#9fd8ff',
-        });
-        oval(3.9 + tremble, y - 0.6, 2.2, 0.4, {
-            ry: 0.6,
-            rz: 0.4,
-            color: '#ffffff',
-        });
-    }
-    back.rod([-24, -10, 0], [-31, -61, 0], 3.5, '#515665');
-    back.profile(PLAYER_OUTLINES.backrest, 24, '#666d80');
-    upper.profile(
-        [
-            [-30, -15],
-            [32, -15],
-            [32, -3],
-            [-30, -3],
-        ],
-        27,
-        '#6f7687',
-    );
-}
-function riderBody(draw: ChairDrawing, style: 'side' | 'front' = 'side') {
-    const { C: palette, profile } = draw;
-    profile(PLAYER_OUTLINES.farLeg, 5, '#4e5b70', -12);
-    profile(
-        [
-            [35, 3],
-            [42, 3],
-            [50, 6],
-            [55, 9],
-            [52, 10],
-            [35, 7],
-        ],
-        7,
-        '#383f4e',
-        -12,
-    );
-    profile(PLAYER_OUTLINES.nearLeg, 5, '#5b6b80', 12);
-    profile(
-        [
-            [-11, -25],
-            [20, -24],
-            [26, -21],
-            [7, -20],
-            [-10, -21],
-        ],
-        0.6,
-        '#6d7b8e',
-        17.5,
-    );
-    profile(
-        [
-            [26, 11],
-            [33, 10],
-            [35, 15],
-            [26, 16],
-        ],
-        7,
-        '#383f4e',
-        12,
-    );
-    profile(PLAYER_OUTLINES.shirt, 16, palette.shirt);
-    profile(
-        [
-            [-17, -62],
-            [-11, -61],
-            [-11, -24],
-            [-17, -23],
-        ],
-        0.6,
-        '#d9d6c5',
-        16.5,
-    );
-    if (style === 'side') {
-        riderNeck(draw, SIDE_NECK, 4.2);
-        sideTie(draw);
-    }
-}
-const SIDE_NECK: Vector[] = [
-    [-5, -69],
-    [2, -68],
-    [3, -61],
-    [1, -58],
-    [-4, -62],
-];
-// Reaches up into the jaw so a turned head never shows a gap.
-const POSED_NECK: Vector[] = [
-    [-6, -73],
-    [3, -72],
-    [4, -61],
-    [1, -57],
-    [-5, -61],
-];
-function riderNeck(
-    { profile }: ChairDrawing,
-    outline: Vector[],
-    width: number,
-) {
-    profile(outline, width, '#d5b18b');
-}
-/** Side-view collar and tie, painted on the near flank for the flight camera. */
-function sideTie({ profile }: ChairDrawing) {
-    profile(
-        [
-            [-9, -65],
-            [0, -60],
-            [6, -60],
-            [4, -55],
-            [0, -52],
-            [-6, -57],
-        ],
-        0.8,
-        '#fff6de',
-        17,
-    );
-    profile(
-        [
-            [1, -58],
-            [5, -57],
-            [5, -54],
-            [8, -36],
-            [6, -33],
-            [1, -34],
-            [2, -54],
-        ],
-        0.5,
-        '#a65e44',
-        17.8,
-    );
-}
-/** Collar and tie on the chest front, for cameras that see him face on. */
-function frontTie(view: SkyProjection, { point }: ChairDrawing) {
-    const chest = (y: number) => 5.7 + ((y + 60) * 4) / 35;
-    const on = (y: number, z: number, lift = 0) => point(chest(y) + lift, y, z);
-    const facing = view.depth(on(-45, 0)) < view.depth([-17, 0, 0]) ? 2 : 0;
-    view.biased(facing, () => {
-        for (const side of [-1, 1]) {
-            view.polygon(
-                [on(-62, side * 1), on(-61.5, side * 7), on(-55, side * 2.8)],
-                '#fff6deff',
-            );
-        }
-        view.polygon(
-            [
-                on(-60.5, -1.9, 0.4),
-                on(-60.5, 1.9, 0.4),
-                on(-56.5, 1.3, 0.4),
-                on(-56.5, -1.3, 0.4),
-            ],
-            '#93503aff',
-        );
-        view.polygon(
-            [
-                on(-56.5, -1.2, 0.3),
-                on(-56.5, 1.2, 0.3),
-                on(-37, 2.6, 0.3),
-                on(-34, 0, 0.3),
-                on(-37, -2.6, 0.3),
-            ],
-            '#a65e44ff',
-        );
-    });
-}
-function riderHead(
-    view: SkyProjection,
-    { C: palette, bob, oval }: ChairDrawing,
-) {
-    const face: Vector[] = [
-        [-10, -77],
-        [-3, -83],
-        [3, -89],
-        [10, -92],
-        ...PLAYER_OUTLINES.head.slice(3),
-    ];
-    view.profile(
-        face.map(([x, y]) => [x, -y - 35 + bob]),
-        12,
-        palette.skin,
-        0,
-        {
-            widthAt: (_x, y) => {
-                const fullness = Math.max(0, Math.min(1, (y - 31 - bob) / 20));
-                return 5 + fullness * 7;
-            },
-            round: HEAD_ROUND,
-        },
-    );
-    endingHair(view, bob);
-    for (const side of [-1, 1]) {
-        oval(-7, -81, side * 13, 2.7, {
-            ry: 3.4,
-            rz: 1.5,
-            color: palette.skin,
-        });
-    }
-    // Flat lenses lose the average-depth sort to the cheeks once the head
-    // turns, so pull them forward while they face the camera.
-    const facing =
-        view.depth([15, 49, 0]) < view.depth([-10, 49, 0]) ? GLASSES_BIAS : 0;
-    view.biased(facing, () => endingGlasses(view, bob));
-}
-function laptop(view: SkyProjection, { profile, point, bob }: ChairDrawing) {
-    const top = laptopDetails(view, point, profile);
-    const keyStart = view.project(point(35, -34.45, -19));
-    const keyEnd = view.project(point(35, -34.45, -14));
-    const keyWidth = Math.hypot(
-        keyEnd[0] - keyStart[0],
-        keyEnd[1] - keyStart[1],
-    );
-    if (keyWidth >= 2) {
-        for (let row = 0; row < 3; row++) {
-            for (let key = 0; key < 8; key++) {
-                const z = -17.5 + key * 4.45;
-                top(33 + row * 4.1, z, 36.1 + row * 4.1, z + 3.5, {
-                    y: -34.48,
-                    color: row === 0 ? '#78899a' : '#647586',
-                });
-            }
-        }
-    }
-    const corner = (u: number, v: number, back = 0) =>
-        laptopScreenPoint(u, v, bob, -back);
-    const face = (
-        u0: number,
-        v0: number,
-        u1: number,
-        v1: number,
-        {
-            color,
-            lift = 0,
-        }: {
-            color: string;
-            lift?: number;
-        },
-    ) =>
-        view.polygon(
-            [
-                laptopScreenPoint(u0, v0, bob, lift),
-                laptopScreenPoint(u1, v0, bob, lift),
-                laptopScreenPoint(u1, v1, bob, lift),
-                laptopScreenPoint(u0, v1, bob, lift),
-            ],
-            color,
-        );
-    laptopDetails2(face, view, corner);
-    face(0.02, 0.045, 0.045, 0.955, {
-        color: '#9caaba',
-        lift: 0.1,
-    });
-    face(0.955, 0.045, 0.98, 0.955, {
-        color: '#9caaba',
-        lift: 0.1,
-    });
-    face(0.49, 0.965, 0.51, 0.975, {
-        color: '#283644',
-        lift: 0.15,
-    });
-}
-function laptopDetails2(
-    face: (
-        u0: number,
-        v0: number,
-        u1: number,
-        v1: number,
-        {
-            color,
-            lift,
-        }: {
-            color: string;
-            lift?: number;
-        },
-    ) => void,
-    view: SkyProjection,
-    corner: (u: number, v: number, back?: number) => Point3,
-) {
-    face(0, 0, 1, 1, {
-        color: '#243140',
-    });
-    view.polygon(
-        [
-            corner(0, 1, 1.2),
-            corner(1, 1, 1.2),
-            corner(1, 0, 1.2),
-            corner(0, 0, 1.2),
-        ],
-        '#566275',
-    );
-    for (const [a, b] of [
-        [
-            [0, 0],
-            [1, 0],
-        ],
-        [
-            [1, 0],
-            [1, 1],
-        ],
-        [
-            [1, 1],
-            [0, 1],
-        ],
-        [
-            [0, 1],
-            [0, 0],
-        ],
-    ]) {
-        view.polygon(
-            [
-                corner(a[0], a[1]),
-                corner(b[0], b[1]),
-                corner(b[0], b[1], 1.2),
-                corner(a[0], a[1], 1.2),
-            ],
-            '#657184ff',
-        );
-    }
-    face(0.02, 0.02, 0.98, 0.045, {
-        color: '#9caaba',
-        lift: 0.1,
-    });
-    face(0.02, 0.955, 0.98, 0.98, {
-        color: '#9caaba',
-        lift: 0.1,
-    });
-}
-function laptopDetails(
-    view: SkyProjection,
-    point: (x: number, y: number, z?: number) => Point3,
-    profile: (
-        points: Vector[],
-        width: number,
-        color: string,
-        z?: number,
-    ) => void,
-) {
-    const top = (
-        x0: number,
-        z0: number,
-        x1: number,
-        z1: number,
-        {
-            y,
-            color,
-        }: {
-            y: number;
-            color: string;
-        },
-    ) =>
-        view.polygon(
-            [
-                point(x0, y, z0),
-                point(x1, y, z0),
-                point(x1, y, z1),
-                point(x0, y, z1),
-            ],
-            color + 'ff',
-        );
-    profile(
-        [
-            [16, -31],
-            [50, -31],
-            [50, -34],
-            [16, -34],
-        ],
-        22,
-        '#667284',
-    );
-    top(18, -20, 48, 20, {
-        y: -34.2,
-        color: '#343e4c',
-    });
-    top(19, -18, 31, 18, {
-        y: -34.35,
-        color: '#758396',
-    });
-    top(19.5, -17.5, 30.5, 17.5, {
-        y: -34.4,
-        color: '#465362',
-    });
-    top(32, -19, 46, 19, {
-        y: -34.35,
-        color: '#222c39',
-    });
-    return top;
-}
-function riderArms(view: SkyProjection, draw: ChairDrawing, rest = 0) {
-    const { C, elapsed, profile } = draw;
-    laptop(view, draw);
-    for (const z of [-19, 19]) {
-        profile(
-            [
-                [-17, -58],
-                [-13, -60],
-                [-9, -57],
-                [-8, -35],
-                [-18, -34],
-            ],
-            4,
-            '#e6e0cc',
-            z,
-        );
-        profile(
-            [
-                [-19, -39],
-                [-8, -39],
-                [-8, -34],
-                [-19, -33],
-            ],
-            4.5,
-            '#fff6de',
-            z,
-        );
-        const lift = -5 * rest;
-        profile(
-            [
-                [-16, -34],
-                [-9, -35],
-                [23, -36 + lift],
-                [25, -32 + lift],
-                [-15, -27],
-            ],
-            3,
-            C.skin,
-            z,
-        );
-        const tap = Math.sin(elapsed * 24) * 1.2 * (1 - rest) + lift;
-        profile(
-            [
-                [21, -36 + tap],
-                [25, -39 + tap],
-                [30, -38 + tap],
-                [35, -35 + tap],
-                [36, -33 + tap],
-                [29, -35 + tap],
-                [23, -33 + tap],
-            ],
-            2,
-            C.skin,
-            z,
-        );
-    }
-}
+
 function extinguisher(
-    { elapsed, rod, oval }: ChairDrawing,
+    view: SkyProjection,
+    bob: number,
+    elapsed: number,
     spray: number,
     rocket: number,
 ) {
-    rod([-39, -49, 0], [-45, -13, 0], 2, '#394657');
-    rod([-46, -48, 0], [-46, -9, 0], 8, '#b75f4a');
-    oval(-46, -48, 0, 8, {
-        ry: 5,
-        rz: 8,
-        color: '#c7765c',
-    });
-    oval(-46, -9, 0, 8, {
-        ry: 3,
-        rz: 8,
-        color: '#b75f4a',
-    });
-    rod([-46, -37, 0], [-46, -26, 0], 8.2, '#eee5cd');
-    rod([-46, -52, 0], [-46, -59, 0], 2, '#394657');
-    rod([-49, -59, 0], [-35, -59, 0], 1.5, '#394657');
+    const pt = (x: number, y: number, z = 0) => p3(x, y, z, bob);
+    view.rod(pt(-39, -49), pt(-45, -13), 2, '#394657');
+    view.rod(pt(-46, -48), pt(-46, -9), 8, '#b75f4a');
+    view.oval(pt(-46, -48), [8, 5, 8], '#c7765c');
+    view.oval(pt(-46, -9), [8, 3, 8], '#b75f4a');
+    view.rod(pt(-46, -37), pt(-46, -26), 8.2, '#eee5cd');
+    view.rod(pt(-46, -52), pt(-46, -59), 2, '#394657');
+    view.rod(pt(-49, -59), pt(-35, -59), 1.5, '#394657');
     for (let i = 0; rocket < 1 && spray > 0 && i < 5; i++) {
         const age = (elapsed * 1.5 + i * 0.19) % 1;
-        oval(-46 - age * 4, -7 + age * 50 * spray, 0, 3 + age * 7, {
-            ry: 4 + age * 9,
-            rz: 3 + age * 6,
-            color: '#f6e6df' + hex((100 / 255) * (1 - age) * (1 - rocket)),
-        });
+        view.oval(
+            pt(-46 - age * 4, -7 + age * 50 * spray),
+            [3 + age * 7, 4 + age * 9, 3 + age * 6],
+            '#f6e6df' + hex((100 / 255) * (1 - age) * (1 - rocket)),
+        );
     }
     if (rocket <= 0) {
         return;
     }
-    rod([-46, -9, 0], [-46, -4, 0], 5.5, '#2f3540');
+    view.rod(pt(-46, -9), pt(-46, -4), 5.5, '#2f3540');
     if (spray > 0) {
-        rocketExhaust(oval, elapsed, spray * rocket);
+        rocketExhaust(view, bob, elapsed, spray * rocket);
     }
 }
-const hex = (value: number) =>
-    Math.round(Math.max(0, Math.min(1, value)) * 255)
-        .toString(16)
-        .padStart(2, '0');
+
 function rocketExhaust(
-    oval: ChairDrawing['oval'],
+    view: SkyProjection,
+    bob: number,
     elapsed: number,
     spray: number,
 ) {
+    const pt = (x: number, y: number, z = 0) => p3(x, y, z, bob);
     const power = Math.min(1.8, spray);
     const flicker =
         1 + Math.sin(elapsed * 47) * 0.08 + Math.sin(elapsed * 83) * 0.05;
     const reach = (120 + 230 * power) * flicker;
-    oval(-46, -3.5, 0, 6.5, {
-        ry: 1.2,
-        rz: 6.5,
-        color: '#ffe9b0' + hex(Math.min(1, power * 2)),
-    });
+    view.oval(
+        pt(-46, -3.5),
+        [6.5, 1.2, 6.5],
+        '#ffe9b0' + hex(Math.min(1, power * 2)),
+    );
     const puffs = Math.round(14 + 18 * Math.min(1, power));
     for (let i = 0; i < puffs; i++) {
         const age = (elapsed * 2.6 + i / puffs) % 1;
@@ -825,48 +831,45 @@ function rocketExhaust(
         const spread = age * age * 50 * power;
         const size = 7 + age * 55 * (0.6 + 0.4 * power);
         const tone = age < 0.25 ? '#fff4d6' : age < 0.6 ? '#f6efe4' : '#dcdcd8';
-        oval(
-            -46 - age * reach * 0.55 + Math.cos(swirl) * spread,
-            -2 + age * reach,
-            Math.sin(swirl) * spread,
-            size,
-            {
-                ry: size * (1.1 + 0.5 * (1 - age)),
-                rz: size,
-                color:
-                    tone +
-                    hex(
-                        Math.min(1, age / 0.18) *
-                            (1 - age) *
-                            (1 - age) *
-                            0.9 *
-                            Math.min(1, power + 0.3),
-                    ),
-            },
+        view.oval(
+            pt(
+                -46 - age * reach * 0.55 + Math.cos(swirl) * spread,
+                -2 + age * reach,
+                Math.sin(swirl) * spread,
+            ),
+            [size, size * (1.1 + 0.5 * (1 - age)), size],
+            tone +
+                hex(
+                    Math.min(1, age / 0.18) *
+                        (1 - age) *
+                        (1 - age) *
+                        0.9 *
+                        Math.min(1, power + 0.3),
+                ),
         );
     }
     const core = (40 + 50 * power) * flicker;
-    oval(-46 - 8, 6, 0, 16 * power, {
-        ry: 18 * power,
-        rz: 16 * power,
-        color: '#fff1c4' + hex(0.35 * Math.min(1, power)),
-    });
+    view.oval(
+        pt(-54, 6),
+        [16 * power, 18 * power, 16 * power],
+        '#fff1c4' + hex(0.35 * Math.min(1, power)),
+    );
     for (let k = 0; k < 6; k++) {
         const along = ((k + 0.5) / 6) * core;
         const r = 8 * (1 - k / 8);
-        oval(-46 - along * 0.55, -2 + along, 0, r, {
-            ry: r * 1.5,
-            rz: r,
-            color: (k < 2 ? '#ffe28a' : '#ffb347') + hex(0.85 * (1 - k / 7)),
-        });
+        view.oval(
+            pt(-46 - along * 0.55, -2 + along),
+            [r, r * 1.5, r],
+            (k < 2 ? '#ffe28a' : '#ffb347') + hex(0.85 * (1 - k / 7)),
+        );
     }
     for (let k = 1; k <= 3; k++) {
         const along = core * k * 0.26;
         const r = 5.5 - k * 0.9;
-        oval(-46 - along * 0.55, -2 + along, 0, r, {
-            ry: r * 1.6,
-            rz: r,
-            color: '#ffffff' + hex(0.95 - k * 0.2),
-        });
+        view.oval(
+            pt(-46 - along * 0.55, -2 + along),
+            [r, r * 1.6, r],
+            '#ffffff' + hex(0.95 - k * 0.2),
+        );
     }
 }
