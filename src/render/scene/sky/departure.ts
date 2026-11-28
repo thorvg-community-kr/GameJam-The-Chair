@@ -12,7 +12,7 @@ export function skyDeparture(ctx: RenderCtx, progress: number): void {
     const retreat = progress * progress;
     const away = (p: Point3): Point3 => [
         p[0] - retreat * 440,
-        p[1] - retreat * 270,
+        p[1] - retreat * 1800,
         p[2] - retreat * 900,
     ];
     const point = (x: number, y: number, z = -70): Point3 => away([x, y, z]);
@@ -42,7 +42,7 @@ export function skyDeparture(ctx: RenderCtx, progress: number): void {
     const flagWord = departureCake(ctx, view, away, progress);
     const layer = {
         key: 'sky-ending-departure',
-        opacity: 1 - progress * progress,
+        opacity: 1,
     };
     ctx.commands.push(
         ...view.commands().map((command) => ({ ...command, layer })),

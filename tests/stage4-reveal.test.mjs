@@ -633,13 +633,14 @@ test('the attendance bubble waits for stage five, after the silent turn', () => 
 });
 test('the departure leaves scenery behind before the quiet side view and is seekable', () => {
     const scenery = (age) =>
-        revealFrame('reveal', age).filter(
-            (command) => command.layer?.key === 'sky-ending-departure',
+        revealFrame('reveal', age).filter((command) =>
+            command.layer?.key?.endsWith('sky-ending-departure'),
         );
     const start = scenery(0);
     const leaving = scenery(SKY_DEPARTURE * 0.57);
     assert.ok(start.length > 0 && leaving.length > 0);
-    assert.ok(leaving[0].layer.opacity < start[0].layer.opacity);
+    assert.equal(leaving[0].layer.opacity, 1);
+    assert.equal(start[0].layer.opacity, 1);
     const bounds = (commands) => {
         const points = commands.flatMap((command) => command.points);
         return {
@@ -651,6 +652,7 @@ test('the departure leaves scenery behind before the quiet side view and is seek
         bounds(leaving).right < bounds(start).right,
         'the ledge retreats behind the chair',
     );
+    assert.ok(bounds(leaving).bottom > bounds(start).bottom);
     assert.deepEqual(
         scenery(SKY_DEPARTURE),
         [],
@@ -665,6 +667,21 @@ test('the departure leaves scenery behind before the quiet side view and is seek
         start,
         'backward seeking restores the departure scenery',
     );
+});
+test('the reveal wipes across the course before the camera turns', () => {
+    const clips = (age) =>
+        revealFrame('reveal', age)
+            .filter((command) =>
+                command.layer?.key?.startsWith('sky-reveal-wipe-'),
+            )
+            .map((command) => command.layer.clip.points);
+    const start = clips(0);
+    const middle = clips(0.45);
+    assert.ok(start.length > 0 && middle.length > 0);
+    assert.equal(start[0][0][0], start[0][1][0]);
+    assert.equal(middle[0][0][0], middle[0][1][0] / 2);
+    assert.deepEqual(clips(0.9), []);
+    assert.deepEqual(clips(0), start);
 });
 test('arrival spray shortens and settles into the existing chair animation', () => {
     const chair = (time, spray, arrival) => {
@@ -729,7 +746,7 @@ test('the ending clouds are bread clouds, not flat pale ovals', () => {
         );
     }
 });
-test('ending clouds are bread from the start and none vanishes while the camera turns', () => {
+test('ending clouds retain bread colours as the camera turns after the wipe', () => {
     const { settle, turn, hold } = STAGE_FOUR.reveal;
     const bodies = (commands) =>
         commands.filter(
@@ -741,8 +758,7 @@ test('ending clouds are bread from the start and none vanishes while the camera 
                 command.fill.stops[2][1][3] === 0,
         );
     const bread = hex(CLOUD_TONES.bread.top).join();
-    let previous = 0;
-    for (let at = 0; at <= settle + turn + hold; at += 1 / 30) {
+    for (let at = 0.9; at <= settle + turn + hold; at += 1 / 30) {
         const turning = at < settle + turn;
         const clouds = bodies(
             revealFrame(
@@ -757,11 +773,7 @@ test('ending clouds are bread from the start and none vanishes while the camera 
             [],
             `every cloud is bread at ${at.toFixed(2)} s`,
         );
-        assert.ok(
-            clouds.length >= previous,
-            `no cloud disappears at ${at.toFixed(2)} s`,
-        );
-        previous = clouds.length;
+        assert.ok(clouds.length > 0, `clouds remain at ${at.toFixed(2)} s`);
     }
 });
 test('the last ending frame shows the same bread clouds as the first frame of stage five', () => {

@@ -1,3 +1,4 @@
+import { orbitHeights, panoramaX } from './heights';
 import { CLOUD_TONES, puffCloud, seeded } from '../shared/cloud-art';
 
 import type { RenderCtx } from '../../context';
@@ -39,6 +40,7 @@ export type CloudBankOptions = {
     nearDepth?: number;
     unwrapped?: boolean;
     turn?: number;
+    panorama?: number;
     alpha?: number;
 };
 const PASS_FADE = 260;
@@ -143,6 +145,8 @@ export function orbitCloudBank(
         mirror: null,
     });
     const fade = options.alpha ?? 1;
+    const descent = orbitHeights(travel).air * ctx.H * 1.6;
+    const turn = options.panorama ?? 0;
     const bread = (
         x: number,
         y: number,
@@ -156,7 +160,7 @@ export function orbitCloudBank(
             opacity?: number;
         },
     ) =>
-        puffCloud(ctx, x, y, size, {
+        puffCloud(ctx, x, y + descent, size, {
             seed,
             tone: CLOUD_TONES.bread,
             options: {
@@ -176,7 +180,7 @@ export function orbitCloudBank(
             [0.83, 0.1, 9202],
         ]) {
             bread(
-                ctx.W * x + Math.sin(travel * 0.0003) * 8,
+                ctx.W * panoramaX(x, turn) + Math.sin(travel * 0.0003) * 8,
                 ctx.H * y,
                 ctx.W / 2500,
                 seed,
@@ -189,7 +193,7 @@ export function orbitCloudBank(
     if (!foreground) {
         for (let i = 0; i < 5; i++) {
             bread(
-                ctx.W * (i / 4),
+                ctx.W * panoramaX(i / 4, turn),
                 ctx.H * (0.98 + Math.sin(i * 4) * 0.065),
                 (ctx.W / 1000) * (0.8 + (i % 2) * 0.2),
                 700 + i * 2,
