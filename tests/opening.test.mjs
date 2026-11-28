@@ -8,6 +8,7 @@ const {
     createOpening,
     createRenderCtx,
     drawOpening,
+    openingFocusY,
     openingFrame,
     openingSounds,
     openingState,
@@ -25,7 +26,7 @@ const {
     export { createGame } from './src/game/game';
     export { createOpening } from './src/ui/opening';
     export { createRenderCtx } from './tests/support/render-context';
-    export { drawOpening, openingFrame, openingState, OPENING_BEATS, OPENING_DURATION } from './src/render/scene/opening';
+    export { drawOpening, openingFocusY, openingFrame, openingState, OPENING_BEATS, OPENING_DURATION } from './src/render/scene/opening';
     export { openingSounds, OPENING_SOUND_CUES } from './src/presentation/opening-sfx';
     export { SOUNDS } from './src/ui/sfx';
     export { translate } from './src/i18n';
@@ -96,7 +97,7 @@ function render(time, locale = 'ko') {
         VW: 800 / frame.zoom,
         scale: frame.zoom,
         cam: state.player.x - 400 / frame.zoom,
-        vertical: 0,
+        vertical: 510 / (2 * frame.zoom) - openingFocusY(frame, state.player.y),
         LEN: state.level.length,
         GOAL: state.level.goal,
         solids: state.solids,
@@ -488,5 +489,76 @@ test('opening sound cues track the timeline beats, stay silent before rage and h
                 `creak cue aligns with visual pulse at ${cue.at}`,
             );
         }
+    }
+});
+
+const W = 800;
+const H = 510;
+const within = ([x, y], box) =>
+    x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
+function irisBox(mask) {
+    const xs = mask.curves.map((c) => c[4]);
+    const ys = mask.curves.map((c) => c[5]);
+    return {
+        left: Math.max(-4, Math.min(...xs) - 3),
+        top: Math.max(-4, Math.min(...ys) - 3),
+        right: Math.min(W + 4, Math.max(...xs) + 3),
+        bottom: Math.min(H + 4, Math.max(...ys) + 3),
+    };
+}
+const IRIS_TIMES = [2.0, 2.4, 2.8, 11.5, 11.8, 12.8, 14.6, 16.2, 18.6];
+
+test('the iris composites the office through one masked group', () => {
+    for (const t of IRIS_TIMES) {
+        const { frame, commands } = render(t);
+        if (frame.iris === null || frame.iris <= 0 || frame.iris >= 1) {
+            continue;
+        }
+        const groups = commands.filter((c) => c.kind === 'group' && c.group);
+        assert.equal(groups.length, 1, `one iris group at t=${t}`);
+        const box = irisBox(groups[0].group.mask);
+        const overlays = commands.filter((c) =>
+            ['opening-dusk', 'opening-iris-clip'].includes(c.layer?.key),
+        );
+        assert.ok(
+            overlays.every((c) => c.points.every((p) => within(p, box))),
+            `screen overlays shrink to the iris at t=${t}`,
+        );
+    }
+});
+
+test('office light overlays draw no full-screen area they do not need', () => {
+    for (const t of [B.riderTyping + 1, B.rage + 0.5, B.irisClose + 0.3]) {
+        const { commands } = render(t);
+        assert.ok(
+            !commands.some((c) => c.layer?.key === 'opening-vignette'),
+            'the vignette is one shape with its fade in the stops',
+        );
+        for (const c of commands) {
+            if (c.layer?.key !== 'opening-laptop') {
+                continue;
+            }
+            const { from, radius } = c.fill;
+            const glow = {
+                left: from[0] - radius - 1e-6,
+                top: from[1] - radius - 1e-6,
+                right: from[0] + radius + 1e-6,
+                bottom: from[1] + radius + 1e-6,
+            };
+            assert.ok(
+                c.points.every((p) => within(p, glow)),
+                'the laptop glow covers only its radius',
+            );
+        }
+    }
+    const reach = { left: -30, top: -30, right: W + 30, bottom: H + 30 };
+    for (const t of [0.5, (B.spinToEight + B.eightPm) / 2]) {
+        const patches = render(t).commands.filter(
+            (c) => c.layer?.key === 'opening-clock-sunpatch',
+        );
+        assert.ok(
+            patches.every((c) => c.points.every((p) => within(p, reach))),
+            'the window sun patch stops three sigma off screen',
+        );
     }
 });

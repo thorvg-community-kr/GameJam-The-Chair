@@ -1,5 +1,6 @@
 import type { RenderCtx } from '../../context';
 import type {
+    Bounds,
     Curve,
     DrawCommand,
     PathCommand,
@@ -103,17 +104,59 @@ export function polygon(
 ): void {
     push(ctx, { kind: 'path', points, fill });
 }
-export function screenRect(ctx: RenderCtx, fill: string | Gradient): void {
+/**
+ * Covers the screen, or only its overlap with `within` when the rest would
+ * be clipped away or carries no colour anyway.
+ */
+export function screenRect(
+    ctx: RenderCtx,
+    fill: string | Gradient,
+    within?: Bounds | null,
+): void {
+    const left = Math.max(-4, within?.left ?? -4);
+    const top = Math.max(-4, within?.top ?? -4);
+    const right = Math.min(ctx.W + 4, within?.right ?? ctx.W + 4);
+    const bottom = Math.min(ctx.H + 4, within?.bottom ?? ctx.H + 4);
+    if (right <= left || bottom <= top) {
+        return;
+    }
     polygon(
         ctx,
         [
-            [-4, -4],
-            [ctx.W + 4, -4],
-            [ctx.W + 4, ctx.H + 4],
-            [-4, ctx.H + 4],
+            [left, top],
+            [right, top],
+            [right, bottom],
+            [left, bottom],
         ],
         fill,
     );
+}
+/** Sutherland-Hodgman: the part of a convex polygon inside `box`. */
+export function clipPolygon(points: Vector[], box: Bounds): Vector[] {
+    const edges: Array<[number, number, number]> = [
+        [0, 1, box.left],
+        [0, -1, -box.right],
+        [1, 1, box.top],
+        [1, -1, -box.bottom],
+    ];
+    let out = points;
+    for (const [axis, sign, limit] of edges) {
+        const input = out;
+        out = [];
+        const inside = (p: Vector) => p[axis] * sign >= limit;
+        for (let i = 0; i < input.length; i++) {
+            const a = input[i];
+            const b = input[(i + 1) % input.length];
+            if (inside(a)) {
+                out.push(a);
+            }
+            if (inside(a) !== inside(b)) {
+                const u = (limit / sign - a[axis]) / (b[axis] - a[axis]);
+                out.push([a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u]);
+            }
+        }
+    }
+    return out;
 }
 export function linear(
     ctx: RenderCtx,
