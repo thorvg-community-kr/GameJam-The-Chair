@@ -212,6 +212,7 @@ class InputBinding {
             });
         }
         this.button('[data-reset]', this.game.restart);
+        this.button('[data-skip-credits]', this.game.closeCredits);
         this.button('[data-pause]', this.togglePause);
         this.button('[data-resume]', this.togglePause);
         window.addEventListener(

@@ -1,3 +1,5 @@
+import { CREDITS_TIMING, endingTime } from './credits';
+
 import type { GameSnapshot } from '../game/game';
 
 export type MusicTrack =
@@ -19,6 +21,9 @@ function silentHandoff(state: Pick<GameSnapshot, 'stage' | 'sky'>) {
     );
 }
 
+/** Seconds the music player takes to fade a track in or out. */
+export const MUSIC_FADE = 1.2;
+
 export function musicTrack(
     state: Pick<GameSnapshot, 'mode' | 'stage' | 'orbit' | 'sky'>,
     prologue: boolean,
@@ -29,8 +34,10 @@ export function musicTrack(
     if (state.mode === 'intro') {
         return 'start';
     }
-    if (state.stage === 5 && state.orbit?.phase === 'parked') {
-        return 'ending';
+    const ending = endingTime(state);
+    if (ending !== null) {
+        // Fade out so the music is gone as the last credit leaves.
+        return ending < CREDITS_TIMING.end - MUSIC_FADE ? 'ending' : null;
     }
     return STAGE_TRACKS[state.stage];
 }

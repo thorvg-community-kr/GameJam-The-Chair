@@ -512,7 +512,7 @@ test('after THE END the epilogue plays its cuts in order and then holds the last
     const E = ORBIT_ENDING;
     assert.equal(epilogueBeat(E.reveal - 0.01), null);
     const cuts = [];
-    for (let t = E.reveal; t < E.hold + 1; t += 1 / 30) {
+    for (let t = E.reveal; t < E.ultraWide; t += 1 / 30) {
         const cut = epilogueBeat(t).cut;
         if (cuts.at(-1) !== cut) {
             cuts.push(cut);
@@ -531,8 +531,8 @@ test('after THE END the epilogue plays its cuts in order and then holds the last
         'stare-chair',
         'stare-rider',
     ]);
-    const held = endingFrame(E.hold + 0.5);
-    assert.deepEqual(epilogueBeat(E.hold + 0.5), epilogueBeat(E.hold + 5));
+    assert.equal(epilogueBeat(E.ultraWide).cut, 'wide', 'then the ultra-wide');
+    const held = endingFrame(E.hold - 0.2);
     assert.deepEqual(held.labels, [], 'no title over the epilogue');
     assert.deepEqual(held.layer('orbit-ending-black'), []);
     assert.ok(held.commands.length > 200, 'the scene is drawn again');

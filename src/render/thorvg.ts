@@ -3,6 +3,8 @@ import wasmUrl from '@thorvg-wasm?url';
 
 import { chooseRenderer, isSoftwareGl } from './backend';
 import { LABEL_FONT, SIGN_FONT, SPEECH_FONT } from './fonts';
+import { registerLottie } from './lottie';
+import logoUrl from '../../assets/powred.by.thorvg.1.json?url';
 import signFontUrl from '../assets/fonts/BlackHanSans-sign.ttf?url';
 import labelFontUrl from '../assets/fonts/DoHyeon-label.ttf?url';
 import speechFontUrl from '../assets/fonts/Jua-speech.ttf?url';
@@ -76,12 +78,25 @@ async function loadFont(
     }
 }
 
+async function loadLottie() {
+    try {
+        const res = await fetch(logoUrl);
+        if (!res.ok) {
+            throw new Error(`logo ${res.status}`);
+        }
+        registerLottie('thorvg-logo', await res.text());
+    } catch (e) {
+        console.warn('lottie unavailable', e);
+    }
+}
+
 export function loadThorvg(): ReturnType<typeof init> {
     engine ??= init({ renderer: thorvgRenderer(), locateFile: () => wasmUrl })
         .then(async (tvg) => {
-            await Promise.all(
-                FONTS.map(([name, url]) => loadFont(tvg, name, url)),
-            );
+            await Promise.all([
+                ...FONTS.map(([name, url]) => loadFont(tvg, name, url)),
+                loadLottie(),
+            ]);
             return tvg;
         })
         .catch((error) => {

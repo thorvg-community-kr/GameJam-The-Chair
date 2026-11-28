@@ -11,6 +11,7 @@ export type Command =
     | { type: 'spray' }
     | { type: 'interact' }
     | { type: 'leaveMeeting' }
+    | { type: 'closeCredits' }
     | { type: 'pause' }
     | { type: 'reset' }
     | { type: 'restart' }
@@ -58,6 +59,7 @@ function parseCommandRecord(value: Record<string, unknown>): Command {
         case 'spray':
         case 'interact':
         case 'leaveMeeting':
+        case 'closeCredits':
         case 'pause':
         case 'reset':
         case 'restart':
@@ -89,6 +91,9 @@ export function runCommand(
         case 'leaveMeeting':
             stageHooks(s.stage).leave?.(s);
             return;
+        case 'closeCredits':
+            closeCredits(s);
+            return;
         case 'pause':
             pause(s);
             return;
@@ -104,6 +109,11 @@ export function runCommand(
         case 'startStage':
             startStage(s, command.id, out);
             return;
+    }
+}
+function closeCredits(s: CoreState) {
+    if (s.mode === 'play') {
+        stageHooks(s.stage).closeCredits?.(s);
     }
 }
 function jump(s: CoreState) {

@@ -9,12 +9,13 @@ export type EpilogueCut =
     | 'drift'
     | 'bewildered'
     | 'stare-chair'
-    | 'stare-rider';
+    | 'stare-rider'
+    | 'wide';
 export type EpilogueBeat = {
     cut: EpilogueCut;
     /** Seconds since this cut started; negative while the first cut fades up. */
     u: number;
-    /** Seconds since the epilogue started, frozen at the hold. */
+    /** Seconds since the epilogue started; frozen at the hold until the wide cut. */
     t: number;
     /** Index of the stare shot, so each one blinks on its own. */
     shot: number;
@@ -29,6 +30,14 @@ export function epilogueBeat(ending: number): EpilogueBeat | null {
     const E = ORBIT_ENDING;
     if (ending < E.reveal) {
         return null;
+    }
+    if (ending >= E.ultraWide) {
+        return {
+            cut: 'wide',
+            u: ending - E.ultraWide,
+            t: ending - E.tap,
+            shot: 0,
+        };
     }
     const time = Math.min(ending, E.hold);
     const t = time - E.tap;

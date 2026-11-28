@@ -4,6 +4,7 @@ import stage3Url from '../../assets/bgm/stage3.m4a?url';
 import stage4Url from '../../assets/bgm/stage4.m4a?url';
 import stage5Url from '../../assets/bgm/stage5.m4a?url';
 import startUrl from '../../assets/bgm/start.m4a?url';
+import { MUSIC_FADE } from '../presentation/music';
 
 import type { MusicDuck, MusicTrack } from '../presentation/music';
 
@@ -21,7 +22,7 @@ const DUCK_LEVELS: Record<MusicDuck, number> = {
     pause: 0.18,
     death: 0.08,
 };
-const FADE_SECONDS = 1.2;
+const FADE_SECONDS = MUSIC_FADE;
 const UNLOCK_EVENTS = ['pointerdown', 'keydown', 'touchend'] as const;
 
 export type Music = {

@@ -65,6 +65,14 @@ export const STAGE_FIVE = deepFreeze({
         stopDistance: 220,
     },
     checkpoint: { x: 0, y: 0, z: 9400 },
+    /**
+     * Ending seconds (`settled - 1`) of the credits after the epilogue. They
+     * roll from `from`; how long depends on their content, so the
+     * presentation closes them with a command when the roll is over or the
+     * player skips. Closing jumps the ending clock to `closing`, far past any
+     * roll, and the game returns to the title `fade` seconds later.
+     */
+    credits: { from: 51.3, closing: 900, fade: 0.8 },
 });
 
 export type OrbitState = {

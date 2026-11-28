@@ -12,6 +12,7 @@ const PUBLIC_API = [
     'spray',
     'interact',
     'leaveMeeting',
+    'closeCredits',
     'pause',
     'setInput',
     'press',

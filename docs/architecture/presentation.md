@@ -32,6 +32,10 @@ DOM은 집중력, 메뉴, 터치 컨트롤, 종료 panel처럼 조작과 접근�
 
 시작 화면은 별도 ThorVG `Animation`으로 `assets/powred.by.thorvg.1.json` Lottie 파일을 재생합니다.
 
+5스테이지 엔딩 크레딧(`scene/orbit/credits.ts`)은 같은 Lottie를 게임 canvas 안에서 다시 씁니다. `DrawCommand`의 `lottie` 명령은 ThorVG `Animation.picture`를 layer Scene에 넣고 엔딩 시간으로 `seek()`합니다. `LayerSpec.holdsText`를 켠 layer는 text와 Lottie도 자기 Scene 안에 넣으므로, 크레딧 열의 그라디언트 alpha mask가 글자와 로고에 함께 적용됩니다. 이 layer 안에서는 path가 text·Lottie보다 아래에 그려집니다. Lottie JSON은 `render/thorvg.ts`가 글꼴과 함께 불러오며, 불러오기 전이나 Canvas2D fallback에서는 로고 대신 `Powered by ThorVG` 글자를 씁니다.
+
+크레딧 내용은 `scene/orbit/credits-data.ts`의 데이터만 고치면 됩니다. 비어 있는 구역은 줄도 간격도 남기지 않고, 크레딧이 끝나는 시점은 내용 높이와 고정 스크롤 속도로 계산됩니다. 크레딧이 끝나고 1초 뒤 `main.ts`가 `closeCredits` 명령을 보내고, 건너뛰기 버튼과 크레딧 중 `Esc`도 같은 명령을 보냅니다. 명령은 기록되므로 리플레이도 같은 시점에 타이틀로 돌아갑니다.
+
 Canvas2D fallback은 기본 path, fill, stroke, gradient, blend를 그립니다. alpha mask, motion blur, trim path는 재현하지 않으며 group 효과도 ThorVG와 완전히 같지 않습니다. fallback은 게임 진행을 유지하기 위한 경로이지 시각적 동등성 검사가 아닙니다.
 
 ## 장면과 paint 객체
@@ -52,7 +56,7 @@ Canvas2D fallback은 기본 path, fill, stroke, gradient, blend를 그립니다.
 
 ## 배경음악
 
-`src/presentation/music.ts`의 `musicTrack`이 화면 상태로 곡을 고릅니다. 시작 화면은 `start`, 오프닝(프롤로그) 컷신 동안에는 `null`을 돌려주어 음악 없이 연출만 보여 줍니다. 1·2 스테이지는 `stage1-2`, 3은 `stage3`, 4는 `stage4`, 5는 `stage5`, 궤도 문에 도착한 엔딩은 `ending`입니다. `src/ui/music.ts`는 곡을 반복 재생하고 1.2초 동안 크로스페이드하며, 일시정지 중에는 볼륨을 낮춥니다. 곡이 `null`이면 재생 중인 곡을 모두 페이드 아웃하고, 컷신이 끝나거나 건너뛰면 그 화면의 곡이 다시 페이드 인됩니다. 스플래시(`src/ui/splash.ts`)가 보이는 동안에는 어떤 곡도 요청하지 않습니다. 로고가 끝나면 바로 타이틀로 넘어가며 `main.ts`가 `music.play('start')`를 호출합니다. 브라우저는 사용자 입력 전의 소리 재생을 막으므로, 입력이 한 번도 없었다면 곡은 막힌 채 볼륨 0으로 기다리다가 첫 클릭·탭·키 입력에서 설정 음량(전체 × 배경음)까지 페이드 인됩니다(막힌 동안 `advance()`가 볼륨을 미리 올리지 않음). 로고 도중 클릭·탭·키로 건너뛰면 그 입력 이벤트 안에서 `sfx.unlock()`으로 효과음 `AudioContext`를 깨우고 `start` 곡을 재생하므로 타이틀이 나타나는 순간 음악이 들립니다. 건너뛰기 입력은 `window`에서 받으므로 화면 어디를 눌러도, 포커스가 다른 곳에 있어도 동작하며, 스플래시 동안에는 루트의 `splashing` 클래스로 모바일 가로 조작 버튼을 숨깁니다. `?stage=N`으로 바로 들어가면 스플래시가 없으므로 첫 입력 뒤에 소리가 납니다. 음원은 모든 브라우저에서 재생되는 AAC `assets/bgm/*.m4a`(80 kbps)입니다.
+`src/presentation/music.ts`의 `musicTrack`이 화면 상태로 곡을 고릅니다. 시작 화면은 `start`, 오프닝(프롤로그) 컷신 동안에는 `null`을 돌려주어 음악 없이 연출만 보여 줍니다. 1·2 스테이지는 `stage1-2`, 3은 `stage3`, 4는 `stage4`, 5는 `stage5`, 궤도 문에 도착한 엔딩은 `ending`이며, 크레딧이 끝나는 순간 소리가 사라지도록 그보다 페이드 시간(1.2초)만큼 먼저 `null`로 바뀝니다. 타이틀로 돌아오면 `start`가 다시 재생됩니다. `src/ui/music.ts`는 곡을 반복 재생하고 1.2초 동안 크로스페이드하며, 일시정지 중에는 볼륨을 낮춥니다. 곡이 `null`이면 재생 중인 곡을 모두 페이드 아웃하고, 컷신이 끝나거나 건너뛰면 그 화면의 곡이 다시 페이드 인됩니다. 스플래시(`src/ui/splash.ts`)가 보이는 동안에는 어떤 곡도 요청하지 않습니다. 로고가 끝나면 바로 타이틀로 넘어가며 `main.ts`가 `music.play('start')`를 호출합니다. 브라우저는 사용자 입력 전의 소리 재생을 막으므로, 입력이 한 번도 없었다면 곡은 막힌 채 볼륨 0으로 기다리다가 첫 클릭·탭·키 입력에서 설정 음량(전체 × 배경음)까지 페이드 인됩니다(막힌 동안 `advance()`가 볼륨을 미리 올리지 않음). 로고 도중 클릭·탭·키로 건너뛰면 그 입력 이벤트 안에서 `sfx.unlock()`으로 효과음 `AudioContext`를 깨우고 `start` 곡을 재생하므로 타이틀이 나타나는 순간 음악이 들립니다. 건너뛰기 입력은 `window`에서 받으므로 화면 어디를 눌러도, 포커스가 다른 곳에 있어도 동작하며, 스플래시 동안에는 루트의 `splashing` 클래스로 모바일 가로 조작 버튼을 숨깁니다. `?stage=N`으로 바로 들어가면 스플래시가 없으므로 첫 입력 뒤에 소리가 납니다. 음원은 모든 브라우저에서 재생되는 AAC `assets/bgm/*.m4a`(80 kbps)입니다.
 
 ## 모션 확인
 

@@ -80,6 +80,10 @@ export function paintCanvas(
             text2d(bg, cmd.text);
             continue;
         }
+        // Lottie needs ThorVG; the fallback keeps the game running without it.
+        if (cmd.kind === 'lottie') {
+            continue;
+        }
         paintCanvasCommand(cmd, bg, ctx);
     }
 }

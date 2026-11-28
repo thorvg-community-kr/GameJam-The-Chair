@@ -27,6 +27,7 @@ import {
     orbitRoute,
     orbitEndingScene,
     orbitEpilogueScene,
+    orbitCreditsScene,
     orbitSatelliteLightScene,
     orbitSatelliteLightLitScene,
 } from './preview/orbit';
@@ -485,6 +486,16 @@ export const previewScenes: readonly PreviewRegistration[] = (
             id: 'orbit-ending-epilogue',
             label: 'Orbit · Epilogue: the chair taps, shakes him off, and they stare',
             create: () => orbitEpilogueScene(),
+        },
+        {
+            id: 'orbit-ending-credits',
+            label: 'Orbit · Credits: ultra-wide, the roll, the gag and back to the title',
+            create: () => orbitCreditsScene(),
+        },
+        {
+            id: 'orbit-ending-credits-skip',
+            label: 'Orbit · Credits skipped: short fade to the title',
+            create: () => orbitCreditsScene(true),
         },
         {
             id: 'building-meeting',

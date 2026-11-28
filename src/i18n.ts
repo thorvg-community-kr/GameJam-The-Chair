@@ -335,6 +335,12 @@ const messages = {
         ko: '의자를 타고 탈출하는 게임.',
     },
 
+    'button.skipCredits': { en: 'Skip ▸▸', ko: '건너뛰기 ▸▸' },
+    'menu.skipCredits': {
+        en: 'Skip the credits and return to the title',
+        ko: '크레딧을 건너뛰고 타이틀로 돌아가기',
+    },
+
     'stats.paper': { en: 'Paper', ko: '종이' },
     'stats.bin': { en: 'Pot', ko: '항아리' },
     'stats.light': { en: 'Light', ko: '빛' },

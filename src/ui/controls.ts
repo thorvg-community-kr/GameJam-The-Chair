@@ -1,3 +1,4 @@
+import { creditsSkippable } from '../presentation/credits';
 import { STAGE_PRESENTATION } from '../presentation/stages';
 
 import type { Game, GameStatus } from '../game/game';
@@ -146,6 +147,16 @@ class ControlBinding {
                 const state = this.game.status();
                 const action = actionForKey(e.key, state);
                 if (!action) {
+                    return;
+                }
+                // Esc skips the credits once the skip button is up; P still pauses.
+                if (
+                    e.key === 'Escape' &&
+                    !e.repeat &&
+                    creditsSkippable(this.game.getSnapshot())
+                ) {
+                    e.preventDefault();
+                    this.game.closeCredits();
                     return;
                 }
                 if (action === 'pause') {

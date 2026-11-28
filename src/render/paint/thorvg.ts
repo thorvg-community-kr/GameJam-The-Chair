@@ -1,5 +1,6 @@
 import { effectScaleForArea } from '../perf';
 import { canvasBox } from './commands';
+import { lottieSource } from '../lottie';
 
 import type { RenderStats } from '../perf';
 import type { Item } from './commands';
@@ -10,9 +11,11 @@ import type {
     PathCommand,
     Gradient,
     LayerSpec,
+    LottieSpec,
     TextSpec,
 } from '../types';
 import type {
+    Animation,
     Canvas,
     LinearGradient,
     RadialGradient,
@@ -28,8 +31,11 @@ type LayerSlot = {
     mask: Shape | null;
     maskInvert: boolean;
     retainedGeometry: string | null;
+    texts: TextSlot[];
+    lotties: LottieSlot[];
 };
 type TextSlot = { back: Text; front: Text; font: string; content: string };
+type LottieSlot = { asset: string; animation: Animation | null };
 type AppliedStyle = { stroked: boolean; trimmed: boolean; blended: boolean };
 const PX_TO_PT = 72 / 96;
 export type PaintPool = {
@@ -462,6 +468,8 @@ function syncLayer(
             mask: null,
             maskInvert: false,
             retainedGeometry: null,
+            texts: [],
+            lotties: [],
         };
         pool.layers.set(item.key, slot);
     }
@@ -510,9 +518,71 @@ function syncLayer(
             fill: '#00000001',
         });
     }
+    syncLayerTexts(ctx, tvg, slot, item.texts);
+    syncLayerLotties(tvg, slot, item.lotties);
     applyLayerEffects(ctx, tvg, slot, spec, effectScale);
     scene.visible(true);
     return scene;
+}
+function syncLayerTexts(
+    ctx: Pick<RenderCtx, 'rgba'>,
+    tvg: ThorVGNamespace,
+    slot: LayerSlot,
+    texts: readonly TextSpec[],
+) {
+    while (slot.texts.length < texts.length) {
+        const make = () => new tvg.Text().align(0.5, 0.5);
+        const text = { back: make(), front: make(), font: '', content: '' };
+        slot.texts.push(text);
+        slot.scene.add(text.back).add(text.front);
+    }
+    texts.forEach((spec, i) => applyText(ctx, slot.texts[i], spec));
+    for (let i = texts.length; i < slot.texts.length; i++) {
+        slot.texts[i].back.visible(false);
+        slot.texts[i].front.visible(false);
+    }
+}
+function syncLayerLotties(
+    tvg: ThorVGNamespace,
+    slot: LayerSlot,
+    lotties: readonly LottieSpec[],
+) {
+    lotties.forEach((spec, i) => {
+        let entry = slot.lotties.at(i);
+        if (!entry || entry.asset !== spec.asset) {
+            entry?.animation?.picture?.visible(false);
+            entry = { asset: spec.asset, animation: null };
+            slot.lotties[i] = entry;
+        }
+        if (!entry.animation) {
+            const source = lottieSource(spec.asset);
+            if (!source) {
+                return;
+            }
+            const animation = new tvg.Animation();
+            animation.load(source);
+            if (!animation.picture) {
+                animation.dispose();
+                return;
+            }
+            entry.animation = animation;
+            slot.scene.add(animation.picture);
+        }
+        const { animation } = entry;
+        const picture = animation.picture!;
+        const duration = animation.info()?.duration ?? 0;
+        animation.seek(Math.max(0, Math.min(duration - 1 / 60, spec.time)));
+        picture
+            .size(spec.width, spec.height)
+            .translate(spec.x, spec.y)
+            .opacity(
+                Math.round(255 * Math.max(0, Math.min(1, spec.opacity ?? 1))),
+            )
+            .visible(true);
+    });
+    for (let i = lotties.length; i < slot.lotties.length; i++) {
+        slot.lotties[i].animation?.picture?.visible(false);
+    }
 }
 function prepareLayerShapes(
     item: {

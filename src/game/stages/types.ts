@@ -67,4 +67,5 @@ export type StageHooks = {
     leave?(s: CoreState): void;
     canInteract?(s: Readonly<CoreState>): boolean;
     focusBlocked?(s: Readonly<CoreState>): boolean;
+    closeCredits?(s: CoreState): void;
 };
