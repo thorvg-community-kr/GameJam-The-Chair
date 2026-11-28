@@ -29,7 +29,7 @@ import {
 } from './watch';
 import { gearAt } from '../../../game/stages/orbit/course/decide';
 import { STAGE_FIVE as C } from '../../../game/stages/orbit/data';
-import { ATTENDANCE, attendanceBubble } from '../shared/attendance-bubble';
+import { attendanceBubble } from '../shared/attendance-bubble';
 import { createSkyProjection, placedProjection } from '../shared/projection';
 import { skyDeparture } from '../sky/departure';
 import { endingChair } from '../sky/ending-art';
@@ -575,7 +575,7 @@ class OrbitDrawing {
         if (this.ending.parked) {
             endingSignal(this.ctx, this.head, this.ending);
         } else {
-            attendanceBubble(this.ctx, this.head, this.since + ATTENDANCE.lead);
+            attendanceBubble(this.ctx, this.head, this.since);
         }
         endingFade(this.ctx, this.ending);
     }

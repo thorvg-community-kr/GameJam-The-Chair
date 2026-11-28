@@ -6,7 +6,6 @@ import type { Message } from '../../../i18n';
 import type { RenderCtx } from '../../context';
 import type { Vector } from '../../types';
 export const ATTENDANCE = {
-    lead: 1.2,
     fade: 3,
     out: 0.6,
 };

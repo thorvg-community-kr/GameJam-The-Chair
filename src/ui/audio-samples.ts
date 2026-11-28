@@ -1,3 +1,4 @@
+import attendanceUrl from '../../assets/sound/attendance-beep.wav?url';
 import binRattleUrl from '../../assets/sound/bin-rattle.wav?url';
 import birdCallUrl from '../../assets/sound/bird-call.wav?url';
 import birdUrl from '../../assets/sound/bird.wav?url';
@@ -16,6 +17,7 @@ import launchWindupUrl from '../../assets/sound/launch-windup.wav?url';
 import liftArriveUrl from '../../assets/sound/lift-arrive.wav?url';
 import liftLoopUrl from '../../assets/sound/lift-loop.wav?url';
 import metalRattleUrl from '../../assets/sound/metal-rattle.wav?url';
+import networkLostUrl from '../../assets/sound/net-lost.wav?url';
 import paperUrl from '../../assets/sound/paper.wav?url';
 import portraitFallUrl from '../../assets/sound/portrait-fall.wav?url';
 import satelliteAlertUrl from '../../assets/sound/satellite-alert.wav?url';
@@ -70,6 +72,8 @@ export const SAMPLES = new Map<AudioName, { url: string; seconds: number }>([
     ['ventBlow', { url: windUrl, seconds: 1.25 }],
     ['portraitFall', { url: portraitFallUrl, seconds: 0.45 }],
     ['crash', { url: binRattleUrl, seconds: 0.65 }],
+    ['attendance', { url: attendanceUrl, seconds: 0.26 }],
+    ['networkLost', { url: networkLostUrl, seconds: 0.6 }],
     ['gasLoop', { url: gasLoopUrl, seconds: 0.92 }],
     ['ventMotor', { url: ventLoopUrl, seconds: 0.92 }],
     ['liftMotor', { url: liftLoopUrl, seconds: 0.92 }],

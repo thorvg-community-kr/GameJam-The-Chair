@@ -98,7 +98,7 @@ export function orbitEndingScene(aside = false): PreviewScene {
         { at: release, label: 'Extinguisher floats off' },
         { at: focus, label: 'Over his shoulder' },
         { at: signal, label: 'Signal dropping' },
-        { at: disconnect, label: 'Network lost on screen' },
+        { at: disconnect, label: 'Network lost · disconnect sound' },
         { at: handsStop, label: 'Hands stop · nothing' },
         { at: wideFrom, label: 'Pulling back' },
         { at: spinFrom, label: 'Chair swivels, camera circles' },

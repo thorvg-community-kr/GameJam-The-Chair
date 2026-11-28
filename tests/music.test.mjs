@@ -95,7 +95,15 @@ test('silence fades every track out and the next track fades back in', () => {
 
 test('each stage plays its own theme', () => {
     const tracks = [1, 2, 3, 4, 5].map((stage) =>
-        musicTrack({ mode: 'play', stage, orbit: { phase: 'rings' } }, false),
+        musicTrack(
+            {
+                mode: 'play',
+                stage,
+                orbit: { phase: 'rings' },
+                sky: { phase: 'course' },
+            },
+            false,
+        ),
     );
     assert.deepEqual(tracks, [
         'stage1-2',
@@ -104,6 +112,21 @@ test('each stage plays its own theme', () => {
         'stage4',
         'stage5',
     ]);
+});
+
+test('the stage four to five camera turn is silent and stage five restarts the music', () => {
+    const sky = (phase) =>
+        musicTrack({ mode: 'play', stage: 4, sky: { phase } }, false);
+    assert.equal(sky('course'), 'stage4');
+    assert.equal(sky('reveal'), null);
+    assert.equal(sky('depth'), null);
+    assert.equal(
+        musicTrack(
+            { mode: 'play', stage: 5, orbit: { phase: 'entry' } },
+            false,
+        ),
+        'stage5',
+    );
 });
 
 test('parking at the orbit door switches to the ending theme', () => {

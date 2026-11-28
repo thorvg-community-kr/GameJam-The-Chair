@@ -442,9 +442,7 @@ function verifyDetailsDetails(
     const expected =
         phase === 'reveal' && age < 2
             ? [locale === 'ko' ? '승진' : 'PROMOTED']
-            : phase === 'depth' && age > hold - 1.2
-              ? [locale === 'ko' ? '근태 확인됨.' : 'Attendance confirmed.']
-              : [];
+            : [];
     assert.deepEqual(
         ctx.commands
             .filter((command) => command.text)
@@ -600,7 +598,7 @@ test('the watchers stay out of the flat side view and turn up, without fading, a
         'the far speck shows before stage five',
     );
 });
-test('the attendance bubble appears just before stage five and stays into its first moments', () => {
+test('the attendance bubble waits for stage five, after the silent turn', () => {
     const bubble = (commands) =>
         commands.filter(
             (command) => command.layer?.key === 'attendance-bubble',
@@ -610,15 +608,18 @@ test('the attendance bubble appears just before stage five and stays into its fi
         0,
         'not while the chair is still gliding past the cameras',
     );
-    assert.ok(
-        bubble(revealFrame('depth', STAGE_FOUR.reveal.hold - 0.5)).length > 0,
-        'up during the last moments of stage four',
+    assert.equal(
+        bubble(revealFrame('depth', STAGE_FOUR.reveal.hold - 0.1)).length,
+        0,
+        'not during the silent stage four turn',
     );
     assert.ok(
-        bubble(renderFrame(5)).some(
-            (command) => command.text?.content === 'Attendance confirmed.',
-        ),
-        'still up, words and all, when stage five starts',
+        bubble(
+            renderFrame(5, (state) => {
+                state.orbit.age = 1;
+            }),
+        ).some((command) => command.text?.content === 'Attendance confirmed.'),
+        'up, words and all, once stage five starts',
     );
     assert.equal(
         bubble(
