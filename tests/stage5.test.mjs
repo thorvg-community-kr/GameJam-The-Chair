@@ -28,7 +28,11 @@ const {
     REPLAY_DEFAULTS,
     buildTimeline,
     seekTimeline,
+    epilogueBeat,
+    stageEpilogue,
 } = await loadSource(`
+    export { epilogueBeat } from './src/render/scene/orbit/epilogue-beats';
+    export { stageEpilogue } from './src/render/scene/orbit/epilogue-staging';
     export { createRecorder, REPLAY_DEFAULTS, buildTimeline, seekTimeline } from './src/game/replay';
     export { FOCUS_DAMAGE } from './src/game/level';
     export { actionForKey } from './src/ui/controls';
@@ -482,7 +486,7 @@ test('the ending: the extinguisher floats off, the signal drops bar by bar, the 
     );
     const wide = at(ORBIT_ENDING.wide - 1);
     const out = at(ORBIT_ENDING.lightsOut + 1);
-    const end = at(ORBIT_ENDING.end);
+    const end = at(ORBIT_ENDING.dark + 0.8);
     assert.ok(
         wide.layer('orbit-nebula').length > 0 &&
             wide.layer('orbit-laptop-light').length > 0,
@@ -502,6 +506,93 @@ test('the ending: the extinguisher floats off, the signal drops bar by bar, the 
         wide.labels.filter((label) => label === 'THE END'),
         [],
     );
+});
+test('after THE END the epilogue plays its cuts in order and then holds the last frame', () => {
+    const E = ORBIT_ENDING;
+    assert.equal(epilogueBeat(E.tap - 0.01), null);
+    const cuts = [];
+    for (let t = E.tap; t < E.hold + 1; t += 1 / 30) {
+        const cut = epilogueBeat(t).cut;
+        if (cuts.at(-1) !== cut) {
+            cuts.push(cut);
+        }
+    }
+    assert.deepEqual(cuts, [
+        'tap',
+        'look',
+        'shake',
+        'strain',
+        'drop',
+        'drift',
+        'bewildered',
+        'stare-chair',
+        'stare-rider',
+        'stare-chair',
+        'stare-rider',
+    ]);
+    const held = endingFrame(E.hold + 0.5);
+    assert.deepEqual(epilogueBeat(E.hold + 0.5), epilogueBeat(E.hold + 5));
+    assert.deepEqual(held.labels, [], 'no title over the epilogue');
+    assert.deepEqual(held.layer('orbit-ending-black'), []);
+    assert.ok(held.commands.length > 200, 'the scene is drawn again');
+});
+test('the epilogue keeps pose and props continuous across its cuts', () => {
+    const E = ORBIT_ENDING;
+    const figure = (t, parts) => {
+        const stage = stageEpilogue(epilogueBeat(t));
+        return stage.figures.find((pose) =>
+            parts === 'rider' ? pose.parts !== 'chair' : pose.parts !== 'rider',
+        );
+    };
+    const where = (t, parts, p) => {
+        const pose = figure(t, parts);
+        const place = parts === 'rider' ? pose.rider : pose.chair;
+        return place ? place(p) : p;
+    };
+    const near = (a, b, tolerance, message) =>
+        assert.ok(
+            Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) < tolerance,
+            `${message}: ${a.map(Math.round)} vs ${b.map(Math.round)}`,
+        );
+    const head = [10, 46, 0];
+    const feet = [30, -50, 0];
+    for (const at of [E.drift, E.bewildered, E.stare]) {
+        for (const p of [head, feet]) {
+            near(
+                where(at - 0.0005, 'rider', p),
+                where(at + 0.0005, 'rider', p),
+                6,
+                `the rider carries straight over the cut at ${at}`,
+            );
+        }
+        near(
+            where(at - 0.0005, 'chair', head),
+            where(at + 0.0005, 'chair', head),
+            4,
+            `so does the chair at ${at}`,
+        );
+    }
+    assert.ok(
+        Math.abs(
+            figure(E.shake - 0.0005).headYaw - figure(E.shake + 0.0005).headYaw,
+        ) < 0.02,
+        'the head turn from the look-back carries into the shake',
+    );
+    const crouch = figure(E.drop - 0.0005, 'chair');
+    const dropped = figure(E.drop + 0.0005, 'chair');
+    assert.ok(
+        Math.abs(crouch.sink - dropped.sink) < 0.5 &&
+            Math.abs(crouch.splay - dropped.splay) < 0.05,
+        'the chair is still squashed when the drop starts',
+    );
+    const rider = (t) => where(t, 'rider', [0, 10, 0]);
+    const chair = (t) => where(t, 'chair', [0, 10, 0]);
+    for (const t of [E.drift + 0.5, E.bewildered + 0.5, E.stare + 1]) {
+        assert.ok(
+            rider(t)[0] > chair(t)[0] + 100,
+            'the rider stays on the far side of the chair along the axis',
+        );
+    }
 });
 test('after the network is lost the camera circles the chair once, all the way round, with the sky turning too', () => {
     const { disconnect, spinFrom, spin } = ORBIT_ENDING;
