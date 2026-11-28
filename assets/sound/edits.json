@@ -81,7 +81,8 @@
     "fadeIn": 0.002,
     "fadeOut": 0.03,
     "peak": 0.48,
-    "denoise": 8
+    "denoise": 8,
+    "compress": -26
   },
   {
     "id": "wind",

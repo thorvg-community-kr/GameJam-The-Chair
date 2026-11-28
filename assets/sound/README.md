@@ -41,10 +41,10 @@ The linked public libraries identify these effects as CC0: [SFXMint license](htt
 | Bin fall | Synthesized hollow knocks and paper-like noise |
 | Menu buttons and volume confirmation | Synthesized tap and confirmation |
 
-`src/presentation/scene-audio.ts` observes snapshots without changing gameplay. Its stage modules produce one-shot and persistent-loop requests. `src/ui/game-audio.ts` shares routing between the game and motion preview. The Web Audio loop mixer reuses sources, fades changes, limits simultaneous loops, and retires voices when an emitter stops or moves out of range. Pause, restart, replay viewing, seeking and hidden tabs clear playback. The sky release and parked ending remain quiet; the shutter follows the actual satellite freeze/flash transition.
+`src/presentation/scene-audio.ts` observes snapshots without changing gameplay. Its stage modules produce one-shot and persistent-loop requests. `src/ui/game-audio.ts` shares routing between the game and motion preview. The Web Audio loop mixer reuses sources, fades changes, limits simultaneous loops, and retires voices when an emitter stops or moves out of range. Pause, restart, replay viewing, seeking and hidden tabs clear playback. The sky release and parked ending remain quiet; the shutter fires as each satellite damage zone opens.
 
 ## Verification
 
-Use Play in `/preview.html`; seeking is silent. Relevant scenes include `office-typing`, `rooftop-entrance`, `lift-arrival-audio`, `extinguisher-spray`, `rooftop-shaft-low`, `rooftop-takeoff`, `sky-surface-audio`, `orbit-route`, and `orbit-photo`. The photograph marker identifies its real capture frame. Rewinding or looping a scene resets sound history.
+Use Play in `/preview.html`; seeking is silent. Relevant scenes include `office-typing`, `rooftop-entrance`, `lift-arrival-audio`, `extinguisher-spray`, `rooftop-shaft-low`, `rooftop-takeoff`, `sky-surface-audio`, `orbit-route`, and `orbit-photo`. The photograph marker identifies its real capture frame; the shutter itself follows the zone opening. Rewinding or looping a scene resets sound history.
 
 `tests/scene-audio.test.mjs` covers transition timing, distance, cancellation, the photograph, preview collision events and gameplay isolation. `tests/sound-assets.test.mjs` checks PCM formats, durations, headroom and sample boundaries. Final timbre and music balance should also be checked by listening in the game.

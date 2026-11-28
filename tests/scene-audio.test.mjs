@@ -7,6 +7,7 @@ const { createGame, parseState } = await load('src/game/game.ts');
 const { sceneAudio } = await load('src/presentation/scene-audio.ts');
 const { createGameAudio } = await load('src/ui/game-audio.ts');
 const { STAGE_THREE } = await load('src/game/stages/rooftop/data.ts');
+const { STAGE_FIVE } = await load('src/game/stages/orbit/data.ts');
 const { previewScenes } = await load('src/preview-scenes.ts');
 const frame = (stage) => {
     const game = createGame();
@@ -227,4 +228,28 @@ test('the employee-of-the-month portrait drops with one paper sound after the do
     const falls = at('portraitFall');
     assert.equal(falls.length, 1);
     assert.ok(close.t < falls[0].t);
+});
+
+test('the shutter fires when a satellite damage zone opens, even if the chair dodges it', () => {
+    const base = frame(5);
+    const beam = STAGE_FIVE.satelliteLight.beams[0];
+    const at = (z, time) => ({
+        ...base,
+        mode: 'play',
+        time,
+        orbit: {
+            ...base.orbit,
+            phase: 'door',
+            z,
+            speed: 300,
+            freeze: 0,
+            aims: base.orbit.aims.map(() => ({ x: 900, y: 900 })),
+        },
+    });
+    const shutters = (prev, next) =>
+        names(sceneAudio(prev, next)).filter((name) => name === 'shutter')
+            .length;
+    assert.equal(shutters(at(beam.from - 10, 10), at(beam.from - 5, 10.01)), 0);
+    assert.equal(shutters(at(beam.from - 1, 10), at(beam.from + 4, 10.01)), 1);
+    assert.equal(shutters(at(beam.from + 4, 10), at(beam.from + 9, 10.01)), 0);
 });

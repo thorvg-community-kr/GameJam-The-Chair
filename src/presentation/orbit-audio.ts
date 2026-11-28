@@ -18,6 +18,13 @@ export function orbitAudio({ prev, next, audio }: AudioScene): void {
     if (gearAt(after.z).index > gearAt(before.z).index) {
         addSound(audio, 'gearShift', 0.75);
     }
+    if (
+        STAGE_FIVE.satelliteLight.beams.some(
+            (item) => before.z < item.from && after.z >= item.from,
+        )
+    ) {
+        addSound(audio, 'shutter', 1);
+    }
     if (after.freeze > 0 || satelliteLightOn(after, next.player, after.z)) {
         return;
     }

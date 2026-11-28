@@ -25,18 +25,6 @@ function playerLoops(state: GameSnapshot, audio: SceneAudio) {
     }
 }
 
-function photograph(prev: GameSnapshot, next: GameSnapshot, audio: SceneAudio) {
-    if (
-        next.stage === 5 &&
-        next.mode !== 'pause' &&
-        next.orbit &&
-        prev.orbit &&
-        next.orbit.freeze > prev.orbit.freeze
-    ) {
-        addSound(audio, 'shutter', 1);
-    }
-}
-
 function stageAudio(scene: AudioScene) {
     const { next } = scene;
     if (next.stage === 2) {
@@ -93,7 +81,6 @@ export function sceneAudio(
     if (prev.mode !== 'play') {
         return audio;
     }
-    photograph(prev, next, audio);
     if (next.mode !== 'play' || silentFrame(next) || silentFrame(prev)) {
         return audio;
     }
