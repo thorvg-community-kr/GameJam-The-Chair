@@ -36,19 +36,19 @@ function atmosphere(ctx: RenderCtx) {
     );
     for (let i = -2; i < 7; i++) {
         const drift = ctx.cam * 0.18 + ctx.t * 4;
-        const x = ctx.cam + i * 290 - (drift % 290);
         const id = i + Math.floor(drift / 290);
+        const x = ctx.cam + id * 290 - drift;
         cloud(
             ctx,
             x,
-            top + height * (0.98 + Math.sin(i * 4) * 0.065),
-            0.8 + (i % 2) * 0.2,
+            top + height * (0.98 + Math.sin(id * 4) * 0.065),
+            0.8 + (((id % 2) + 2) % 2) * 0.2,
             {
                 seed: 700 + id * 2,
                 near: false,
             },
         );
-        if (i % 2 === 0) {
+        if (id % 2 === 0) {
             cloud(ctx, x + 110, top + height * 0.08, 0.65, {
                 seed: 701 + id * 2,
                 near: false,

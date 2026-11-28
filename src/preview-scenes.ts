@@ -37,6 +37,7 @@ import {
 } from './preview/rooftop';
 import {
     cloudEntry,
+    cloudContinuity,
     skyGustCycle,
     skyOfficeFacade,
     skyOfficeGear,
@@ -382,6 +383,11 @@ export const previewScenes: readonly PreviewRegistration[] = (
             id: 'rooftop-takeoff',
             label: 'Rooftop · Sales graph ride & bread cloud ascent',
             create: () => rooftopTakeoff(),
+        },
+        {
+            id: 'cloud-continuity',
+            label: 'Sky · Cloud scroll boundary',
+            create: cloudContinuity,
         },
         {
             id: 'cloud-entry',
