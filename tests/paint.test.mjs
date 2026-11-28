@@ -72,7 +72,10 @@ function fakeThorvg() {
         'visible',
         'transform',
     ]) {
-        Scene.prototype[name] = chain;
+        Scene.prototype[name] = function (...args) {
+            log.push('scene-' + name);
+            return chain.apply(this, args);
+        };
     }
     Scene.prototype.mask = function (shape, method) {
         this.maskShape = shape;
@@ -528,4 +531,133 @@ test('back-to-back layers that only screen-blend share one Scene; any other effe
             ['rec', 1],
         ],
     );
+});
+
+test('incremental frames retain unchanged paths and effects while opacity changes', () => {
+    const { TVG, canvas, log } = fakeThorvg();
+    const ctx = createRenderCtx({});
+    Object.assign(ctx, { W: 400, H: 300 });
+    const pool = createPaintPool();
+    const layer = { key: 'opening-clock-shadow', blur: 6, opacity: 0.5 };
+    const draw = () => paint(ctx, TVG, canvas, pool, { incremental: true });
+    ctx.commands = [square(20, layer), square(100)];
+    draw();
+    const scene = canvas.paints[0];
+    draw();
+    log.length = 0;
+    ctx.commands = [square(20, { ...layer }), square(100)];
+    draw();
+    assert.equal(canvas.paints[0], scene);
+    assert.deepEqual(log, []);
+    ctx.commands[0].layer.opacity = 0.7;
+    draw();
+    assert.deepEqual(log, ['scene-opacity']);
+    log.length = 0;
+    ctx.commands[0].layer.blur = 3;
+    draw();
+    assert.deepEqual(log, ['scene-resetEffects', 'scene-gaussianBlur']);
+});
+
+test('incremental paint detects nested edits and restores paths after a backwards seek', () => {
+    const { TVG, canvas, log } = fakeThorvg();
+    const ctx = createRenderCtx({});
+    Object.assign(ctx, { W: 400, H: 300 });
+    const pool = createPaintPool();
+    ctx.commands = [square(20)];
+    const draw = () => paint(ctx, TVG, canvas, pool, { incremental: true });
+    draw();
+    log.length = 0;
+    ctx.commands[0].points[0][0] = 21;
+    draw();
+    assert.equal(log.filter((x) => x === 'shape-reset').length, 1);
+    log.length = 0;
+    ctx.commands[0].points[0][0] = 20;
+    draw();
+    assert.equal(log.filter((x) => x === 'shape-reset').length, 1);
+    log.length = 0;
+    draw();
+    assert.deepEqual(log, []);
+    paint(ctx, TVG, canvas, pool);
+    assert.equal(pool.changes, null);
+    log.length = 0;
+    draw();
+    assert.equal(log.filter((x) => x === 'shape-reset').length, 1);
+});
+
+test('incremental masks update only when changed and disappearing masks replace their Scene', () => {
+    const { TVG, canvas, log } = fakeThorvg();
+    const ctx = createRenderCtx({});
+    Object.assign(ctx, { W: 400, H: 300 });
+    const pool = createPaintPool();
+    const layer = { key: 'orbit-credits', mask: square(0), opacity: 0.5 };
+    ctx.commands = [square(20, layer)];
+    const draw = () => paint(ctx, TVG, canvas, pool, { incremental: true });
+    draw();
+    const original = canvas.paints[0];
+    log.length = 0;
+    draw();
+    assert.deepEqual(log, []);
+    layer.mask.points[0][0] = 1;
+    draw();
+    assert.equal(log.filter((x) => x === 'shape-reset').length, 1);
+    delete layer.mask;
+    draw();
+    assert.notEqual(canvas.paints[0], original);
+});
+
+test('incremental text becomes visible again after being removed and reintroduced', () => {
+    const { TVG, canvas } = fakeThorvg();
+    const ctx = createRenderCtx({});
+    Object.assign(ctx, { W: 400, H: 300 });
+    const pool = createPaintPool();
+    const text = {
+        kind: 'text',
+        points: [[100, 100]],
+        text: {
+            content: 'THE END',
+            font: 'Jua',
+            size: 20,
+            x: 100,
+            y: 100,
+            rotation: 0,
+            fill: '#ffffff',
+        },
+    };
+    const draw = () => paint(ctx, TVG, canvas, pool, { incremental: true });
+    ctx.commands = [text];
+    draw();
+    const front = pool.texts[0].front;
+    ctx.commands = [];
+    draw();
+    assert.equal(front.calls.visible[0], false);
+    ctx.commands = [text];
+    draw();
+    assert.equal(front.calls.visible[0], true);
+});
+
+test('incremental moving paths retain their fill until the fill itself changes', () => {
+    const { TVG, canvas, log } = fakeThorvg();
+    const ctx = createRenderCtx({});
+    Object.assign(ctx, { W: 400, H: 300 });
+    const pool = createPaintPool();
+    let fills = 0;
+    const originalFill = TVG.Shape.prototype.fill;
+    TVG.Shape.prototype.fill = function (...args) {
+        fills++;
+        return originalFill.apply(this, args);
+    };
+    const draw = () => paint(ctx, TVG, canvas, pool, { incremental: true });
+    ctx.commands = [square(20)];
+    draw();
+    assert.equal(fills, 1);
+    log.length = 0;
+    ctx.commands[0].points[0][0] = 21;
+    draw();
+    assert.equal(log.filter((x) => x === 'shape-reset').length, 1);
+    assert.equal(fills, 1, 'ThorVG reset preserves fill and stroke');
+    ctx.commands[0].fill = '#ffffff';
+    log.length = 0;
+    draw();
+    assert.equal(fills, 2);
+    assert.equal(log.filter((x) => x === 'shape-reset').length, 0);
 });

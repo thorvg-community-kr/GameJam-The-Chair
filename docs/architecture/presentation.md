@@ -46,6 +46,21 @@ Canvas2D fallback은 기본 path, fill, stroke, gradient, blend를 그립니다.
 
 `paint/commands.ts`는 순서를 유지하며 인접한 호환 layer를 묶습니다. `paint/thorvg.ts`는 shape, text, scene 풀을 재사용합니다. 새 paint 속성을 추가하면 다음 프레임에 이전 값이 남지 않도록 reset 처리도 추가해야 합니다. 카메라와 바퀴 회전은 이전 draw 결과를 사용하며, 스테이지 변경이나 시간 역행에서 초기화됩니다.
 
+### Incremental cutscene updates
+
+The opening and the parked orbit ending opt into incremental ThorVG updates.
+The paint pool keeps each Scene and compares path coordinates, paint, text,
+Lottie properties, filters, clipping, and masks with its last applied values.
+Only changed properties cross into ThorVG. Coordinate snapshots store numbers
+directly, including copies of nested coordinates, so in-place edits and backwards
+seeks are detected without serializing path numbers.
+
+Leaving these cutscenes clears the comparison cache. Ordinary gameplay and the
+Canvas2D fallback keep their existing update paths. Removing a clip or mask still
+replaces its Scene because ThorVG cannot detach them. Commands are still built
+each frame, and camera-dependent projected geometry still updates when it moves;
+this does not cache an entire cutscene as a bitmap.
+
 ## 효과, 피드백, 다국어
 
 `createEffects()`는 copier flash, 물, 입자, glare 같은 시각 상태를 관리합니다. 효과는 코어 상태 관찰, `GameEvent`, 프레임 시간 진행으로 갱신되며 물 효과도 자체 결정적 RNG를 사용합니다. 효과의 물 위치를 충돌이나 집중력 판정에 사용하지 않습니다.

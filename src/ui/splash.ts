@@ -16,6 +16,7 @@ export function createSplashPlayer(element: HTMLCanvasElement): {
 } {
     let canvas: Canvas | null = null;
     let animation: Animation | null = null;
+    let lastTime: number | null = null;
     const lifecycle = { disposed: false };
     const ready = (async () => {
         const TVG = await loadThorvg();
@@ -48,9 +49,12 @@ export function createSplashPlayer(element: HTMLCanvasElement): {
         if (!animation || !canvas) {
             return;
         }
-        animation.seek(
-            Math.max(0, Math.min(SPLASH_DURATION - 1 / 30, seconds)),
-        );
+        const time = Math.max(0, Math.min(SPLASH_DURATION - 1 / 30, seconds));
+        if (time === lastTime) {
+            return;
+        }
+        animation.seek(time);
+        lastTime = time;
         canvas.update().render();
     }
 

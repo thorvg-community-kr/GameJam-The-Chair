@@ -1,3 +1,4 @@
+import { PaintChanges, needsUpdate } from './changes';
 import { effectScaleForArea } from '../perf';
 import { canvasBox } from './commands';
 import { lottieSource } from '../lottie';
@@ -44,6 +45,7 @@ export type PaintPool = {
     layers: Map<string, LayerSlot>;
     styled: Map<Shape, AppliedStyle>;
     signature: string;
+    changes: PaintChanges | null;
 };
 export function createPaintPool(): PaintPool {
     return {
@@ -52,6 +54,7 @@ export function createPaintPool(): PaintPool {
         layers: new Map(),
         styled: new Map(),
         signature: '',
+        changes: null,
     };
 }
 function staleSlot(slot: LayerSlot, spec: LayerSpec) {
@@ -122,18 +125,39 @@ function tracePath(s: Shape, cmd: PathCommand) {
 function applyShape(
     ctx: Pick<RenderCtx, 'rgba'>,
     tvg: ThorVGNamespace,
-    styled: PaintPool['styled'],
+    pool: PaintPool,
     s: Shape,
     cmd: PathCommand,
 ) {
-    tracePath(s, cmd);
-    const style = applyShapeStroke(cmd, s, ctx, tvg, styled);
-    if (style.stroked || style.trimmed || style.blended) {
-        styled.set(s, style);
-    } else {
-        styled.delete(s);
+    const geometryChanged = pool.changes?.pathChanged(s, cmd) ?? true;
+    const paintChanged = needsUpdate(pool.changes, s, 'paint', [
+        cmd.fill,
+        cmd.stroke,
+        cmd.trim,
+        cmd.blend,
+    ]);
+    if (geometryChanged) {
+        tracePath(s, cmd);
     }
-    s.visible(true);
+    if (paintChanged) {
+        const style = applyShapeStroke(cmd, s, ctx, tvg, pool.styled);
+        if (style.stroked || style.trimmed || style.blended) {
+            pool.styled.set(s, style);
+        } else {
+            pool.styled.delete(s);
+        }
+    }
+    setVisible(pool, s, true);
+}
+
+function setVisible(
+    pool: PaintPool,
+    target: Shape | Scene | Text,
+    visible: boolean,
+) {
+    if (needsUpdate(pool.changes, target, 'visible', visible)) {
+        target.visible(visible);
+    }
 }
 
 function applyShapeStroke(
@@ -207,7 +231,11 @@ function applyText(
     ctx: Pick<RenderCtx, 'rgba'>,
     slot: TextSlot,
     spec: TextSpec,
+    changes: PaintChanges | null,
 ) {
+    if (changes && !changes.changed(slot, 'text', spec)) {
+        return;
+    }
     if (slot.font !== spec.font) {
         slot.back.font(spec.font);
         slot.front.font(spec.font);
@@ -372,14 +400,13 @@ function countLayerShapes(
     }
     return effects;
 }
-function applyLayerEffects(
+function applyFilters(
     ctx: Pick<RenderCtx, 'rgba'>,
     tvg: ThorVGNamespace,
-    slot: LayerSlot,
+    scene: Scene,
     spec: LayerSpec,
     effectScale: number,
 ) {
-    const { scene } = slot;
     scene.resetEffects();
     const quality = Math.max(20, Math.round(45 * effectScale));
     if (spec.blur) {
@@ -411,11 +438,38 @@ function applyLayerEffects(
             quality,
         );
     }
-    scene.blend(blendOf(tvg, spec.blend));
-    scene.opacity(
-        Math.round(Math.max(0, Math.min(1, spec.opacity ?? 1)) * 255),
-    );
-    if (spec.clip) {
+}
+function applyLayerEffects(
+    ctx: Pick<RenderCtx, 'rgba'>,
+    tvg: ThorVGNamespace,
+    slot: LayerSlot,
+    spec: LayerSpec,
+    {
+        effectScale,
+        changes,
+    }: { effectScale: number; changes: PaintChanges | null },
+) {
+    const { scene } = slot;
+    if (
+        needsUpdate(changes, scene, 'effects', [
+            spec.blur,
+            spec.motionBlur,
+            spec.tint,
+            spec.dropShadow,
+            effectScale,
+        ])
+    ) {
+        applyFilters(ctx, tvg, scene, spec, effectScale);
+    }
+    if (needsUpdate(changes, scene, 'blend', spec.blend)) {
+        scene.blend(blendOf(tvg, spec.blend));
+    }
+    if (needsUpdate(changes, scene, 'opacity', spec.opacity)) {
+        scene.opacity(
+            Math.round(Math.max(0, Math.min(1, spec.opacity ?? 1)) * 255),
+        );
+    }
+    if (spec.clip && needsUpdate(changes, scene, 'clip', spec.clip)) {
         if (!slot.clip) {
             slot.clip = new tvg.Shape();
             scene.clip(slot.clip);
@@ -423,7 +477,7 @@ function applyLayerEffects(
         tracePath(slot.clip, spec.clip);
         slot.clip.fill(255, 255, 255, 255);
     }
-    if (spec.mask) {
+    if (spec.mask && needsUpdate(changes, scene, 'mask', spec.mask)) {
         if (!slot.mask) {
             slot.mask = new tvg.Shape();
             slot.maskInvert = !!spec.maskInvert;
@@ -507,7 +561,7 @@ function syncLayer(
         });
     }
     for (; i < shapes.length; i++) {
-        applyShape(ctx, tvg, pool.styled, shapes[i], {
+        applyShape(ctx, tvg, pool, shapes[i], {
             kind: 'path',
             points: [
                 [px, py],
@@ -518,10 +572,13 @@ function syncLayer(
             fill: '#00000001',
         });
     }
-    syncLayerTexts(ctx, tvg, slot, item.texts);
-    syncLayerLotties(tvg, slot, item.lotties);
-    applyLayerEffects(ctx, tvg, slot, spec, effectScale);
-    scene.visible(true);
+    syncLayerTexts(ctx, tvg, slot, item.texts, pool.changes);
+    syncLayerLotties(tvg, slot, item.lotties, pool.changes);
+    applyLayerEffects(ctx, tvg, slot, spec, {
+        effectScale,
+        changes: pool.changes,
+    });
+    setVisible(pool, scene, true);
     return scene;
 }
 function syncLayerTexts(
@@ -529,6 +586,7 @@ function syncLayerTexts(
     tvg: ThorVGNamespace,
     slot: LayerSlot,
     texts: readonly TextSpec[],
+    changes: PaintChanges | null,
 ) {
     while (slot.texts.length < texts.length) {
         const make = () => new tvg.Text().align(0.5, 0.5);
@@ -536,8 +594,9 @@ function syncLayerTexts(
         slot.texts.push(text);
         slot.scene.add(text.back).add(text.front);
     }
-    texts.forEach((spec, i) => applyText(ctx, slot.texts[i], spec));
+    texts.forEach((spec, i) => applyText(ctx, slot.texts[i], spec, changes));
     for (let i = texts.length; i < slot.texts.length; i++) {
+        changes?.changed(slot.texts[i], 'text', null);
         slot.texts[i].back.visible(false);
         slot.texts[i].front.visible(false);
     }
@@ -546,6 +605,7 @@ function syncLayerLotties(
     tvg: ThorVGNamespace,
     slot: LayerSlot,
     lotties: readonly LottieSpec[],
+    changes: PaintChanges | null,
 ) {
     lotties.forEach((spec, i) => {
         let entry = slot.lotties.at(i);
@@ -568,20 +628,40 @@ function syncLayerLotties(
             entry.animation = animation;
             slot.scene.add(animation.picture);
         }
-        const { animation } = entry;
-        const picture = animation.picture!;
-        const duration = animation.info()?.duration ?? 0;
-        animation.seek(Math.max(0, Math.min(duration - 1 / 60, spec.time)));
-        picture
-            .size(spec.width, spec.height)
-            .translate(spec.x, spec.y)
-            .opacity(
-                Math.round(255 * Math.max(0, Math.min(1, spec.opacity ?? 1))),
-            )
-            .visible(true);
+        updateLottie(entry.animation, spec, changes);
     });
     for (let i = lotties.length; i < slot.lotties.length; i++) {
-        slot.lotties[i].animation?.picture?.visible(false);
+        const picture = slot.lotties[i].animation?.picture;
+        if (picture && needsUpdate(changes, picture, 'visible', false)) {
+            picture.visible(false);
+        }
+    }
+}
+function updateLottie(
+    animation: Animation,
+    spec: LottieSpec,
+    changes: PaintChanges | null,
+) {
+    const picture = animation.picture!;
+    const duration = animation.info()?.duration ?? 0;
+
+    const time = Math.max(0, Math.min(duration - 1 / 60, spec.time));
+    if (needsUpdate(changes, animation, 'time', time)) {
+        animation.seek(time);
+    }
+    if (needsUpdate(changes, picture, 'size', [spec.width, spec.height])) {
+        picture.size(spec.width, spec.height);
+    }
+    if (needsUpdate(changes, picture, 'position', [spec.x, spec.y])) {
+        picture.translate(spec.x, spec.y);
+    }
+    if (needsUpdate(changes, picture, 'opacity', spec.opacity)) {
+        picture.opacity(
+            Math.round(255 * Math.max(0, Math.min(1, spec.opacity ?? 1))),
+        );
+    }
+    if (needsUpdate(changes, picture, 'visible', true)) {
+        picture.visible(true);
     }
 }
 function prepareLayerShapes(
@@ -639,12 +719,21 @@ function prepareLayerShapes(
             scene.add(s);
         }
         if (!retainedReady) {
-            applyShape(ctx, tvg, pool.styled, s, cmd);
+            applyShape(ctx, tvg, pool, s, cmd);
         }
         i++;
     }
     if (spec.retained) {
-        scene.transform(spec.retained.transform);
+        if (
+            needsUpdate(
+                pool.changes,
+                scene,
+                'transform',
+                spec.retained.transform,
+            )
+        ) {
+            scene.transform(spec.retained.transform);
+        }
         slot.retainedGeometry = spec.retained.geometry;
     }
     return { anchor, extent, spec, i };
@@ -657,11 +746,14 @@ export function paintThorvg(
     {
         items,
         stats,
+        incremental = false,
     }: {
         items: Item[];
+        incremental?: boolean;
         stats?: RenderStats;
     },
 ): void {
+    pool.changes = incremental ? (pool.changes ?? new PaintChanges()) : null;
     const syncStart = stats ? performance.now() : 0;
     let topCount = 0;
     let textCount = 0;
@@ -760,13 +852,13 @@ function synchronizePaintOrder(
     for (const item of items) {
         if ('cmd' in item) {
             const s = pool.top[topIndex++];
-            applyShape(ctx, tvg, pool.styled, s, item.cmd);
+            applyShape(ctx, tvg, pool, s, item.cmd);
             order.push(s);
             continue;
         }
         if ('text' in item) {
             const slot = pool.texts[textIndex++];
-            applyText(ctx, slot, item.text);
+            applyText(ctx, slot, item.text, pool.changes);
             order.push(slot.back, slot.front);
             if (stats) {
                 stats.texts++;
@@ -776,9 +868,10 @@ function synchronizePaintOrder(
         order.push(syncLayer(ctx, tvg, pool, item, stats));
     }
     for (let i = topIndex; i < pool.top.length; i++) {
-        pool.top[i].visible(false);
+        setVisible(pool, pool.top[i], false);
     }
     for (let i = textIndex; i < pool.texts.length; i++) {
+        pool.changes?.changed(pool.texts[i], 'text', null);
         pool.texts[i].back.visible(false);
         pool.texts[i].front.visible(false);
     }
