@@ -122,6 +122,16 @@ test('stopping sound effects silences active oscillators and noise sources', () 
         const beforeStop = stopped;
         sfx.stop();
         assert.ok(stopped > beforeStop, 'active scheduled sources are stopped');
+        sfx.play('uiTap', 2, { channel: 'ui' });
+        const uiScheduled = stopped;
+        sfx.stop(true);
+        assert.equal(
+            stopped,
+            uiScheduled,
+            'pausing the world preserves the menu click',
+        );
+        sfx.stop();
+        assert.ok(stopped > uiScheduled, 'full stop also silences the UI');
     } finally {
         sfx.destroy();
         delete globalThis.AudioContext;

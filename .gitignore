@@ -20,3 +20,6 @@ blob-report/
 test-results/
 playwright/.cache/
 playwright/.auth/
+
+# Python sound preparation cache
+__pycache__/

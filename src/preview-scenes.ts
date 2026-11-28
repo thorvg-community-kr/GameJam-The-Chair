@@ -1,4 +1,5 @@
 import { createGame } from './game/game';
+import { liftArrivalAudio, orbitPhoto, skySurfaceAudio } from './preview/audio';
 import {
     orientationRun,
     expressRun,
@@ -54,6 +55,21 @@ export type { PreviewScene } from './preview/types';
 export type { PreviewRegistration } from './preview/registration';
 export const previewScenes: readonly PreviewRegistration[] = (
     [
+        {
+            id: 'lift-arrival-audio',
+            label: 'Building · Lift motor, bell and doors',
+            create: liftArrivalAudio,
+        },
+        {
+            id: 'orbit-photo',
+            label: 'Orbit · Final photograph and shutter',
+            create: orbitPhoto,
+        },
+        {
+            id: 'sky-surface-audio',
+            label: 'Sky · Wooden desk and metal sign landings',
+            create: skySurfaceAudio,
+        },
         {
             id: 'startup-splash',
             label: 'Intro · ThorVG splash',

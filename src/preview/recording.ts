@@ -2,10 +2,11 @@ import { FIXED_STEP } from '../game/level';
 
 import type { PreviewScene, PreviewFrame } from './types';
 import type { Game, GameSnapshot } from '../game/game';
-import type { Input } from '../game/types';
+import type { Input, GameEvent } from '../game/types';
 import type { createEffects } from '../render/effects';
 
 export const FRAME_TIME = 1 / 60;
+const recordedEvents = new WeakMap<Game, GameEvent[]>();
 
 export function recordedScene(
     id: string,
@@ -36,21 +37,26 @@ export function capture(
     effects: ReturnType<typeof createEffects>,
     state: GameSnapshot = game.getSnapshot(),
 ): PreviewFrame {
-    return { state, effects: structuredClone(effects.snapshot()) };
+    const events = recordedEvents.get(game) ?? [];
+    recordedEvents.delete(game);
+    return { state, effects: structuredClone(effects.snapshot()), events };
 }
 
 export function stepGame(
     game: Game,
     effects: ReturnType<typeof createEffects>,
 ): void {
+    const events: GameEvent[] = [];
     for (let i = 0; i < 2; i++) {
         game.step(FIXED_STEP);
         effects.observe(game.getSnapshot());
         for (const event of game.drainEvents()) {
+            events.push(event);
             effects.receive(event);
         }
         effects.advance(FIXED_STEP);
     }
+    recordedEvents.set(game, events);
 }
 
 export function moveToward(p: { x: number; vx: number }, x: number): Input[] {

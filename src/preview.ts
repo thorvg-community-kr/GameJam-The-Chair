@@ -3,6 +3,7 @@ import { openingSounds } from './presentation/opening-sfx';
 import { previewScenes } from './preview-scenes';
 import { createRenderer } from './render/renderer';
 import { loadAudioSettings, sfxGain } from './ui/audio-settings';
+import { createGameAudio } from './ui/game-audio';
 import { createSfx } from './ui/sfx';
 import { createSplashPlayer } from './ui/splash';
 
@@ -21,6 +22,7 @@ const locale: Locale = browserLocale();
 keepLangOnLinks();
 const renderer = createRenderer(root, () => locale);
 const sfx = createSfx(sfxGain(loadAudioSettings()));
+const gameAudio = createGameAudio(sfx);
 const splashCanvas =
     document.querySelector<HTMLCanvasElement>('#splash-preview')!;
 const splash = createSplashPlayer(splashCanvas);
@@ -57,7 +59,10 @@ function render() {
     if (isSplash) {
         splash.draw(time);
     } else {
-        const { state, effects } = scene.sample(time);
+        const { state, effects, events } = scene.sample(time);
+        if (playing && !scene.opening && !scene.title) {
+            gameAudio.update(state, events);
+        }
         const width = root.querySelector('canvas')!.clientWidth;
         const worldWidth = width < 520 ? 540 : Math.max(760, width);
         if (scene.opening) {
@@ -87,6 +92,7 @@ function pause() {
     previousFrame = null;
     openingSoundTime = null;
     sfx.stop();
+    gameAudio.update(null);
     if (scheduledFrame !== null) {
         cancelAnimationFrame(scheduledFrame);
     }
@@ -162,8 +168,8 @@ playButton.addEventListener('click', () => {
     }
     playing = true;
     previousFrame = null;
+    sfx.unlock();
     if (scene.opening) {
-        sfx.unlock();
         openingSoundTime = Math.max(-0.001, time - 0.001);
     }
     playButton.textContent = 'Pause';

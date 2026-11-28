@@ -1,9 +1,11 @@
 import { skyGust } from '../game/stages/sky/data';
 
+import type { SceneSfxName } from './audio-types';
 import type { GameSnapshot } from '../game/game';
 import type { CueId, GameEvent } from '../game/types';
 
 export type GameSfxName =
+    | SceneSfxName
     | 'jump'
     | 'land'
     | 'bonk'

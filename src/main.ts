@@ -8,15 +8,16 @@ import {
 } from './i18n';
 import { musicDuck, musicTrack } from './presentation/music';
 import { openingSounds } from './presentation/opening-sfx';
-import { frameSounds } from './presentation/sfx';
 import { createEffects } from './render/effects';
 import { createRenderer } from './render/renderer';
 import { openingState } from './render/scene/opening/timeline';
 import markup from './scene.html?raw';
 import { bgmGain, loadAudioSettings, sfxGain } from './ui/audio-settings';
 import { createFeedback } from './ui/feedback';
+import { createGameAudio } from './ui/game-audio';
 import { createHud } from './ui/hud';
 import { bindInput } from './ui/input';
+import { bindMenuSounds } from './ui/menu-sounds';
 import { createMusic } from './ui/music';
 import { createOpening } from './ui/opening';
 import { bindOrientation } from './ui/orientation';
@@ -28,11 +29,11 @@ import { createSettings } from './ui/settings';
 import { createSfx } from './ui/sfx';
 import { showStartupSplash } from './ui/splash';
 
+import type { GameSnapshot } from './game/game';
 import type { ReplayFile } from './game/replay';
 import type { StageId } from './game/stages/building/data';
-import type { GameEvent, Input } from './game/types';
+import type { Input } from './game/types';
 import type { Locale } from './i18n';
-import type { SfxFrame } from './presentation/sfx';
 import type { SettingsPanel } from './ui/settings';
 import './style.css';
 const app = document.querySelector('#app');
@@ -182,6 +183,9 @@ if (directStage !== null) {
 document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
         keepBrowserData();
+        gameAudio.update(null);
+        sfx.stop();
+        openingSoundTime = null;
     }
 });
 window.addEventListener('pagehide', keepBrowserData);
@@ -217,6 +221,8 @@ const opening = createOpening(root, () => locale);
 const audio = loadAudioSettings();
 const music = createMusic(bgmGain(audio));
 const sfx = createSfx(sfxGain(audio));
+const gameAudio = createGameAudio(sfx);
+const unbindMenuSounds = bindMenuSounds(root, sfx);
 let settings: SettingsPanel | null = null;
 if (startupSplashVisible) {
     showStartupSplash(
@@ -315,19 +321,22 @@ function draw() {
 }
 let last: number | null = null;
 let musicLast: number | null = null;
-let sfxLast: SfxFrame | null = null;
 let openingSoundTime: number | null = null;
-function playSounds(state: SfxFrame | null, events: readonly GameEvent[]) {
-    for (const sound of state ? frameSounds(sfxLast, state, events) : []) {
-        sfx.play(sound);
-    }
-    sfxLast = state;
-}
 function playOpeningSounds(time: number) {
+    if (document.hidden) {
+        openingSoundTime = null;
+        return;
+    }
     for (const sound of openingSounds(openingSoundTime, time)) {
         sfx.play(sound);
     }
     openingSoundTime = time;
+}
+function audibleState(
+    state: GameSnapshot,
+    replay: boolean,
+): GameSnapshot | null {
+    return replay || document.hidden ? null : state;
 }
 function presentFrame() {
     const { replay, state, events } = readPresentationFrame();
@@ -343,11 +352,11 @@ function presentFrame() {
         const cutscene = replay ? null : opening.frame();
         const cues = replay ? player.feedback() : feedback.snapshot();
         if (cutscene) {
+            gameAudio.update(null);
             playOpeningSounds(cutscene.t);
-            sfxLast = null;
         } else {
             openingSoundTime = null;
-            playSounds(replay ? null : state, events);
+            gameAudio.update(audibleState(state, !!replay), events);
         }
         music.play(musicTrack(state, !!cutscene), musicDuck(state));
         if (cutscene) {
@@ -404,6 +413,7 @@ function teardown() {
     unbindOrientation();
     opening.destroy();
     music.destroy();
+    unbindMenuSounds();
     sfx.destroy();
     settings?.destroy();
     player.destroy();

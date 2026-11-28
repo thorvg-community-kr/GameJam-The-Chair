@@ -1,90 +1,207 @@
 [
   {
     "id": "copier",
-    "source": "copier",
+    "source": "copier.mp3",
     "start": 0.05,
     "end": 0.75,
     "highpass": 65,
     "lowpass": 11000,
     "fadeIn": 0.008,
     "fadeOut": 0.07,
-    "peak": 0.42
+    "peak": 0.42,
+    "denoise": 8
   },
   {
     "id": "paper",
-    "source": "paper",
+    "source": "paper.mp3",
     "start": 0,
     "end": 0.35,
     "highpass": 85,
     "lowpass": 12000,
     "fadeIn": 0.003,
     "fadeOut": 0.045,
-    "peak": 0.48
+    "peak": 0.48,
+    "denoise": 8
   },
   {
     "id": "splash",
-    "source": "water",
+    "source": "water.mp3",
     "start": 4.8,
     "end": 5.4,
     "highpass": 65,
     "lowpass": 11500,
     "fadeIn": 0.008,
     "fadeOut": 0.09,
-    "peak": 0.46
+    "peak": 0.46,
+    "denoise": 8
   },
   {
     "id": "chair-land",
-    "source": "chair",
+    "source": "chair.mp3",
     "start": 3.4,
     "end": 3.85,
     "highpass": 70,
     "lowpass": 9500,
     "fadeIn": 0.012,
     "fadeOut": 0.085,
-    "peak": 0.35
+    "peak": 0.35,
+    "denoise": 8
   },
   {
     "id": "chair-squeak",
-    "source": "chair",
+    "source": "chair.mp3",
     "start": 10.6,
     "end": 11.3,
     "highpass": 70,
     "lowpass": 9500,
     "fadeIn": 0.02,
     "fadeOut": 0.1,
-    "peak": 0.32
+    "peak": 0.32,
+    "denoise": 8
   },
   {
     "id": "click",
-    "source": "click",
+    "source": "click.mp3",
     "start": 0,
     "end": 0.32,
     "highpass": 90,
     "lowpass": 12000,
     "fadeIn": 0.003,
     "fadeOut": 0.04,
-    "peak": 0.35
+    "peak": 0.35,
+    "denoise": 8
   },
   {
     "id": "wind",
-    "source": "wind",
+    "source": "wind.mp3",
     "start": 0.55,
     "end": 1.8,
     "highpass": 45,
     "lowpass": 7500,
     "fadeIn": 0.07,
     "fadeOut": 0.18,
-    "peak": 0.25
+    "peak": 0.25,
+    "denoise": 8
   },
   {
     "id": "bird",
-    "source": "bird",
+    "source": "bird.mp3",
     "start": 0.1,
     "end": 0.95,
     "highpass": 120,
     "lowpass": 11000,
     "fadeIn": 0.012,
     "fadeOut": 0.1,
-    "peak": 0.38
+    "peak": 0.38,
+    "denoise": 8
+  },
+  {
+    "id": "typing",
+    "source": "keyboard.mp3",
+    "start": 0.08,
+    "end": 1.48,
+    "highpass": 90,
+    "lowpass": 11000,
+    "fadeIn": 0.004,
+    "fadeOut": 0.06,
+    "peak": 0.24,
+    "denoise": 0
+  },
+  {
+    "id": "door-close",
+    "source": "door-close.mp3",
+    "start": 0.1,
+    "end": 0.7,
+    "highpass": 65,
+    "lowpass": 11000,
+    "fadeIn": 0.003,
+    "fadeOut": 0.08,
+    "peak": 0.4,
+    "denoise": 3
+  },
+  {
+    "id": "impact",
+    "source": "impact.mp3",
+    "start": 0,
+    "end": 0.28,
+    "highpass": 35,
+    "lowpass": 10000,
+    "fadeIn": 0.002,
+    "fadeOut": 0.06,
+    "peak": 0.42,
+    "denoise": 0
+  },
+  {
+    "id": "checkpoint",
+    "source": "access.mp3",
+    "start": 0,
+    "end": 0.298,
+    "highpass": 70,
+    "lowpass": 12000,
+    "fadeIn": 0.002,
+    "fadeOut": 0.045,
+    "peak": 0.38,
+    "denoise": 0
+  },
+  {
+    "id": "ui-error",
+    "source": "ui-error.wav",
+    "start": 0,
+    "end": 0.33,
+    "highpass": 45,
+    "lowpass": 10000,
+    "fadeIn": 0.002,
+    "fadeOut": 0.03,
+    "peak": 0.28,
+    "denoise": 0
+  },
+  {
+    "id": "lift-arrive",
+    "source": "ringing.mp3",
+    "start": 0,
+    "end": 1.3,
+    "highpass": 90,
+    "lowpass": 12000,
+    "fadeIn": 0.003,
+    "fadeOut": 0.12,
+    "peak": 0.3,
+    "denoise": 0
+  },
+  {
+    "id": "bird-call",
+    "source": "parrot.mp3",
+    "start": 0.02,
+    "end": 0.45,
+    "highpass": 100,
+    "lowpass": 11500,
+    "fadeIn": 0.006,
+    "fadeOut": 0.07,
+    "peak": 0.33,
+    "denoise": 3
+  },
+  {
+    "id": "wheel-loop",
+    "source": "chair.mp3",
+    "start": 1.3,
+    "end": 2.9,
+    "highpass": 70,
+    "lowpass": 6500,
+    "fadeIn": 0.008,
+    "fadeOut": 0.008,
+    "peak": 0.15,
+    "denoise": 4,
+    "loopCrossfade": 0.1
+  },
+  {
+    "id": "typing-short",
+    "source": "keyboard.mp3",
+    "start": 0.08,
+    "end": 0.73,
+    "highpass": 90,
+    "lowpass": 11000,
+    "fadeIn": 0.004,
+    "fadeOut": 0.06,
+    "peak": 0.24,
+    "denoise": 0
   }
 ]
