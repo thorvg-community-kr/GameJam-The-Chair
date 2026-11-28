@@ -386,6 +386,7 @@ class RendererRuntime {
         const timed = timing?.begin() ?? false;
         try {
             paint(ctx, this.TVG, this.tvg, this.pool, {
+                incremental: incrementalCutscene(ctx, opening),
                 stats: this.stats ?? undefined,
                 overrides: this.overrides ?? undefined,
             });
@@ -477,4 +478,11 @@ class RendererRuntime {
         this.gpuTimer = null;
         this.tvg?.destroy();
     };
+}
+
+function incrementalCutscene(
+    ctx: RenderCtx,
+    opening: OpeningFrame | undefined,
+): boolean {
+    return !!opening || ctx.state.orbit?.phase === 'parked';
 }

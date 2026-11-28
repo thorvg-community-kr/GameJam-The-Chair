@@ -20,7 +20,9 @@ export function paint(
     {
         stats,
         overrides,
+        incremental = false,
     }: {
+        incremental?: boolean;
         stats?: RenderStats;
         overrides?: LayerOverrides;
     } = {},
@@ -32,6 +34,7 @@ export function paint(
     if (tvg && canvas) {
         paintThorvg(ctx, tvg, canvas, pool, {
             items: collect(commands),
+            incremental,
             stats,
         });
     } else {
