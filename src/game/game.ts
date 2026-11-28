@@ -61,6 +61,7 @@ export type Game = {
     spray: () => void;
     interact: () => void;
     leaveMeeting: () => void;
+    closeCredits: () => void;
     pause: () => void;
     setInput: (...input: Input[]) => void;
     press(input: Input): void;
@@ -206,6 +207,7 @@ class GameRuntime {
             spray: this.apiSpray,
             interact: this.apiInteract,
             leaveMeeting: this.apiLeaveMeeting,
+            closeCredits: this.apiCloseCredits,
             pause: this.apiPause,
             setInput: this.apiSetInput,
             press: this.apiPress,
@@ -242,6 +244,9 @@ class GameRuntime {
     };
     private apiLeaveMeeting = () => {
         return this.send({ type: 'leaveMeeting' });
+    };
+    private apiCloseCredits = () => {
+        return this.send({ type: 'closeCredits' });
     };
     private apiPause = () => {
         return this.send({ type: 'pause' });

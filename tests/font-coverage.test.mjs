@@ -33,6 +33,7 @@ const ROLES = {
         'interact.',
         'building.meeting',
         'stageLabel.',
+        'credits.',
     ),
     [SPEECH_FONT]: keysWith(
         'opening.',

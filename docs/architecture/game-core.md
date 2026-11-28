@@ -9,7 +9,7 @@
 | `Progress` | `state.ts` | 시도와 스테이지가 바뀌어도 유지되는 진행도와 전체 실행의 tick |
 | `Attempt` | `state.ts` | 현재 시도의 모드, 플레이어, 타이머, 다섯 스테이지 상태 |
 | `CoreState` | `state.ts` | `Progress & Attempt`인 전체 직렬화 상태 |
-| `Command` | `commands.ts` | keys, jump, spray, pause, restart, startStage 같은 입력 |
+| `Command` | `commands.ts` | keys, jump, spray, pause, restart, startStage, closeCredits 같은 입력 |
 | `GameEvent` | `types.ts` | 대사, 효과, 상태 안내를 프레젠테이션에 전달 |
 | `stepGame()` | `step.ts` | 명령을 적용하고 고정 틱 하나를 진행하는 순수 경계 |
 | `createGame()` | `game.ts` | 현재 상태, 시간 누적값, 이벤트, 기록 훅을 보관하는 facade |
@@ -41,7 +41,7 @@
 | 2 | `stages/building` | 회의실, 의자 행렬, 엘리베이터 |
 | 3 | `stages/rooftop` | 입구, 환풍구, 소화기, 이륙 |
 | 4 | `stages/sky` | 공중 이동, 발판, 깊이 전환과 출발 |
-| 5 | `stages/orbit` | 궤도 비행, 위성 조명, 엔딩 |
+| 5 | `stages/orbit` | 궤도 비행, 위성 조명, 엔딩, 크레딧 닫기와 타이틀 복귀 |
 
 공용 코드는 `stages/index.ts`, `hooks.ts`, `attempt.ts`, `view.ts`를 통해 스테이지에 접근합니다. 스테이지는 다른 스테이지의 동작을 import하지 않고 고정 데이터만 참조할 수 있습니다.
 
@@ -50,6 +50,10 @@
 `takeover`와 `afterMove`는 `true`일 때 틱을 끝내고, `hazards`는 `false`일 때 끝냅니다. 반환값을 같은 의미로 해석하면 실행 순서를 잘못 이해할 수 있습니다.
 
 `stages/attempt.ts`는 스테이지 상태 생성과 시도 준비를 담당하고, `stages/view.ts`는 스테이지별 화면 투영을 내보냅니다.
+
+## 엔딩 크레딧과 타이틀 복귀
+
+`closeCredits`는 크레딧이 시작된 뒤(`STAGE_FIVE.credits.from`)에만 효과가 있으며, 엔딩 시계(`orbit.settled`)를 `credits.closing`으로 옮겨 닫는 페이드를 시작합니다. `credits.fade`초 뒤 궤도 훅이 `returnToTitle()`을 호출합니다. 이 함수는 `startStage`와 같이 시도를 새로 만들되 1스테이지 `intro` 모드로 돌아가며, `deaths`와 `completedStage`는 유지합니다. 새 state 필드를 추가하지 않으므로 기존 리플레이와 저장 state를 그대로 읽습니다.
 
 ## 결정성과 리플레이
 

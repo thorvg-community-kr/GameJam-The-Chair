@@ -1,5 +1,6 @@
 import { isStageUnlocked } from '../game/progression';
 import { translate } from '../i18n';
+import { creditsSkippable } from '../presentation/credits';
 import { STAGE_PRESENTATION, hideStageHud } from '../presentation/stages';
 
 import type { GameSnapshot } from '../game/snapshot';
@@ -95,6 +96,10 @@ class HudRuntime {
         this.hidden('.drive-controls', ending || cutscene);
         this.hidden('[data-pause]', !active && !paused);
         this.hidden('[data-pause-menu]', !paused);
+        this.hidden(
+            '[data-skip-credits]',
+            cutscene || !creditsSkippable(state),
+        );
         this.q('[data-pause]')?.setAttribute('aria-expanded', String(paused));
         this.drawFocusMeter(state, active);
         this.drawControlLabels(focus, feedback, policy, state);

@@ -3,13 +3,18 @@ import type {
     DrawCommand,
     PathCommand,
     LayerSpec,
+    LottieSpec,
     TextSpec,
 } from '../types';
 
-export type Item =
-    | { cmd: PathCommand }
-    | { text: TextSpec }
-    | { layer: LayerSpec; key: string; cmds: PathCommand[] };
+export type LayerItem = {
+    layer: LayerSpec;
+    key: string;
+    cmds: PathCommand[];
+    texts: TextSpec[];
+    lotties: LottieSpec[];
+};
+export type Item = { cmd: PathCommand } | { text: TextSpec } | LayerItem;
 
 // Cull off-canvas children: ThorVG SW includes their empty origin boxes in
 // layer buffer bounds.
@@ -79,7 +84,8 @@ function effective(spec: LayerSpec) {
         !!spec.dropShadow ||
         !!spec.clip ||
         !!spec.mask ||
-        !!spec.retained
+        !!spec.retained ||
+        !!spec.holdsText
     );
 }
 
@@ -97,9 +103,17 @@ function blendOnly(spec: LayerSpec) {
         !spec.clip &&
         !spec.mask &&
         !spec.retained &&
-        !spec.effectBudget
+        !spec.effectBudget &&
+        !spec.holdsText
     );
 }
+
+// Loose text keeps its own opacity, so only layered commands are culled.
+const invisible = (cmd: DrawCommand) =>
+    !!cmd.layer &&
+    (cmd.kind !== 'text' || !!cmd.layer.holdsText) &&
+    cmd.layer.opacity !== undefined &&
+    cmd.layer.opacity < 1 / 255;
 
 const sharesScene = (a: LayerSpec, b: LayerSpec) =>
     a === b || (a.blend === b.blend && blendOnly(a) && blendOnly(b));
@@ -107,18 +121,41 @@ const sharesScene = (a: LayerSpec, b: LayerSpec) =>
 export function collect(commands: DrawCommand[]): Item[] {
     const items: Item[] = [];
     const seen = new Map<string, number>();
-    let open: Extract<Item, { layer: LayerSpec }> | null = null;
+    let open: LayerItem | null = null;
+    const layerFor = (layer: LayerSpec) => {
+        if (!open || !sharesScene(open.layer, layer)) {
+            const uses: number = seen.get(layer.key) ?? 0;
+            seen.set(layer.key, uses + 1);
+            open = {
+                layer,
+                key: uses ? `${layer.key}#${uses}` : layer.key,
+                cmds: [],
+                texts: [],
+                lotties: [],
+            };
+            items.push(open);
+        }
+        return open;
+    };
     for (const cmd of commands) {
-        if (cmd.kind === 'text') {
-            open = null;
-            items.push({ text: cmd.text });
+        if (invisible(cmd)) {
             continue;
         }
-        if (
-            cmd.layer &&
-            cmd.layer.opacity !== undefined &&
-            cmd.layer.opacity < 1 / 255
-        ) {
+        if (cmd.kind === 'lottie') {
+            layerFor(
+                cmd.layer?.holdsText
+                    ? cmd.layer
+                    : { key: 'lottie', holdsText: true },
+            ).lotties.push(cmd.lottie);
+            continue;
+        }
+        if (cmd.kind === 'text') {
+            if (cmd.layer?.holdsText) {
+                layerFor(cmd.layer).texts.push(cmd.text);
+                continue;
+            }
+            open = null;
+            items.push({ text: cmd.text });
             continue;
         }
         if (!cmd.layer || !effective(cmd.layer)) {
@@ -126,17 +163,7 @@ export function collect(commands: DrawCommand[]): Item[] {
             items.push({ cmd: cmd.layer ? { ...cmd, layer: undefined } : cmd });
             continue;
         }
-        if (!open || !sharesScene(open.layer, cmd.layer)) {
-            const uses: number = seen.get(cmd.layer.key) ?? 0;
-            seen.set(cmd.layer.key, uses + 1);
-            open = {
-                layer: cmd.layer,
-                key: uses ? `${cmd.layer.key}#${uses}` : cmd.layer.key,
-                cmds: [],
-            };
-            items.push(open);
-        }
-        open.cmds.push(cmd);
+        layerFor(cmd.layer).cmds.push(cmd);
     }
     return items;
 }

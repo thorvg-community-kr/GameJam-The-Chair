@@ -1,3 +1,4 @@
+import { CREDITS_END } from './credits';
 import { ORBIT_ENDING } from './ending-timeline';
 import { tipForward } from '../sky/ending-art';
 
@@ -17,6 +18,10 @@ export type EpilogueShot = {
     centerY?: number;
     /** Fraction of the screen width. */
     offsetX?: number;
+    /** Screen height, as a fraction, that the earth's horizon is pinned to. */
+    horizon?: number;
+    /** Strength of the nebula behind; 1 unless something sits on top of it. */
+    nebula?: number;
 };
 export type EpilogueStage = {
     shot: EpilogueShot;
@@ -26,6 +31,8 @@ export type EpilogueStage = {
     punch: number;
     star?: { at: Point3; k: number };
     puff?: { at: Point3; k: number };
+    /** Where a flinch shudders, and how far through it is. */
+    flinch?: { at: Point3; k: number };
 };
 type Place = (p: Point3) => Point3;
 
@@ -319,6 +326,84 @@ function stare(beat: EpilogueBeat): EpilogueStage {
         punch: 0,
     };
 }
+/** Seconds into the wide shot when the chair creeps closer during the credits. */
+export const WIDE_GAG = {
+    at:
+        ORBIT_ENDING.credits +
+        (CREDITS_END - ORBIT_ENDING.credits) * 0.42 -
+        ORBIT_ENDING.ultraWide,
+    creep: 1.6,
+    flinch: 0.16,
+};
+/** The chair's creep toward him and his jump back, as world x offsets. */
+export function wideGag(u: number): {
+    chair: number;
+    rider: number;
+    k: number;
+} {
+    const g = u - WIDE_GAG.at;
+    const chair = 110 * smooth(g / WIDE_GAG.creep);
+    const f = (g - WIDE_GAG.creep) / WIDE_GAG.flinch;
+    const recoil = Math.exp(-4 * Math.max(0, f - 1) * WIDE_GAG.flinch);
+    const rider =
+        f <= 0
+            ? 0
+            : 160 * smooth(f) +
+              16 * Math.sin(Math.min(f, 6) * Math.PI) * recoil;
+    return { chair, rider, k: f > 0 && f < 4 ? f / 4 : 0 };
+}
+/**
+ * Ultra-wide: the two of them are specks above the curve of the earth,
+ * bobbing out of step while the credits roll beside them.
+ */
+function wide(beat: EpilogueBeat): EpilogueStage {
+    const d = sinceFling(beat);
+    const { u } = beat;
+    const gag = wideGag(u);
+    const chair = chairAt(d, beat.t);
+    const rider = riderAt(d, beat.t);
+    const chairBob = 6 * Math.sin(1.4 * u);
+    const riderBob = 6 * Math.sin(1.4 * u + 2.3);
+    const hop =
+        gag.rider > 0 ? 18 * Math.sin(Math.min(1, gag.k * 2) * Math.PI) : 0;
+    const centre: Point3 = [ADRIFT[0], ADRIFT[1], 0];
+    return {
+        shot: {
+            orbit: 0,
+            focus: [260, 10, 0],
+            distance: 2400,
+            lift: 140,
+            zoom: 1,
+            offsetX: -0.2,
+            horizon: 0.8,
+            // Dimmed so the credits read clearly over it.
+            nebula: 0.35,
+        },
+        figures: [
+            {
+                ...chair,
+                chair: (p) => shift(chair.chair!(p), [gag.chair, chairBob, 0]),
+            },
+            {
+                parts: 'rider',
+                rider: (p) =>
+                    shift(roll(rider(p), centre, -0.25 * gag.k * (1 - gag.k)), [
+                        gag.rider,
+                        riderBob + hop,
+                        0,
+                    ]),
+            },
+        ],
+        punch: 0,
+        flinch:
+            gag.k > 0
+                ? {
+                      at: [ADRIFT[0] + gag.rider - 40, ADRIFT[1] + 50, 0],
+                      k: gag.k,
+                  }
+                : undefined,
+    };
+}
 export function stageEpilogue(beat: EpilogueBeat): EpilogueStage {
     switch (beat.cut) {
         case 'tap':
@@ -338,5 +423,7 @@ export function stageEpilogue(beat: EpilogueBeat): EpilogueStage {
         case 'stare-chair':
         case 'stare-rider':
             return stare(beat);
+        case 'wide':
+            return wide(beat);
     }
 }

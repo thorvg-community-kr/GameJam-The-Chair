@@ -3,7 +3,9 @@ import { recordedScene, capture, stepGame, moveToward } from './recording';
 import { parseState, createGame } from '../game/game';
 import { STAGE_FIVE } from '../game/stages/orbit/data';
 import { createEffects } from '../render/effects';
+import { CREDITS_CLOSE, CREDITS_END } from '../render/scene/orbit/credits';
 import { ORBIT_ENDING } from '../render/scene/orbit/ending';
+import { WIDE_GAG } from '../render/scene/orbit/epilogue-staging';
 
 import type { PreviewScene } from './types';
 import type { Input } from '../game/types';
@@ -240,6 +242,10 @@ export function orbitEpilogueScene(): PreviewScene {
         { at: at(E.stare + 0.8), label: '6b · Stare: over his head' },
         { at: at(E.stare + 1.6), label: '6a · again (short)' },
         { at: at(E.stare + 2), label: '6b · again, hold' },
+        {
+            at: at(E.ultraWide),
+            label: '7 · Ultra-wide: two dots above the earth',
+        },
     ];
     for (let i = 0; i < (E.hold - EPILOGUE_FROM + 1.5) * 60; i++) {
         stepGame(game, effects);
@@ -248,6 +254,67 @@ export function orbitEpilogueScene(): PreviewScene {
     return recordedScene(
         'orbit-ending-epilogue',
         'Orbit · Epilogue: the chair taps, shakes him off, and they stare',
+        0,
+        markers,
+        frames,
+    );
+}
+
+const CREDITS_FROM = ORBIT_ENDING.ultraWide - 1;
+/**
+ * The ultra-wide cut, the credits roll and the return to the title. Like the
+ * game page, it closes the credits when the roll is over, or skips early.
+ */
+export function orbitCreditsScene(skip = false): PreviewScene {
+    const game = createGame();
+    game.startStage(5);
+    const parked = parseState(game.serialize());
+    Object.assign(parked.orbit, {
+        phase: 'parked',
+        z: STAGE_FIVE.checkpoint.z,
+        speed: 0,
+        settled: 1 + CREDITS_FROM,
+        age: 76 + CREDITS_FROM,
+    });
+    parked.checkpoint = 1;
+    parked.time = 76 + CREDITS_FROM;
+    game.restore(JSON.stringify(parked));
+    const effects = createEffects();
+    const frames = [capture(game, effects)];
+    const E = ORBIT_ENDING;
+    const fade = E.toTitle - E.closing;
+    const closeAt = skip ? E.credits + 3 : CREDITS_CLOSE;
+    const at = (t: number) => t - CREDITS_FROM;
+    const markers = [
+        { at: 0, label: '6b · Last stare' },
+        { at: at(E.ultraWide), label: 'Ultra-wide: two dots above the earth' },
+        { at: at(E.credits), label: 'Credits start · Skip button shows' },
+        ...(skip
+            ? [{ at: at(closeAt), label: 'Skip pressed · short fade' }]
+            : [
+                  {
+                      at: at(E.ultraWide + WIDE_GAG.at),
+                      label: 'Gag: the chair creeps closer, he flinches',
+                  },
+                  { at: at(CREDITS_END), label: 'Credits end: last line gone' },
+                  { at: at(closeAt), label: 'Fade to black' },
+              ]),
+        { at: at(closeAt + fade), label: 'Title' },
+    ];
+    let closed = false;
+    for (let i = 0; i < (closeAt + fade + 1 - CREDITS_FROM) * 60; i++) {
+        if (!closed && CREDITS_FROM + i / 60 >= closeAt) {
+            game.closeCredits();
+            closed = true;
+        }
+        stepGame(game, effects);
+        frames.push(capture(game, effects));
+    }
+    return recordedScene(
+        skip ? 'orbit-ending-credits-skip' : 'orbit-ending-credits',
+        skip
+            ? 'Orbit · Credits skipped: short fade to the title'
+            : 'Orbit · Credits: ultra-wide, the roll, the gag and back to the title',
         0,
         markers,
         frames,

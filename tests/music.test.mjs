@@ -3,7 +3,10 @@ import test from 'node:test';
 
 import { bundled, load } from './support/load.mjs';
 
-const { musicDuck, musicTrack } = await load('src/presentation/music.ts');
+const { musicDuck, musicTrack, MUSIC_FADE } = await load(
+    'src/presentation/music.ts',
+);
+const { CREDITS_TIMING } = await load('src/presentation/credits.ts');
 
 const created = [];
 class FakeAudio {
@@ -132,11 +135,28 @@ test('the stage four to five camera turn is silent and stage five restarts the m
 test('parking at the orbit door switches to the ending theme', () => {
     assert.equal(
         musicTrack(
-            { mode: 'play', stage: 5, orbit: { phase: 'parked' } },
+            { mode: 'play', stage: 5, orbit: { phase: 'parked', settled: 1 } },
             false,
         ),
         'ending',
     );
+});
+
+test('the ending theme fades out to end with the last credit and the title brings back its theme', () => {
+    const at = (t) =>
+        musicTrack(
+            {
+                mode: 'play',
+                stage: 5,
+                orbit: { phase: 'parked', settled: 1 + t },
+            },
+            false,
+        );
+    const { end } = CREDITS_TIMING;
+    assert.equal(at(end - MUSIC_FADE - 0.01), 'ending');
+    assert.equal(at(end - MUSIC_FADE), null, 'silent by the time it ends');
+    assert.equal(at(end + 1), null);
+    assert.equal(musicTrack({ mode: 'intro', stage: 1 }, false), 'start');
 });
 
 test('a track blocked by autoplay stays silent and fades in after unlocking', () => {

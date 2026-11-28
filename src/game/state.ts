@@ -219,6 +219,15 @@ export function startStage(s: CoreState, id: StageId, out: GameEvent[]): void {
     resetAttempt(s, out);
 }
 
+/** Back to the title screen; progress such as deaths and cleared stages stays. */
+export function returnToTitle(s: CoreState, out: GameEvent[]): void {
+    s.stage = 1;
+    s.checkpoint = 0;
+    s.lessons = { moved: false, jumped: false };
+    Object.assign(s, createAttempt(progressOf(s), s.rng, 'intro'));
+    out.push({ type: 'reset' });
+}
+
 export function serializeState(s: CoreState): string {
     return JSON.stringify(s);
 }

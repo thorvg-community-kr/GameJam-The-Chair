@@ -58,6 +58,11 @@ export type LayerSpec = {
     // changes.
     retained?: { geometry: string; transform: Transform; bounds: Bounds };
     effectBudget?: { area: number; minScale?: number };
+    /**
+     * Draw this layer's text and Lottie commands inside its Scene so its
+     * mask, clip and opacity apply to them too. They draw over its paths.
+     */
+    holdsText?: boolean;
 };
 export type TextSpec = {
     content: string;
@@ -74,7 +79,27 @@ export type SceneTalk = {
     reaction: { text: string; life: number } | null;
     speech: { name: string; text: string; x: number; life: number } | null;
 };
-export type DrawCommand = PathCommand | TextCommand;
+export type DrawCommand = PathCommand | TextCommand | LottieCommand;
+
+/** A bundled Lottie animation drawn by ThorVG at a given time. */
+export type LottieAsset = 'thorvg-logo';
+export type LottieSpec = {
+    asset: LottieAsset;
+    /** Seconds into the animation. */
+    time: number;
+    /** Top-left corner and size in screen px. */
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    opacity?: number;
+};
+export type LottieCommand = {
+    kind: 'lottie';
+    points: Vector[];
+    lottie: LottieSpec;
+    layer?: LayerSpec;
+};
 
 export type TextCommand = {
     kind: 'text';

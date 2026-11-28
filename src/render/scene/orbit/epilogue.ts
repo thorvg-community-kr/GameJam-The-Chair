@@ -1,3 +1,4 @@
+import { drawCredits } from './credits';
 import { earthHorizonDip, earthSkyBottom, orbitEarth } from './earth';
 import { endingLaptopScreen, endingNebula } from './ending';
 import { ORBIT_ENDING } from './ending-timeline';
@@ -33,6 +34,10 @@ const OVER_SHOULDER: LayerSpec = {
 /** Screen heights the horizon is held between, so no cut loses the earth. */
 const HORIZON = { top: 0.22, bottom: 0.68 };
 
+const smooth = (value: number) => {
+    const k = Math.max(0, Math.min(1, value));
+    return k * k * (3 - 2 * k);
+};
 const hex = (value: number) =>
     Math.round(Math.max(0, Math.min(1, value)) * 255)
         .toString(16)
@@ -58,20 +63,23 @@ function backdrop(
         cy,
         focal,
         roll: framing.roll,
-        pitch: Math.max(
-            pitchFor(HORIZON.bottom),
-            Math.min(
-                pitchFor(HORIZON.top),
-                EARTH_TILT + Math.atan2(shot.lift, shot.distance),
-            ),
-        ),
+        pitch:
+            shot.horizon !== undefined
+                ? pitchFor(shot.horizon)
+                : Math.max(
+                      pitchFor(HORIZON.bottom),
+                      Math.min(
+                          pitchFor(HORIZON.top),
+                          EARTH_TILT + Math.atan2(shot.lift, shot.distance),
+                      ),
+                  ),
     };
     const bottom = earthSkyBottom(travel, earth, 0, ctx.W, {
         height: ctx.H,
         spin,
     });
     orbitHighSky(ctx, orbitHeights(travel), 0, spin, bottom);
-    endingNebula(ctx, 1, spin, bottom);
+    endingNebula(ctx, shot.nebula ?? 1, spin, bottom);
     orbitEarth(ctx, travel, earth, 0, { strength: 1, night: 0, spin });
 }
 function impactStar(ctx: RenderCtx, at: Vector, k: number) {
@@ -91,6 +99,31 @@ function impactStar(ctx: RenderCtx, at: Vector, k: number) {
         { kind: 'path', points: star(r, 0.28), fill: '#ffd36b', layer },
         { kind: 'path', points: star(r * 0.55, 0.3), fill: '#ffffff', layer },
     );
+}
+/** Three quick strokes behind his head as he flinches away. */
+function flinchLines(ctx: RenderCtx, at: Vector, k: number) {
+    const size = ctx.clamp(ctx.H * 0.03, 8, 22);
+    const out = smooth(k);
+    const layer = { key: 'epilogue-flinch', opacity: 1 - out };
+    for (const [dy, length] of [
+        [-0.7, 0.8],
+        [0, 1],
+        [0.7, 0.8],
+    ]) {
+        const y = at[1] + dy * size;
+        const x0 = at[0] - size * (0.4 + out * 0.4);
+        ctx.commands.push({
+            kind: 'path',
+            points: [
+                [x0, y],
+                [x0 - size * length, y + dy * size * 0.35],
+            ],
+            open: true,
+            fill: null,
+            stroke: { width: size * 0.16, color: '#ffb347', cap: 'round' },
+            layer,
+        });
+    }
 }
 function puff(view: SkyProjection, at: Point3, k: number) {
     for (let i = 0; i < 3; i++) {
@@ -165,12 +198,17 @@ export function drawEpilogue(
     if (stage.star) {
         impactStar(ctx, world.project(stage.star.at), stage.star.k);
     }
+    if (stage.flinch) {
+        flinchLines(ctx, world.project(stage.flinch.at), stage.flinch.k);
+    }
+    if (ending.epilogue.cut === 'wide') {
+        drawCredits(ctx, ending.t);
+        fadeToTitle(ctx, ending.t);
+        return;
+    }
     fadeUp(ctx, ending.t);
 }
-function fadeUp(ctx: RenderCtx, t: number) {
-    const E = ORBIT_ENDING;
-    const k = Math.max(0, Math.min(1, (t - E.reveal) / (E.tap - E.reveal)));
-    const black = 1 - k * k * (3 - 2 * k);
+function blackOut(ctx: RenderCtx, black: number) {
     if (black <= 0) {
         return;
     }
@@ -185,4 +223,13 @@ function fadeUp(ctx: RenderCtx, t: number) {
         fill: '#000000' + hex(black),
         layer: { key: 'orbit-ending-black' },
     });
+}
+/** Once the credits close the whole frame fades to black before the title. */
+function fadeToTitle(ctx: RenderCtx, t: number) {
+    const E = ORBIT_ENDING;
+    blackOut(ctx, smooth((t - E.closing) / (E.toTitle - E.closing)));
+}
+function fadeUp(ctx: RenderCtx, t: number) {
+    const E = ORBIT_ENDING;
+    blackOut(ctx, 1 - smooth((t - E.reveal) / (E.tap - E.reveal)));
 }

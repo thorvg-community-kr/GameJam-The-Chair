@@ -1,3 +1,7 @@
+import { STAGE_FIVE } from '../../../game/stages/orbit/data';
+
+const { credits } = STAGE_FIVE;
+
 /** Seconds of ending time for each stage-five ending beat. */
 export const ORBIT_ENDING = {
     calm: 5,
@@ -32,4 +36,11 @@ export const ORBIT_ENDING = {
     bewildered: 46.7,
     stare: 47.9,
     hold: 50.3,
+    /** The last stare cuts to the two of them as dots above the earth. */
+    ultraWide: 50.3,
+    /** The core owns these so closing the credits and the title return replay. */
+    credits: credits.from,
+    /** Closing (a skip, or the roll ending) jumps here and fades to black. */
+    closing: credits.closing,
+    toTitle: credits.closing + credits.fade,
 };

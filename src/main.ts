@@ -6,6 +6,7 @@ import {
     LOCALE_STORAGE_KEY,
     translate,
 } from './i18n';
+import { creditsFinished } from './presentation/credits';
 import { musicDuck, musicTrack } from './presentation/music';
 import { openingSounds } from './presentation/opening-sfx';
 import { createEffects } from './render/effects';
@@ -420,6 +421,13 @@ function teardown() {
     renderer?.destroy();
     perf.destroy();
 }
+// The roll's length follows the credits content, which only the presentation
+// knows; closing is a recorded command, so replays end the same way.
+function closeFinishedCredits() {
+    if (game.status().stage === 5 && creditsFinished(game.getSnapshot())) {
+        game.closeCredits();
+    }
+}
 function frame(ms: number) {
     if (!root.isConnected) {
         teardown();
@@ -448,6 +456,7 @@ function frame(ms: number) {
                 opening.advance(dt);
             } else {
                 advanced = game.advance(dt);
+                closeFinishedCredits();
             }
         }
     } catch (error) {
