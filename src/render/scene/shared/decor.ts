@@ -235,38 +235,57 @@ const POT = {
     body: '#25272b',
     shade: '#0b0c0e',
 };
+const POT_RIM_LIFT = 30;
 export function binBack(ctx: RenderCtx): void {
-    const F = ctx.F;
     const bin = ctx.bin;
-    ctx.ellipse(bin.x, F - 8, 84, 15, { c: POT.rim });
-    ctx.ellipse(bin.x, F - 8, 70, 11, { c: POT.mouth });
+    const rim = ctx.F - POT_RIM_LIFT;
+    ctx.ellipse(bin.x, rim, 80, 14, { c: POT.rim });
+    ctx.ellipse(bin.x, rim, 66, 10, { c: POT.mouth });
 }
 export function binFront(ctx: RenderCtx): void {
     const F = ctx.F;
     const bin = ctx.bin;
-    const { x, a, b } = bin;
+    const x = bin.x;
     const base = bin.bottom;
-    ctx.ellipse(x, base + 2, 92, 9, { c: '#00000040' });
+    const rim = F - POT_RIM_LIFT;
+    const neck = rim + 16;
+    const belly = F + 55;
     ctx.effectPath(
-        [a + 8, F + 2],
+        [x - 76, rim + 2],
         [
-            [a - 30, F + 30, a - 34, base - 30, a + 34, base],
-            [x - 20, base + 4, x + 20, base + 4, b - 34, base],
-            [b + 34, base - 30, b + 30, F + 30, b - 8, F + 2],
+            [x - 72, rim + 8, x - 66, neck - 4, x - 66, neck],
+            [x - 66, neck + 14, x - 108, belly - 50, x - 108, belly],
+            [x - 108, base - 40, x - 70, base, x, base],
+            [x + 70, base, x + 108, base - 40, x + 108, belly],
+            [x + 108, belly - 50, x + 66, neck + 14, x + 66, neck],
+            [x + 66, neck - 4, x + 72, rim + 8, x + 76, rim + 2],
         ],
-        ctx.radialFill(x - 45, F + 28, 160, [
+        ctx.radialFill(x - 45, belly - 20, 170, [
             [0, POT.shine],
-            [0.35, POT.body],
+            [0.3, POT.body],
             [1, POT.shade],
         ]),
     );
     ctx.strokePath(
-        [a + 4, F + 30],
-        [[a - 8, F + 55, a + 2, base - 30, a + 22, base - 14]],
-        { width: 5, color: ctx.tint('#ffffff', 0.18) },
+        [x - 90, belly - 30],
+        [[x - 100, belly, x - 92, belly + 40, x - 70, belly + 62]],
+        { width: 6, color: ctx.tint('#ffffff', 0.16) },
     );
-    ctx.ellipse(x, F + 3, 86, 10, { c: POT.rimLight });
-    ctx.rod(x - 80, F + 7, x + 80, F + 7, { w: 4, c: POT.rim });
+    ctx.strokePath(
+        [x - 66, neck + 2],
+        [[x - 30, neck + 8, x + 30, neck + 8, x + 66, neck + 2]],
+        { width: 2, color: POT.shade },
+    );
+    ctx.strokePath(
+        [x - 80, rim],
+        [[x - 80, rim + 13, x + 80, rim + 13, x + 80, rim]],
+        { width: 7, color: POT.rimLight },
+    );
+    ctx.strokePath(
+        [x - 78, rim + 4],
+        [[x - 76, rim + 16, x + 76, rim + 16, x + 78, rim + 4]],
+        { width: 2, color: POT.rim },
+    );
 }
 export function practiceFloor(ctx: RenderCtx): void {
     if (ctx.cam > 340) {

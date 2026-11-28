@@ -35,101 +35,144 @@ export function floatingDoor(
             ox: x,
             oy: y,
             rotation: Math.sin(ctx.t * 0.42) * 0.22 * (1 - open * 0.7),
-            localScale: 0.72,
+            localScale: 0.95,
         },
         () => drawDoor(ctx, open),
     );
 }
 
 const WOOD = {
-    frame: '#d9d4c6',
-    frameShade: '#a9a291',
-    leaf: '#efebe0',
-    leafShade: '#cfc8b6',
-    panel: '#ddd6c5',
-    flake: '#9c8f78',
+    frame: '#f1efe8',
+    leaf: '#f4f2ec',
+    leafShade: '#d9d6cc',
+    trim: '#5c7fc4',
+    flake: '#c9864a',
+    flakeDark: '#9a5e2e',
     vine: '#4f7a3a',
-    leafGreen: '#6fa34c',
+    leafGreen: '#7cc25a',
+    knob: '#c9a24a',
 };
+const PANELS: ReadonlyArray<[number, number, number, number]> = [
+    [0.14, 0.47, 0.06, 0.2],
+    [0.53, 0.86, 0.06, 0.2],
+    [0.14, 0.47, 0.26, 0.56],
+    [0.53, 0.86, 0.26, 0.56],
+    [0.14, 0.47, 0.64, 0.94],
+    [0.53, 0.86, 0.64, 0.94],
+];
+const FLAKES: ReadonlyArray<[number, number, number, number]> = [
+    [0.3, 0.17, 5, 2.5],
+    [0.92, 0.38, 3, 7],
+    [0.36, 0.5, 4, 5],
+    [0.5, 0.6, 7, 2],
+    [0.7, 0.86, 7, 6],
+    [0.3, 0.9, 5, 4],
+    [0.55, 0.985, 9, 1.6],
+    [0.06, 0.8, 2.5, 5],
+];
 
 function drawDoor(ctx: RenderCtx, open: number) {
     const hw = DOOR.w / 2;
     const hh = DOOR.h / 2;
-    ctx.rect(-hw - 9, -hh - 9, DOOR.w + 18, DOOR.h + 12, WOOD.frame);
-    ctx.rect(-hw - 9, -hh - 9, 4, DOOR.h + 12, WOOD.frameShade);
-    ctx.rect(-hw - 12, hh + 2, DOOR.w + 24, 6, WOOD.frameShade);
-    ctx.rect(-hw, -hh, DOOR.w, DOOR.h, '#1b1d2a');
+    ctx.rect(-hw - 8, -hh - 8, DOOR.w + 16, DOOR.h + 12, WOOD.frame);
+    ctx.rect(-hw - 2, -hh - 2, DOOR.w + 4, DOOR.h + 2, WOOD.trim);
+    ctx.rect(-hw, -hh, DOOR.w, DOOR.h, '#151a33');
     if (open > 0) {
         afterworldPeek(ctx, hw, hh, open);
     }
-    const leaf = hw * 2 * Math.cos((open * Math.PI) / 2.2);
+    const leaf = DOOR.w * Math.cos((open * Math.PI) / 2.2);
     const skew = 10 * Math.sin((open * Math.PI) / 2.2);
+    const left = hw - leaf;
+    const at = (u: number, v: number): [number, number] => [
+        left + leaf * u,
+        -hh + DOOR.h * v + (v - 0.5) * 2 * skew * (1 - u),
+    ];
     ctx.gradientPolygon(
-        [
-            [-hw, -hh],
-            [-hw + leaf, -hh - skew],
-            [-hw + leaf, hh + skew],
-            [-hw, hh],
-        ],
-        ctx.gradientFill(-hw, 0, -hw + DOOR.w, 0, {
+        [at(0, 0), at(1, 0), at(1, 1), at(0, 1)],
+        ctx.gradientFill(left, 0, hw, 0, {
             stops: [
-                [0, WOOD.leaf],
-                [0.7, WOOD.leaf],
-                [1, WOOD.leafShade],
+                [0, WOOD.leafShade],
+                [0.25, WOOD.leaf],
+                [1, WOOD.leaf],
             ],
         }),
     );
-    if (leaf > 18) {
+    if (leaf > 16) {
         const k = leaf / DOOR.w;
-        const px = (u: number) => -hw + leaf * u;
-        for (const [top, bottom] of [
-            [-hh + 10, -6],
-            [6, hh - 10],
-        ]) {
-            ctx.polygon(
-                [
-                    [px(0.18), top - skew * 0.4],
-                    [px(0.82), top - skew * 0.8],
-                    [px(0.82), bottom + skew * 0.8],
-                    [px(0.18), bottom + skew * 0.4],
-                ],
-                WOOD.panel,
+        for (const [u0, u1, v0, v1] of PANELS) {
+            const ring = [at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)];
+            ctx.strokePath(
+                ring[0],
+                ring.slice(1).map(([px, py]) => [px, py, px, py, px, py]),
+                { width: 1.3, color: WOOD.trim },
+                { closed: true },
             );
         }
-        for (const [u, v, r] of [
-            [0.3, -40, 3.5],
-            [0.7, -18, 2.5],
-            [0.25, 30, 4],
-            [0.6, 48, 2],
-        ]) {
-            ctx.ellipse(px(u), v, r * k, r * 0.7, { c: WOOD.flake });
-        }
-        ctx.ellipse(px(0.86), 4, 4 * k, 4, { c: '#b38b45' });
+        FLAKES.forEach(([u, v, rx, ry], i) => {
+            const [px, py] = at(u, v);
+            const jag: Array<[number, number]> = [];
+            for (let j = 0; j < 7; j++) {
+                const ang = (j / 7) * Math.PI * 2;
+                const r = 0.55 + 0.45 * Math.abs(Math.sin(i * 3.7 + j * 2.3));
+                jag.push([
+                    px + Math.cos(ang) * rx * k * r,
+                    py + Math.sin(ang) * ry * r,
+                ]);
+            }
+            ctx.polygon(jag, WOOD.flake);
+            ctx.polygon(
+                jag.map(([fx, fy]) => [
+                    px + (fx - px) * 0.45,
+                    py + (fy - py) * 0.45,
+                ]),
+                WOOD.flakeDark,
+            );
+        });
+        const [kx, ky] = at(0.07, 0.6);
+        ctx.ellipse(kx, ky, 3.4 * k + 0.6, 3.4, { c: WOOD.knob });
+        ctx.ellipse(kx - k, ky - 1, 1.2 * k, 1.2, { c: '#f3dd96' });
     }
     vines(ctx, hw, hh);
 }
 
 function vines(ctx: RenderCtx, hw: number, hh: number) {
     ctx.strokePath(
-        [-hw - 7, hh + 4],
+        [-hw + 26, -hh - 6],
         [
-            [-hw - 14, hh - 30, -hw + 2, hh - 50, -hw - 8, hh - 80],
-            [-hw - 16, hh - 100, -hw, -hh + 10, -hw + 14, -hh - 7],
-            [-hw + 30, -hh - 14, -hw + 40, -hh - 2, -hw + 52, -hh - 8],
+            [-hw + 44, -hh - 14, hw - 14, -hh - 2, hw + 4, -hh - 6],
+            [hw + 12, -hh + 20, hw + 2, -hh + 40, hw + 8, -hh + 62],
         ],
-        { width: 2.5, color: WOOD.vine },
+        { width: 2, color: WOOD.vine },
+    );
+    ctx.strokePath(
+        [-hw - 4, hh + 4],
+        [[-hw - 12, hh - 20, -hw + 2, hh - 36, -hw - 6, hh - 56]],
+        { width: 2, color: WOOD.vine },
     );
     for (const [x, y, a] of [
-        [-hw - 11, hh - 22, -0.6],
-        [-hw - 4, hh - 62, 0.5],
-        [-hw - 12, hh - 92, -0.4],
-        [-hw - 2, -hh + 18, 0.7],
-        [-hw + 24, -hh - 12, -0.3],
-        [-hw + 46, -hh - 6, 0.4],
+        [-hw + 30, -hh - 10, -0.4],
+        [-hw + 42, -hh - 13, 0.5],
+        [-hw + 54, -hh - 10, -0.2],
+        [hw - 10, -hh - 7, 0.6],
+        [hw + 6, -hh + 10, 1.2],
+        [hw + 9, -hh + 28, 1.6],
+        [hw + 5, -hh + 46, 1.1],
+        [hw + 9, -hh + 60, 1.8],
+        [-hw - 9, hh - 12, -1.2],
+        [-hw - 3, hh - 30, 1.1],
+        [-hw - 8, hh - 48, -1.4],
     ]) {
-        ctx.withTransform({ ox: x, oy: y, rotation: a }, () => {
-            ctx.ellipse(0, 0, 5, 2.6, { c: WOOD.leafGreen });
-        });
+        const c = Math.cos(a);
+        const n = Math.sin(a);
+        const pt = (u: number, v: number): [number, number] => [
+            x + u * c - v * n,
+            y + u * n + v * c,
+        ];
+        ctx.polygon(
+            [pt(-6, 0), pt(-1, -4), pt(6, 0), pt(-1, 4)],
+            WOOD.leafGreen,
+        );
+        ctx.rod(...pt(-5, 0), ...pt(5, 0), { w: 0.8, c: WOOD.vine });
     }
 }
 
