@@ -1,3 +1,4 @@
+import { ORBIT_ENDING } from './ending-timeline';
 import { tipForward } from '../sky/ending-art';
 
 import type { EpilogueBeat } from './epilogue-beats';
@@ -34,6 +35,9 @@ const BODY: Point3 = [0, 10, 0];
 /** Where the drifting rider floats in front of the empty chair. */
 const ADRIFT: Point3 = [430, 15, 0];
 const DRIFT_ROLL = 0.38;
+/** Cut 2 ends looking back over the shoulder; cut 3 starts there. */
+const LOOK_BACK = 60 * DEG;
+const SINK = 7;
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const smooth = (v: number) => {
@@ -60,7 +64,6 @@ const roll = (p: Point3, c: Point3, a: number): Point3 => {
         c[2] + y * Math.sin(a) + z * Math.cos(a),
     ];
 };
-const turnAround = (p: Point3): Point3 => [-p[0], p[1], -p[2]];
 const squash = (p: Point3, c: Point3, s: number): Point3 => [
     c[0] + (p[0] - c[0]) * (1 - s / 2),
     c[1] + (p[1] - c[1]) * (1 + s),
@@ -90,10 +93,10 @@ function tap(u: number): EpilogueStage {
         shift(tipForward(p, HIP, 0.12 * jolt), [7 * jolt, 1.5 * jolt, 0]);
     return {
         shot: {
-            orbit: 0.55,
-            focus: [-4, 0, 0],
-            distance: 300,
-            lift: 30,
+            orbit: 0.08,
+            focus: [-6, 5, 0],
+            distance: 290,
+            lift: 35,
             zoom: 1,
         },
         figures: [{ backrest, rider }],
@@ -107,17 +110,13 @@ function tap(u: number): EpilogueStage {
 function look(u: number): EpilogueStage {
     return {
         shot: {
-            orbit: -0.2,
-            focus: [4, 40, 0],
-            distance: 150,
-            lift: 6,
+            orbit: 0.65,
+            focus: [-4, 36, 4],
+            distance: 140,
+            lift: 12,
             zoom: 1,
         },
-        figures: [
-            {
-                headYaw: 35 * DEG * smooth((u - 0.3) / 0.5),
-            },
-        ],
+        figures: [{ headYaw: LOOK_BACK * smooth((u - 0.25) / 0.55) }],
         punch: 0,
     };
 }
@@ -144,6 +143,8 @@ function shake(u: number): EpilogueStage {
             {
                 chair: (p) => roll(p, FLOOR, wiggle(u - 0.1)),
                 rider: (p) => roll(p, FLOOR, 1.15 * wiggle(u - 0.1 - late)),
+                // Picks up the look-back from cut 2 and snaps forward on the first jolt.
+                headYaw: LOOK_BACK * (1 - smooth(u / 0.22)),
             },
         ],
         punch: 0,
@@ -161,7 +162,7 @@ function strain(u: number): EpilogueStage {
         },
         figures: [
             {
-                sink: 7 * smooth(u / 0.55),
+                sink: SINK * smooth(u / 0.55),
                 splay: smooth(u / 0.5),
                 tremble: Math.sin(u * 95) * 0.9 * Math.min(1, u / 0.1),
                 sweat: sweat <= 1 ? sweat : -1,
@@ -170,27 +171,82 @@ function strain(u: number): EpilogueStage {
         punch: 0,
     };
 }
-const RELEASE = 0.3;
-const tipAt = (u: number) =>
-    0.4 * smooth(u / 0.22) + 0.05 * Math.sin(u * 60) * pulse(u, 0.06, 0.24);
-function drop(u: number): EpilogueStage {
-    const d = Math.max(0, u - RELEASE);
-    const spring = Math.exp(-5 * d);
-    const tip =
-        u < RELEASE ? tipAt(u) : tipAt(RELEASE) * spring * Math.cos(12 * d);
-    const stretch = u < RELEASE ? 0 : 0.12 * spring * Math.sin(12 * d);
-    const chair: Place = (p) =>
-        squash(tipForward(p, FRONT_WHEEL, tip), FLOOR, stretch);
-    const thrown: Place = (p) => {
-        const seated = tipForward(p, FRONT_WHEEL, tipAt(RELEASE));
-        const tumbled = tipForward(seated, BODY, 1.3 * d);
-        return shift(tumbled, [
-            -90 * d,
-            70 * d + 18 * (1 - Math.exp(-4 * d)),
-            -170 * d,
-        ]);
+
+/** Seconds since the chair flung the rider off; negative while he still sits. */
+const sinceFling = (beat: EpilogueBeat) =>
+    beat.t + ORBIT_ENDING.tap - ORBIT_ENDING.fling;
+const FLING_TIP = 0.45;
+const BOUNCE = 14;
+/** The chair, from the strained crouch through the fling and its spring back. */
+function chairAt(d: number, t: number): EndingPose {
+    if (d < 0) {
+        const s = d + ORBIT_ENDING.fling - ORBIT_ENDING.drop;
+        const tip =
+            FLING_TIP * smooth(s / 0.45) +
+            0.04 * Math.sin(s * 60) * pulse(s, 0.05, 0.3);
+        return {
+            parts: 'chair',
+            chair: (p) => tipForward(p, FRONT_WHEEL, tip),
+            sink: SINK,
+            splay: 1,
+            tremble: Math.sin(s * 95) * 0.6,
+        };
+    }
+    const spring = Math.exp(-3 * d);
+    const tip = FLING_TIP * spring * Math.cos(BOUNCE * d);
+    const stretch = 0.12 * spring * Math.sin(BOUNCE * d);
+    const bob = floatBob(d, t);
+    return {
+        parts: 'chair',
+        chair: (p) =>
+            shift(squash(tipForward(p, FRONT_WHEEL, tip), FLOOR, stretch), [
+                0,
+                bob,
+                0,
+            ]),
+        sink: SINK * spring * Math.cos(BOUNCE * d),
+        splay: Math.exp(-5 * d),
     };
-    const puff = (u - 0.7) / 0.5;
+}
+const floatBob = (d: number, t: number) =>
+    Math.sin(t * 2.2) * 1.2 * smooth(d / 2.5);
+const yaw = (p: Point3, a: number): Point3 => [
+    p[0] * Math.cos(a) - p[2] * Math.sin(a),
+    p[1],
+    p[0] * Math.sin(a) + p[2] * Math.cos(a),
+];
+/**
+ * The rider's flight in one continuous motion, so every cut from the fling
+ * to the stare picks up the pose the previous cut left: a forward
+ * somersault and a half turn that both slow to a stop as he drifts out to
+ * ADRIFT, facing back at the chair.
+ */
+function riderAt(d: number, t: number): Place {
+    if (d < 0) {
+        const chair = chairAt(d, t).chair!;
+        return (p) => chair([p[0], p[1] - SINK, p[2]]);
+    }
+    const e = 1 - Math.exp(-1.6 * d);
+    const somersault = FLING_TIP + (2 * Math.PI - FLING_TIP) * e;
+    const seat = tipForward(BODY, FRONT_WHEEL, FLING_TIP);
+    const bob = floatBob(d, t);
+    const lift = 30 * e * (1 - e);
+    const move: Point3 = [
+        (seat[0] - BODY[0]) * (1 - e) + ADRIFT[0] * e,
+        (seat[1] - BODY[1]) * (1 - e) + ADRIFT[1] * e + lift - bob,
+        (seat[2] - BODY[2]) * (1 - e) + ADRIFT[2] * e,
+    ];
+    return (p) => {
+        const seated: Point3 = [p[0], p[1] - SINK * (1 - e), p[2]];
+        const spun = yaw(
+            roll(tipForward(seated, BODY, somersault), BODY, DRIFT_ROLL * e),
+            Math.PI * e,
+        );
+        return shift(spun, move);
+    };
+}
+function drop(beat: EpilogueBeat): EpilogueStage {
+    const d = sinceFling(beat);
     return {
         shot: {
             orbit: -0.55,
@@ -201,53 +257,60 @@ function drop(u: number): EpilogueStage {
             centerY: 0.56,
         },
         figures: [
-            {
-                chair,
-                rider:
-                    u < RELEASE
-                        ? (p) => tipForward(p, FRONT_WHEEL, tip)
-                        : thrown,
-            },
+            chairAt(d, beat.t),
+            { parts: 'rider', rider: riderAt(d, beat.t) },
         ],
+        punch: 0,
+    };
+}
+function drift(beat: EpilogueBeat): EpilogueStage {
+    const d = sinceFling(beat);
+    const chair = chairAt(d, beat.t);
+    const puff = (d - 0.45) / 0.7;
+    return {
+        shot: {
+            orbit: 0,
+            focus: [200, 0, 0],
+            distance: 560,
+            lift: 45,
+            zoom: 1,
+        },
+        figures: [chair, { parts: 'rider', rider: riderAt(d, beat.t) }],
         punch: 0,
         puff:
             puff > 0 && puff < 1
-                ? { at: chair([32, -22, 0]), k: puff }
+                ? { at: chair.chair!([32, -22, 0]), k: puff }
                 : undefined,
     };
 }
-function bewildered(u: number, t: number): EpilogueStage {
-    const lean = 0.08 + (DRIFT_ROLL - 0.08) * smooth(u / 1.4);
-    const bob = Math.sin(t * 1.7) * 1.2;
+function bewildered(beat: EpilogueBeat): EpilogueStage {
+    const d = sinceFling(beat);
     return {
-        shot: { orbit: -1, focus: [6, 40, 0], distance: 165, lift: 4, zoom: 1 },
+        shot: {
+            orbit: 0.25,
+            focus: [425, 52, -10],
+            distance: 175,
+            lift: 8,
+            zoom: 1,
+            offsetX: 0.1,
+        },
         figures: [
-            {
-                parts: 'chair',
-                chair: (p) => shift(p, [-900, -70, 160]),
-            },
-            {
-                rider: (p) => shift(roll(p, BODY, lean), [0, bob, 0]),
-            },
+            chairAt(d, beat.t),
+            { parts: 'rider', rider: riderAt(d, beat.t) },
         ],
         punch: 0,
     };
 }
 function stare(beat: EpilogueBeat): EpilogueStage {
-    const bob = Math.sin(beat.t * 2.2) * 1.2;
+    const d = sinceFling(beat);
     const onChair = beat.cut === 'stare-chair';
     const chair: EndingPose = {
-        parts: 'chair',
-        chair: (p) => shift(p, [0, bob, 0]),
+        ...chairAt(d, beat.t),
         tint: onChair ? { chair: darken(0.28) } : undefined,
     };
     const rider: EndingPose = {
-        rider: (p) =>
-            shift(turnAround(roll(p, BODY, DRIFT_ROLL)), [
-                ADRIFT[0],
-                ADRIFT[1] - bob,
-                ADRIFT[2],
-            ]),
+        parts: 'rider',
+        rider: riderAt(d, beat.t),
         tint: onChair ? undefined : { rider: darken(0.32) },
     };
     return {
@@ -283,9 +346,11 @@ export function stageEpilogue(beat: EpilogueBeat): EpilogueStage {
         case 'strain':
             return strain(beat.u);
         case 'drop':
-            return drop(beat.u);
+            return drop(beat);
+        case 'drift':
+            return drift(beat);
         case 'bewildered':
-            return bewildered(beat.u, beat.t);
+            return bewildered(beat);
         case 'stare-chair':
         case 'stare-rider':
             return stare(beat);

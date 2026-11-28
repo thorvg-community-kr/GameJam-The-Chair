@@ -54,7 +54,8 @@ const EPILOGUE_SFX: Array<{ at: number; cue: SoundCue }> = [
     { at: E.shake + 0.1, cue: { name: 'squeak', gain: 0.8, rate: 0.9 } },
     { at: E.shake + 0.7, cue: { name: 'squeak', gain: 0.7, rate: 0.8 } },
     { at: E.strain + 0.05, cue: { name: 'woodCreak', gain: 0.9, rate: 0.75 } },
-    { at: E.drop + 0.32, cue: { name: 'squeak', gain: 0.6, rate: 1.7 } },
+    { at: E.fling, cue: { name: 'wind', gain: 0.5, rate: 1.4 } },
+    { at: E.drift + 0.05, cue: { name: 'squeak', gain: 0.6, rate: 1.7 } },
 ];
 function epilogue(
     prev: GameSnapshot | null,

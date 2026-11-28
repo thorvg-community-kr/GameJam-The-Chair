@@ -23,7 +23,9 @@ export const ORBIT_ENDING = {
     shake: 42.2,
     strain: 43.6,
     drop: 44.3,
-    bewildered: 45.6,
-    stare: 47,
-    hold: 49.4,
+    fling: 44.85,
+    drift: 45.1,
+    bewildered: 46.7,
+    stare: 47.9,
+    hold: 50.3,
 };

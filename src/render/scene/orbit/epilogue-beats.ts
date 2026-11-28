@@ -6,6 +6,7 @@ export type EpilogueCut =
     | 'shake'
     | 'strain'
     | 'drop'
+    | 'drift'
     | 'bewildered'
     | 'stare-chair'
     | 'stare-rider';
@@ -37,6 +38,7 @@ export function epilogueBeat(ending: number): EpilogueBeat | null {
         ['shake', E.shake],
         ['strain', E.strain],
         ['drop', E.drop],
+        ['drift', E.drift],
         ['bewildered', E.bewildered],
     ];
     if (time < E.stare) {
