@@ -26,6 +26,7 @@ import type { WindowView } from './window-view';
 import type { DeepReadonly, Person } from '../../../game/types';
 import type { RenderCtx } from '../../context';
 import type { Vector } from '../../types';
+const POT_SUNK_Y = 31;
 const EXIT = { left: LEVEL.goal - 45, right: LEVEL.goal + 81 };
 function exitDoor(ctx: RenderCtx, goal: number, wallFoot: number) {
     const top = wallFoot - 205;
@@ -453,7 +454,38 @@ function drawOfficeForeground(ctx: RenderCtx) {
     ctx.ellipse(p.x, F + 8, 45, 5, {
         c: '#91959c',
     });
-    player(ctx);
+    if (ctx.inBin) {
+        const rider = ctx.player;
+        const x = ctx.bin.x;
+        const rim = ctx.F - 30;
+        const line = (px: number, py: number) =>
+            [px, py, px, py, px, py] as [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+            ];
+        ctx.player = { ...rider, y: ctx.F + POT_SUNK_Y, a: 0 };
+        ctx.withLayer(
+            {
+                key: 'pot-face',
+                clip: ctx.pathCommand(
+                    [x - 20, rim - 90],
+                    [
+                        line(x + 26, rim - 90),
+                        line(x + 26, rim - 4),
+                        line(x - 20, rim - 4),
+                    ],
+                ),
+            },
+            () => player(ctx),
+        );
+        ctx.player = rider;
+    } else {
+        player(ctx);
+    }
     binFront(ctx);
     officeControlHints(ctx);
     debugCollisions(ctx);
