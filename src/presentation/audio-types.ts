@@ -17,7 +17,9 @@ export type SceneSfxName =
     | 'uiConfirm'
     | 'uiError'
     | 'ventBlow'
-    | 'sprayLever';
+    | 'sprayLever'
+    | 'portraitSlip'
+    | 'portraitCatch';
 
 export type LoopName =
     'gasLoop' | 'wheelLoop' | 'liftMotor' | 'ventMotor' | 'satelliteScan';

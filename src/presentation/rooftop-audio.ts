@@ -6,6 +6,7 @@ import {
 } from '../game/stages/rooftop/data';
 
 import type { AudioScene } from './audio-scene';
+import type { GameSnapshot } from '../game/game';
 
 function vents({ prev, next, audio }: AudioScene): void {
     const nearest = STAGE_THREE.vents
@@ -65,6 +66,33 @@ function duct({ prev, next, audio }: AudioScene): void {
     }
 }
 
+const PORTRAIT_SLIP = 0.12;
+const PORTRAIT_CATCH = 0.36;
+
+function portraitAge(state: GameSnapshot): number | null {
+    if (state.checkpoint > 0) {
+        return null;
+    }
+    const entrance = state.rooftopEntrance;
+    const time = entrance.kind === 'opening' ? entrance.age : state.time;
+    return time - STAGE_THREE.entrance.duration;
+}
+
+function portrait({ prev, next, audio }: AudioScene): void {
+    const before = portraitAge(prev);
+    const after = portraitAge(next);
+    if (before === null || after === null) {
+        return;
+    }
+    const crossed = (at: number) => before < at && after >= at;
+    if (crossed(PORTRAIT_SLIP)) {
+        addSound(audio, 'portraitSlip', 0.8);
+    }
+    if (crossed(PORTRAIT_CATCH)) {
+        addSound(audio, 'portraitCatch', 0.9);
+    }
+}
+
 export function rooftopAudio(scene: AudioScene): void {
     const { prev, next, audio } = scene;
     const before = prev.rooftopEntrance;
@@ -85,6 +113,7 @@ export function rooftopAudio(scene: AudioScene): void {
         addSound(audio, 'launchKick', 0.85);
         addSound(audio, 'ventBlow', 0.8);
     }
+    portrait(scene);
     vents(scene);
     duct(scene);
 }

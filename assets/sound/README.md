@@ -32,6 +32,7 @@ The linked public libraries identify these effects as CC0: [SFXMint license](htt
 | Extinguisher | Edited lever click and synthesized gas loop |
 | Chair and convoy motion | Crossfaded chair recording; horn at express transition |
 | Vent and duct warning, blast | Synthesized motor loop and edited wind |
+| Employee-of-the-month portrait slip and catch | Synthesized nail ping, knock and swing creak |
 | Rooftop takeoff | Synthesized windup, kick and edited wind |
 | Sky desks, signs, floating gear | Synthesized wood creak and metal rattle |
 | Approaching bird and bird collision | Edited squawk and existing impact recording |
@@ -44,6 +45,6 @@ The linked public libraries identify these effects as CC0: [SFXMint license](htt
 
 ## Verification
 
-Use Play in `/preview.html`; seeking is silent. Relevant scenes include `office-typing`, `lift-arrival-audio`, `extinguisher-spray`, `rooftop-shaft-low`, `rooftop-takeoff`, `sky-surface-audio`, `orbit-route`, and `orbit-photo`. The photograph marker identifies its real capture frame. Rewinding or looping a scene resets sound history.
+Use Play in `/preview.html`; seeking is silent. Relevant scenes include `office-typing`, `rooftop-entrance`, `lift-arrival-audio`, `extinguisher-spray`, `rooftop-shaft-low`, `rooftop-takeoff`, `sky-surface-audio`, `orbit-route`, and `orbit-photo`. The photograph marker identifies its real capture frame. Rewinding or looping a scene resets sound history.
 
 `tests/scene-audio.test.mjs` covers transition timing, distance, cancellation, the photograph, preview collision events and gameplay isolation. `tests/sound-assets.test.mjs` checks PCM formats, durations, headroom and sample boundaries. Final timbre and music balance should also be checked by listening in the game.

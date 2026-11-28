@@ -208,3 +208,25 @@ test('audio observation never changes serialized gameplay', () => {
     sceneAudio(before, next);
     assert.deepEqual(parseState(game.serialize()), parseState(state));
 });
+
+test('the employee-of-the-month portrait slips and catches once after the door shuts', () => {
+    const scene = previewScenes
+        .find((item) => item.id === 'rooftop-entrance')
+        .create();
+    let previous = scene.sample(0).state;
+    const heard = [];
+    for (let t = 1 / 60; t < scene.duration; t += 1 / 60) {
+        const next = scene.sample(t).state;
+        for (const name of names(sceneAudio(previous, next))) {
+            heard.push({ name, t });
+        }
+        previous = next;
+    }
+    const at = (name) => heard.filter((item) => item.name === name);
+    const [close] = at('doorClose');
+    const slips = at('portraitSlip');
+    const catches = at('portraitCatch');
+    assert.equal(slips.length, 1);
+    assert.equal(catches.length, 1);
+    assert.ok(close.t < slips[0].t && slips[0].t < catches[0].t);
+});
